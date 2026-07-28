@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Annotated, Iterable, Iterator
 
 from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from apps.api.settings import AppSettings
@@ -46,6 +47,21 @@ app = FastAPI(
     title="Historical Timeline Agent API",
     description="Query and compare historical events across regions and time periods.",
     version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

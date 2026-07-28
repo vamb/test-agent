@@ -2,3 +2,6 @@
 __pycache__/
 *.py[cod]
 .tmp/
+node_modules/
+dist/
+*.tsbuildinfo

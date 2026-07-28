@@ -26,6 +26,8 @@ python -m pip install -r apps/api/requirements.txt
 python -m uvicorn apps.api.main:app --reload
 ```
 
+本地前端开发地址 `http://127.0.0.1:5173` 已加入 CORS 允许列表。
+
 ## 首批接口
 
 ```text
@@ -211,4 +213,4 @@ curl -X POST http://127.0.0.1:8000/admin/sources/{source_id}/verify ^
 
 ## 说明
 
-当前 Agent Runtime 已支持 ModelAdapter、OpenAI Function Calling、ToolRegistry、ToolExecutor、工具参数校验、超时、重试、模型 token/耗时/成本记录、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复执行、数据导入审核流、知识库 pgvector 检索、事件管理和人工确认 MVP。后续可进入 React 横向对照表 UI，或把当前手写 checkpoint 迁移到 LangGraph。
+当前 Agent Runtime 已支持 ModelAdapter、OpenAI Function Calling、ToolRegistry、ToolExecutor、工具参数校验、超时、重试、模型 token/耗时/成本记录、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复执行、数据导入审核流、知识库 pgvector 检索、事件管理和人工确认 MVP。React 工作台在 `apps/web`，支持 Agent SSE、横向对照表和事件详情。

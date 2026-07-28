@@ -7,7 +7,7 @@
 
 | 时间 | 本次完成 | 验证结果 | 下一步 |
 |---|---|---|---|
-| 2026-07-28 | 完成 checkpoint 恢复执行 MVP：从 `agent_steps` 重建已完成工具调用上下文，worker 恢复时从下一步继续执行 | 单元测试 40/40 通过；MVP 评测 4/4 通过 | 进入 React 查询页和横向对照表 UI，或把手写 checkpoint 迁移到 LangGraph |
+| 2026-07-28 | 完成 React 查询页和横向对照表 UI MVP：新增 `apps/web`，支持 Agent SSE 步骤流、年份/时间段地区对照、事件详情和来源展示 | 前端 `npm run build` 通过；后端单元测试 40/40 通过 | 继续做前端联调优化、数据管理后台，或把手写 checkpoint 迁移到 LangGraph |
 
 ## 12 周开发周期
 
@@ -18,7 +18,7 @@
 | 第 3 周 | 2026-08-11 至 2026-08-17 | 基础 MVP | 支持按年份和时间段查询事件 | 实现手写 Agent Loop、ModelAdapter、工具注册表、工具执行器、年份查询、时间段查询、事件详情工具；查询源从 JSON 切换到 PostgreSQL | 可查询真实数据库的历史事件 Agent | 已完成 |
 | 第 4 周 | 2026-08-18 至 2026-08-24 | 数据底座 | 建立历史事件结构化数据库 | PostgreSQL 表设计、pgvector、导入脚本、事件来源表、基础校验 | PostgreSQL 历史事件数据底座 | 已完成 |
 | 第 5 周 | 2026-08-25 至 2026-08-31 | 任务型 Agent | 展示 Agent 每一步执行过程 | 任务表、步骤表、工具调用表、SSE 步骤流、执行日志、取消入口 | 可回放、可流式观察、可取消的 Agent 执行记录 | 已完成 MVP |
-| 第 6 周 | 2026-09-01 至 2026-09-07 | 横向对照 | 生成多地区时间对照表 | compare_regions、generate_timeline 工具、前端对照表组件 | 600-900 年欧亚历史对照表 Demo | 待开始 |
+| 第 6 周 | 2026-09-01 至 2026-09-07 | 横向对照 | 生成多地区时间对照表 | compare_regions、React 横向对照表组件、事件详情和来源展示 | 600-900 年欧亚历史对照表 Demo | 已完成 MVP |
 | 第 7 周 | 2026-09-08 至 2026-09-14 | RAG 和来源 | 支持来源引用和文本检索 | pgvector、文档切分、来源检索、引用格式输出 | 带来源的历史问答 | 已完成检索 MVP，引用注入待做 |
 | 第 8 周 | 2026-09-15 至 2026-09-21 | 关联分析 | 分析同期事件是否有关联 | event_relations、find_related_events、证据强弱提示 | 事件关系分析 Demo | 已完成 MVP |
 | 第 9 周 | 2026-09-22 至 2026-09-28 | 安全和权限 | 防止错误导入、错误修改和无来源结论 | 只读工具权限、管理员导入确认、审计日志、争议标记 | 安全策略和数据修改确认机制 | 已完成写操作确认 MVP，完整 RBAC 待做 |
@@ -50,7 +50,7 @@
 
 ## 当前任务队列
 
-当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、RAG 检索、事件管理和人工确认均已完成 MVP；下一步可进入前端 UI 或 LangGraph 正式化。
+当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、RAG 检索、事件管理、人工确认、React 查询页和横向对照表 UI 均已完成 MVP；下一步可进入前端联调优化、数据管理后台或 LangGraph 正式化。
 
 | 优先级 | 任务 | 负责人 | 状态 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
@@ -80,4 +80,5 @@
 | 24 | 实现 RAG / embedding / pgvector 检索 | 后端/知识库 | 已完成 MVP | 第八阶段：RAG 知识库 |
 | 25 | 实现事件管理接口和权限/人工确认 | 后端 | 已完成 MVP，完整 RBAC 待做 | 平台化第一版；第十二阶段：安全体系 |
 | 26 | 实现 Redis / Worker / 任务恢复 | 后端 | 已完成 Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收和 checkpoint 恢复 MVP | 系统架构：Task Worker；第十一阶段：任务持久化与故障恢复 |
-| 27 | 实现横向对照表 UI | 前端 | 待开始 | 第一阶段 MVP：React 聊天页面；业务可视化前端 |
+| 27 | 实现横向对照表 UI | 前端 | 已完成 MVP | 第一阶段 MVP：React 聊天页面；业务可视化前端 |
+| 28 | 前端联调优化和数据管理后台 | 前端/后端 | 待开始 | 平台化第一版；业务可视化前端 |

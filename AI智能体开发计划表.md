@@ -112,17 +112,17 @@ ai-agent/
 
 | 时间 | 本次完成 | 验证结果 | 下一步 |
 |---|---|---|---|
-| 2026-07-28 | 完成 checkpoint 恢复执行 MVP：从 `agent_steps` 重建已完成工具调用上下文，worker 恢复时从下一步继续执行 | 单元测试 40/40 通过；MVP 评测 4/4 通过 | 进入 React 查询页和横向对照表 UI，或把手写 checkpoint 迁移到 LangGraph |
+| 2026-07-28 | 完成 React 查询页和横向对照表 UI MVP：新增 `apps/web`，支持 Agent SSE 步骤流、年份/时间段地区对照、事件详情和来源展示 | 前端 `npm run build` 通过；后端单元测试 40/40 通过 | 继续做前端联调优化、数据管理后台，或把手写 checkpoint 迁移到 LangGraph |
 
 ### 当前状态摘要
 
 | 项目 | 当前状态 |
 |---|---|
-| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP 已完成 |
-| 已完成主链路 | FastAPI API、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理 |
-| 当前可运行能力 | 用户可通过 `/agent/query` 同步提问，通过 `/agent/query/stream` 实时查看 Agent 工具调用过程，也可通过 `/agent/query/async` 异步提交并由 Redis Worker 执行和恢复 |
-| 当前验证结果 | 单元测试 40/40 通过，MVP 评测 4/4 通过 |
-| 下一步重点 | React 查询页和横向对照表 UI，或把手写 checkpoint 迁移到 LangGraph |
+| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP、React 查询页和横向对照表 UI MVP 已完成 |
+| 已完成主链路 | FastAPI API、React Web、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理 |
+| 当前可运行能力 | 用户可在 Web 工作台中运行 Agent、查看 SSE 工具调用过程、按年份/时间段生成地区横向对照表、点击事件查看详情和来源 |
+| 当前验证结果 | 前端 `npm run build` 通过；后端单元测试 40/40 通过，MVP 评测 4/4 通过 |
+| 下一步重点 | 前端联调优化、数据管理后台、RAG 引用注入，或把手写 checkpoint 迁移到 LangGraph |
 | 暂不推进 | 多智能体、MCP、Playwright、复杂 RBAC、Kubernetes，等单 Agent 与数据管理链路稳定后再做 |
 
 | 模块 | 状态 | 已在线完成的功能 | 对应 PDF 功能/章节 |
@@ -154,13 +154,13 @@ ai-agent/
 | 事件管理和人工确认 | 已完成 MVP | 已新增 `/admin/events`、修改、归档、争议标记、来源核验接口；写操作必须带 `admin_token` 和 `confirmed=true`，并写入 `event_change_logs` 审计日志 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
 | 手写 Agent Loop | 已完成 MVP | API 和评测已切换到新 Loop，支持最大步数、步骤记录、工具结果裁剪 | 第三阶段：实现最小 Agent Loop |
 | 后端缺口审查 | 已完成 | 已形成 `docs/backend_gap_review.md`，记录与 PDF 技术栈的差距 | 第十九：推荐开发顺序；第二十二：最终技术选型建议 |
-| 前端 | 暂后 | 尚未开始 React 查询页和横向对照表 UI | 第一阶段 MVP：React 聊天页面、流式回复 |
+| 前端 | 已完成 MVP | 已新增 `apps/web` React + TypeScript + Vite 工作台，支持 Agent SSE、横向对照表、事件详情和来源展示 | 第一阶段 MVP：React 聊天页面、流式回复；业务可视化前端 |
 
 ### 紧要但未完成的能力
 
 | 优先级 | 后端能力 | 当前状态 | 为什么紧要 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
-| 1 | React 查询页和横向对照表 UI | 未完成 | 后端主链路已经较完整，下一步需要让用户能真实使用年份查询、SSE 步骤流和横向对照表 | 第一阶段 MVP：React 聊天页面；业务可视化前端 |
+| 1 | 前端联调优化和可用性打磨 | 部分完成 | Web 工作台 MVP 已完成；还需要浏览器联调、异常态优化、移动端细节和真实用户流程打磨 | 第一阶段 MVP：React 聊天页面；业务可视化前端 |
 | 2 | 完整 RBAC / 多租户权限 | 未完成 | 当前只有 admin token + confirmed MVP，后续上线需要用户身份、角色、租户隔离和权限策略落库 | 第十二阶段：安全体系 |
 | 3 | LangGraph checkpoint / 恢复机制 | 未完成 | 当前手写 Agent Loop 已有 checkpoint 恢复 MVP；还未迁移到 LangGraph 原生 checkpoint / interrupt | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
 | 4 | RAG 增强 | 部分完成 | MVP 已有本地 embedding 和 pgvector 检索；还缺真实模型 embedding、混合检索、引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
@@ -180,7 +180,7 @@ ai-agent/
 | 5 | 数据导入审核流 | 已完成 MVP：支持 staging、校验、人工确认、正式入库，避免污染历史事件表 | 第十阶段：人工确认机制；第十二阶段：安全体系 |
 | 6 | RAG / embedding / pgvector 检索 | 已完成 MVP：pgvector 已参与知识文档语义检索 | 第八阶段：RAG 知识库 |
 | 7 | 事件管理接口和权限/人工确认 | 已完成 MVP：新增、修改、归档、争议标记、来源核验，写操作需 admin token 和显式确认 | 平台化第一版；工具权限策略；第十二阶段：安全体系 |
-| 8 | React 查询页和横向对照表 UI | 做出可交互的年份查询、时间段对照表和 Agent 分析区 | 第一阶段基础 MVP；前端 React + TypeScript |
+| 8 | React 查询页和横向对照表 UI | 已完成 MVP：可交互年份查询、时间段对照表、Agent 分析区和事件来源详情 | 第一阶段基础 MVP；前端 React + TypeScript |
 | 9 | Redis / Worker / 任务队列 | 已完成 Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收和 checkpoint 恢复 MVP | 系统架构：Task Worker；最终技术选型：Redis |
 | 10 | LangGraph 工作流 | 后续增强：把当前手写 Loop、checkpoint 和人工确认迁移到 LangGraph | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
 | 11 | MCP 接入 | 等本地工具边界稳定后，把核心工具服务标准化给外部智能体复用 | 第九阶段：MCP 能力标准化 |

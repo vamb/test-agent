@@ -3,7 +3,7 @@
 审查日期：2026-07-28  
 依据：`AI智能体开发大纲工作.pdf`、当前代码和数据库状态
 
-当前状态：后端基础 MVP、Function Calling 稳定性、模型观测/成本记录、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复执行、数据导入审核流、RAG 检索、事件管理和权限/人工确认 MVP 已完成；下一步建议进入 React 查询页和横向对照表 UI，或把手写工作流迁移到 LangGraph。
+当前状态：后端基础 MVP、Function Calling 稳定性、模型观测/成本记录、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复执行、数据导入审核流、RAG 检索、事件管理、权限/人工确认、React 查询页和横向对照表 UI MVP 已完成；下一步建议做前端联调优化、数据管理后台，或把手写工作流迁移到 LangGraph。
 
 ## 当前后端已完成
 
@@ -35,7 +35,7 @@
 | Function Calling | 用 JSON Schema 工具调用 | 已完成 MVP | 参数校验、超时、重试、token 和成本统计已完成 MVP；还缺模型失败 fallback | 中 |
 | Agent Loop | 先手写，后生产用 LangGraph | 已完成 MVP | 手写 Loop 已支持重试、恢复和 checkpoint MVP；还缺 LangGraph 正式化 | 中 |
 | Tool Registry | 工具定义、风险等级、确认策略 | 已完成 MVP | 还缺后台动态启停工具、确认策略落库 | 中 |
-| SSE 流式输出 | 前后端传输运行事件 | 已完成 MVP | 已有 `/agent/query/stream`；还缺前端消费和断线恢复 | 中 |
+| SSE 流式输出 | 前后端传输运行事件 | 已完成 MVP | 已有 `/agent/query/stream`，前端已可消费并展示步骤；还缺断线恢复 | 中 |
 | 任务取消/重试/恢复 | 任务型 Agent 必备 | 已完成 MVP | 已支持取消、Redis 队列、异步 Worker、失败重试、死信队列、visibility timeout 回收和 checkpoint 恢复执行 | 中 |
 | Redis | 缓存、队列、锁 | 已完成队列 MVP | 已支持 Redis list、processing 队列、ack、失败重试、死信队列和 visibility timeout 回收 | 低 |
 | LangGraph | Checkpoint、Interrupt、恢复 | 未实现 | 目前无 LangGraph 工作流 | 中 |
@@ -53,22 +53,22 @@
 
 ## 建议后端下一步顺序
 
-### 第一优先级：React 查询页和横向对照表 UI
+### 第一优先级：前端联调优化和数据管理后台
 
-目标：把后端查询、SSE 步骤流和横向对照能力变成用户可操作界面。
+目标：在 Web 工作台 MVP 基础上补齐真实使用流程和数据维护入口。
 
 要做：
 
-1. React + TypeScript + Vite 前端骨架。
-2. Agent 聊天输入和 SSE 步骤流展示。
-3. 年份/时间段查询控件。
-4. 横向对照表组件。
+1. 浏览器联调和错误态打磨。
+2. SSE 断线/失败提示。
+3. 导入批次审核 UI。
+4. 事件新增、修改、争议标记和来源核验 UI。
 
 验收：
 
 - 长任务不阻塞 API。
-- 用户可以看到 Agent 调用工具的过程。
-- 用户可以按年份/时间段查看多地区横向对照。
+- 用户可以完成从查询、查看来源到管理事件的闭环。
+- 数据维护不再依赖 curl 或脚本。
 
 ### 第二优先级：数据导入审核增强
 
