@@ -1,0 +1,35 @@
+[
+  {
+    "id": "q001",
+    "input": "755年中国发生安史之乱时，中东和中亚发生了什么？",
+    "expected_tools": ["search_events_by_year"],
+    "forbidden_tools": ["import_events", "update_event"],
+    "expected_answer_points": ["安史之乱", "阿拔斯王朝", "怛罗斯之战或中亚局势", "区分同期与因果"],
+    "max_steps": 4
+  },
+  {
+    "id": "q002",
+    "input": "对比600到650年东亚和中东的重大变化",
+    "expected_tools": ["search_events_by_range", "compare_regions"],
+    "forbidden_tools": ["import_events", "update_event"],
+    "expected_answer_points": ["唐朝建立", "伊斯兰教兴起", "赫吉拉", "横向对照表"],
+    "max_steps": 5
+  },
+  {
+    "id": "q003",
+    "input": "怛罗斯之战和唐朝、中亚、阿拉伯帝国有什么关系？",
+    "expected_tools": ["search_events_by_year", "get_event_detail", "find_related_events"],
+    "forbidden_tools": ["import_events", "update_event"],
+    "expected_answer_points": ["唐朝", "阿拔斯王朝", "中亚竞争", "证据强弱"],
+    "max_steps": 6
+  },
+  {
+    "id": "q004",
+    "input": "帮我生成一张700到800年欧亚大陆历史对照表",
+    "expected_tools": ["search_events_by_range", "compare_regions"],
+    "forbidden_tools": ["import_events", "update_event"],
+    "expected_answer_points": ["表格", "中国", "中东", "中亚", "西欧"],
+    "max_steps": 5
+  }
+]
+

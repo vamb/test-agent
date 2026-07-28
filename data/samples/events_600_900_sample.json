@@ -1,0 +1,255 @@
+[
+  {
+    "title": "隋朝灭亡",
+    "start_year": 618,
+    "end_year": 618,
+    "start_date_text": "618年",
+    "end_date_text": "618年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "隋朝",
+    "modern_country": "中国",
+    "category": ["政治", "王朝更替"],
+    "summary": "隋朝在内乱和地方割据中灭亡，唐朝随后建立，东亚政治格局进入唐代。",
+    "causes": ["大规模徭役和战争消耗", "地方叛乱扩大", "中央控制削弱"],
+    "effects": ["唐朝建立", "中国重新进入统一王朝阶段"],
+    "actors": ["隋炀帝", "李渊"],
+    "source_status": "draft",
+    "confidence": 0.85,
+    "sources": [
+      {
+        "source_title": "旧唐书",
+        "source_type": "book",
+        "url": "",
+        "citation": "旧唐书相关本纪",
+        "excerpt": "",
+        "reliability": 0.8
+      }
+    ]
+  },
+  {
+    "title": "唐朝建立",
+    "start_year": 618,
+    "end_year": 618,
+    "start_date_text": "618年",
+    "end_date_text": "618年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "唐朝",
+    "modern_country": "中国",
+    "category": ["政治", "王朝更替"],
+    "summary": "李渊称帝，建立唐朝。唐朝随后逐步统一中国，并成为 7-9 世纪东亚最重要的政权之一。",
+    "causes": ["隋末动乱", "关陇军事集团崛起"],
+    "effects": ["唐朝统一战争展开", "东亚秩序重组"],
+    "actors": ["李渊", "李世民"],
+    "source_status": "draft",
+    "confidence": 0.9,
+    "sources": [
+      {
+        "source_title": "新唐书",
+        "source_type": "book",
+        "url": "",
+        "citation": "新唐书相关本纪",
+        "excerpt": "",
+        "reliability": 0.8
+      }
+    ]
+  },
+  {
+    "title": "伊斯兰教兴起",
+    "start_year": 610,
+    "end_year": 632,
+    "start_date_text": "约610年至632年",
+    "end_date_text": "632年",
+    "time_precision": "range",
+    "region": "中东",
+    "polity": "阿拉伯半岛",
+    "modern_country": "沙特阿拉伯",
+    "category": ["宗教", "政治"],
+    "summary": "穆罕默德在阿拉伯半岛传播伊斯兰教，并在麦地那建立早期穆斯林共同体。",
+    "causes": ["阿拉伯半岛宗教和部落格局变化", "麦加贸易社会发展"],
+    "effects": ["阿拉伯统一进程加速", "后续哈里发国家扩张"],
+    "actors": ["穆罕默德"],
+    "source_status": "draft",
+    "confidence": 0.8,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica",
+        "source_type": "encyclopedia",
+        "url": "https://www.britannica.com/topic/Islam",
+        "citation": "Encyclopaedia Britannica, Islam",
+        "excerpt": "",
+        "reliability": 0.75
+      }
+    ]
+  },
+  {
+    "title": "赫吉拉",
+    "start_year": 622,
+    "end_year": 622,
+    "start_date_text": "622年",
+    "end_date_text": "622年",
+    "time_precision": "year",
+    "region": "中东",
+    "polity": "早期穆斯林共同体",
+    "modern_country": "沙特阿拉伯",
+    "category": ["宗教", "政治"],
+    "summary": "穆罕默德及追随者从麦加迁往麦地那，此事成为伊斯兰历纪年的起点。",
+    "causes": ["麦加反对势力压力", "麦地那部落调解需求"],
+    "effects": ["麦地那共同体建立", "伊斯兰政治共同体形成"],
+    "actors": ["穆罕默德"],
+    "source_status": "draft",
+    "confidence": 0.85,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica",
+        "source_type": "encyclopedia",
+        "url": "https://www.britannica.com/event/Hijrah-Islam",
+        "citation": "Encyclopaedia Britannica, Hijrah",
+        "excerpt": "",
+        "reliability": 0.75
+      }
+    ]
+  },
+  {
+    "title": "大化改新",
+    "start_year": 645,
+    "end_year": 646,
+    "start_date_text": "645年至646年",
+    "end_date_text": "646年",
+    "time_precision": "range",
+    "region": "东亚",
+    "polity": "日本飞鸟时代",
+    "modern_country": "日本",
+    "category": ["政治", "制度"],
+    "summary": "日本以唐制为重要参照推动中央集权改革，削弱豪族势力，强化天皇和国家制度。",
+    "causes": ["豪族势力强大", "唐朝制度影响", "日本统治集团改革需求"],
+    "effects": ["律令国家建设推进", "中央集权制度增强"],
+    "actors": ["中大兄皇子", "中臣镰足"],
+    "source_status": "draft",
+    "confidence": 0.8,
+    "sources": [
+      {
+        "source_title": "日本书纪",
+        "source_type": "book",
+        "url": "",
+        "citation": "日本书纪相关记载",
+        "excerpt": "",
+        "reliability": 0.7
+      }
+    ]
+  },
+  {
+    "title": "怛罗斯之战",
+    "start_year": 751,
+    "end_year": 751,
+    "start_date_text": "751年",
+    "end_date_text": "751年",
+    "time_precision": "year",
+    "region": "中亚",
+    "polity": "唐朝与阿拔斯王朝",
+    "modern_country": "哈萨克斯坦",
+    "category": ["战争", "政治"],
+    "summary": "唐朝安西军与阿拔斯王朝军队在中亚怛罗斯附近交战，唐军战败。该战常被视为唐朝和阿拉伯势力在中亚竞争的重要节点。",
+    "causes": ["唐朝与阿拉伯势力在中亚扩张", "地方政权冲突"],
+    "effects": ["唐朝在中亚影响受挫", "阿拉伯势力在中亚影响增强"],
+    "actors": ["高仙芝", "阿拔斯王朝军队"],
+    "source_status": "draft",
+    "confidence": 0.8,
+    "sources": [
+      {
+        "source_title": "资治通鉴",
+        "source_type": "book",
+        "url": "",
+        "citation": "资治通鉴唐纪相关记载",
+        "excerpt": "",
+        "reliability": 0.8
+      }
+    ]
+  },
+  {
+    "title": "安史之乱爆发",
+    "start_year": 755,
+    "end_year": 763,
+    "start_date_text": "755年至763年",
+    "end_date_text": "763年",
+    "time_precision": "range",
+    "region": "东亚",
+    "polity": "唐朝",
+    "modern_country": "中国",
+    "category": ["战争", "政治"],
+    "summary": "安禄山、史思明等发动大规模叛乱，重创唐朝政治、军事和财政体系，是唐朝由盛转衰的重要事件。",
+    "causes": ["藩镇势力扩张", "边镇节度使权力过大", "中央政治失衡"],
+    "effects": ["唐朝国力衰退", "藩镇割据加重", "财政和人口受到严重冲击"],
+    "actors": ["安禄山", "史思明", "唐玄宗", "唐肃宗"],
+    "source_status": "draft",
+    "confidence": 0.9,
+    "sources": [
+      {
+        "source_title": "旧唐书",
+        "source_type": "book",
+        "url": "",
+        "citation": "旧唐书相关本纪与列传",
+        "excerpt": "",
+        "reliability": 0.8
+      }
+    ]
+  },
+  {
+    "title": "阿拔斯王朝建立",
+    "start_year": 750,
+    "end_year": 750,
+    "start_date_text": "750年",
+    "end_date_text": "750年",
+    "time_precision": "year",
+    "region": "中东",
+    "polity": "阿拔斯王朝",
+    "modern_country": "伊拉克",
+    "category": ["政治", "王朝更替"],
+    "summary": "阿拔斯革命推翻倭马亚王朝，建立阿拔斯王朝，伊斯兰世界政治中心逐渐转向伊拉克地区。",
+    "causes": ["倭马亚统治不满", "呼罗珊势力参与", "阿拔斯家族政治动员"],
+    "effects": ["巴格达后来成为政治和文化中心", "伊斯兰世界政治格局变化"],
+    "actors": ["阿拔斯家族", "阿布·阿拔斯"],
+    "source_status": "draft",
+    "confidence": 0.85,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica",
+        "source_type": "encyclopedia",
+        "url": "https://www.britannica.com/topic/Abbasid-dynasty",
+        "citation": "Encyclopaedia Britannica, Abbasid dynasty",
+        "excerpt": "",
+        "reliability": 0.75
+      }
+    ]
+  },
+  {
+    "title": "查理曼加冕为皇帝",
+    "start_year": 800,
+    "end_year": 800,
+    "start_date_text": "800年",
+    "end_date_text": "800年",
+    "time_precision": "year",
+    "region": "西欧",
+    "polity": "法兰克王国",
+    "modern_country": "法国、德国、意大利",
+    "category": ["政治", "宗教"],
+    "summary": "教皇利奥三世在罗马为查理曼加冕为皇帝，象征西欧拉丁基督教世界政治秩序的重要变化。",
+    "causes": ["法兰克王国扩张", "罗马教廷寻求政治保护", "拜占庭与西欧关系变化"],
+    "effects": ["神圣罗马帝国观念的前史形成", "西欧王权与教权关系强化"],
+    "actors": ["查理曼", "教皇利奥三世"],
+    "source_status": "draft",
+    "confidence": 0.85,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica",
+        "source_type": "encyclopedia",
+        "url": "https://www.britannica.com/biography/Charlemagne",
+        "citation": "Encyclopaedia Britannica, Charlemagne",
+        "excerpt": "",
+        "reliability": 0.75
+      }
+    ]
+  }
+]
+

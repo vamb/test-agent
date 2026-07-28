@@ -1,0 +1,113 @@
+# 后端技术栈缺口审查
+
+审查日期：2026-07-28  
+依据：`AI智能体开发大纲工作.pdf`、当前代码和数据库状态
+
+当前状态：后端基础 MVP、Function Calling 稳定性、模型观测/成本记录、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复执行、数据导入审核流、RAG 检索、事件管理和权限/人工确认 MVP 已完成；下一步建议进入 React 查询页和横向对照表 UI，或把手写工作流迁移到 LangGraph。
+
+## 当前后端已完成
+
+| 模块 | 状态 | 说明 |
+|---|---|---|
+| FastAPI | 已完成 MVP | 已有 API 入口、健康检查、查询接口、Agent 查询接口 |
+| Pydantic | 已完成 MVP | 历史事件、来源等模型已定义 |
+| PostgreSQL | 已完成 | 已创建 `historical_agent` 专用库和 19 张表 |
+| pgvector | 已安装 | `vector 0.8.2` 已启用，`historical_events.embedding` 已存在 |
+| 历史查询工具 | 已完成 MVP | 年份、时间段、地区对照、详情、同期、关系查询 |
+| Tool Registry | 已完成 MVP | 已有 `ToolDefinition`、`ToolRegistry` 和历史查询工具注册表 |
+| ToolExecutor | 已完成 MVP | 已有统一工具执行器，记录入参、结果和耗时 |
+| Agent Loop | 已完成 MVP | 已有可替换 `ModelAdapter` 的手写 Loop，支持最大步数和工具结果裁剪 |
+| Model Adapter | 已完成 MVP | 已有 `RuleBasedModelAdapter` 和 OpenAI Function Calling 适配器 |
+| Agent 执行记录 | 已完成 MVP | `agent_runs`、`agent_steps` 已写入 |
+| Worker / 队列 | 已完成 MVP | 支持 `/agent/query/async` 创建 pending run，Redis list 入队，processing 队列、成功 ack、失败重试、死信队列和 visibility timeout 回收 |
+| checkpoint 恢复 | 已完成 MVP | 支持从 `agent_steps` 重建已完成工具调用上下文，恢复 run 时从下一步继续 |
+| 自动评测 | 已完成 MVP | `evaluation.runner` 可跑评测并写入 `evaluation_runs`，当前 4/4 通过 |
+| 数据导入 | 已完成审核流 MVP | 支持批次、staging、校验、确认入库、拒绝批次 |
+| 事件管理 | 已完成 MVP | 支持事件新增、修改、归档、争议标记、来源核验和 `event_change_logs` 审计 |
+| 权限/人工确认 | 已完成 MVP | 写操作必须带 `admin_token` 和 `confirmed=true`，后端硬校验；完整 RBAC/多租户未完成 |
+| 事件关系 | 已完成样例关系 | 已有 `influence`、`conflict_link`、`contemporary` 示例 |
+
+## 对照 PDF 技术栈的后端缺口
+
+| 技术/能力 | PDF 建议 | 当前状态 | 缺口 | 优先级 |
+|---|---|---|---|---|
+| Model Adapter | 统一接入 OpenAI/Anthropic/Gemini/私有模型 | 已完成 OpenAI MVP | 还缺 Anthropic/Gemini/私有模型适配器 | 中 |
+| Function Calling | 用 JSON Schema 工具调用 | 已完成 MVP | 参数校验、超时、重试、token 和成本统计已完成 MVP；还缺模型失败 fallback | 中 |
+| Agent Loop | 先手写，后生产用 LangGraph | 已完成 MVP | 手写 Loop 已支持重试、恢复和 checkpoint MVP；还缺 LangGraph 正式化 | 中 |
+| Tool Registry | 工具定义、风险等级、确认策略 | 已完成 MVP | 还缺后台动态启停工具、确认策略落库 | 中 |
+| SSE 流式输出 | 前后端传输运行事件 | 已完成 MVP | 已有 `/agent/query/stream`；还缺前端消费和断线恢复 | 中 |
+| 任务取消/重试/恢复 | 任务型 Agent 必备 | 已完成 MVP | 已支持取消、Redis 队列、异步 Worker、失败重试、死信队列、visibility timeout 回收和 checkpoint 恢复执行 | 中 |
+| Redis | 缓存、队列、锁 | 已完成队列 MVP | 已支持 Redis list、processing 队列、ack、失败重试、死信队列和 visibility timeout 回收 | 低 |
+| LangGraph | Checkpoint、Interrupt、恢复 | 未实现 | 目前无 LangGraph 工作流 | 中 |
+| RAG | 文档上传、切分、混合检索、引用 | 已完成检索 MVP | 已有本地 embedding 和 pgvector 检索；还缺混合检索、真实 embedding、引用注入 Agent 回答 | 中 |
+| OpenTelemetry | Trace、模型调用、工具调用 | 未实现 | 当前已有数据库级模型/工具记录，但没有标准 Trace | 中 |
+| 成本统计 | token、耗时、模型成本 | 已完成 MVP | 已采集到 `agent_steps`；还缺模型价格配置管理和汇总报表 | 中 |
+| 权限/RBAC | 后端真实权限判断 | 已完成 MVP | 当前是 admin token + confirmed，缺用户、角色、租户隔离和权限策略落库 | 高，上线前必须补 |
+| 人工确认 | 高风险操作暂停确认 | 已完成 MVP | 当前写接口需要显式确认字段，缺可恢复的 interrupt / approval 工作流 | 中 |
+| Prompt Injection 防护 | 工具边界、来源隔离、安全策略 | 未实现 | 当前还没有外部文档/RAG，后续必须补 |
+| 数据导入审核 | staging -> 校验 -> 人工确认 -> 入库 | 已完成 MVP | 还缺导入差异预览、批量修正和异步执行 | 中 |
+| 管理接口 | 新增、修改、归档、审核事件 | 已完成 MVP | 还缺前端后台、批量操作和更细粒度权限 | 中 |
+| MCP | 标准工具协议 | 未实现 | 当前只是本地工具函数 | 低，等单 Agent 稳定后做 |
+| Docker Compose | 部署 FastAPI/PostgreSQL/Redis | 未实现 | 当前依赖本机服务 | 中 |
+| Pytest | 自动化测试 | 部分完成 | 当前用 `unittest`，未引入 pytest | 低 |
+
+## 建议后端下一步顺序
+
+### 第一优先级：React 查询页和横向对照表 UI
+
+目标：把后端查询、SSE 步骤流和横向对照能力变成用户可操作界面。
+
+要做：
+
+1. React + TypeScript + Vite 前端骨架。
+2. Agent 聊天输入和 SSE 步骤流展示。
+3. 年份/时间段查询控件。
+4. 横向对照表组件。
+
+验收：
+
+- 长任务不阻塞 API。
+- 用户可以看到 Agent 调用工具的过程。
+- 用户可以按年份/时间段查看多地区横向对照。
+
+### 第二优先级：数据导入审核增强
+
+目标：在已完成 MVP 基础上增强权限、差异预览和批量修正。
+
+要做：
+
+1. 导入前差异预览。
+2. 批量修正 staging 行。
+3. 导入任务异步化。
+4. 导入结果回放和失败重试。
+
+验收：
+
+- 导入不会直接污染正式表。
+- 错误行可回看、可修正。
+
+### 第三优先级：完整 RBAC / 多租户
+
+目标：把当前 admin token MVP 升级为真实用户权限系统。
+
+要做：
+
+1. 用户身份表和角色表。
+2. 工具风险等级和权限策略落库。
+3. 租户/项目级数据隔离。
+4. 管理接口按角色授权。
+
+验收：
+
+- 权限不依赖模型判断。
+- 写操作、导入和知识库检索都有后端隔离。
+
+## 当前不建议立刻做
+
+| 能力 | 原因 |
+|---|---|
+| 多智能体 | 当前单 Agent 边界还没完全成熟 |
+| MCP | 工具协议化可以晚一点，先把本地工具做好 |
+| Playwright 浏览器 Agent | 这个产品第一阶段核心不是浏览器自动化 |
+| 复杂权限多租户 | 数据管理接口前再上更合适 |
+| Kubernetes | Docker Compose 都还没做，不需要提前复杂化 |
