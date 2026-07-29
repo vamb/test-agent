@@ -34,6 +34,16 @@ class DatabaseSchemaFilesTest(unittest.TestCase):
         self.assertIn("CREATE TABLE IF NOT EXISTS knowledge_chunks", knowledge_schema)
         self.assertIn("idx_knowledge_documents_status", knowledge_schema)
         self.assertIn("CREATE TABLE IF NOT EXISTS vector_rebuild_jobs", vector_jobs_schema)
+        self.assertIn("CONSTRAINT vector_rebuild_jobs_target", vector_jobs_schema)
+        self.assertIn("CONSTRAINT vector_rebuild_jobs_status", vector_jobs_schema)
+        self.assertIn("CONSTRAINT vector_rebuild_jobs_item_limit", vector_jobs_schema)
+
+    def test_vector_jobs_runtime_fallback_matches_schema_constraints(self) -> None:
+        service_source = (ROOT / "knowledge" / "service.py").read_text(encoding="utf-8")
+
+        self.assertIn("CONSTRAINT vector_rebuild_jobs_target", service_source)
+        self.assertIn("CONSTRAINT vector_rebuild_jobs_status", service_source)
+        self.assertIn("CONSTRAINT vector_rebuild_jobs_item_limit", service_source)
 
 
 if __name__ == "__main__":

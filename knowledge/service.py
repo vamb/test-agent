@@ -643,7 +643,10 @@ class KnowledgeService:
               created_by text NOT NULL DEFAULT '',
               created_at timestamptz NOT NULL DEFAULT now(),
               started_at timestamptz,
-              finished_at timestamptz
+              finished_at timestamptz,
+              CONSTRAINT vector_rebuild_jobs_target CHECK (target IN ('knowledge', 'events', 'all')),
+              CONSTRAINT vector_rebuild_jobs_status CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+              CONSTRAINT vector_rebuild_jobs_item_limit CHECK (item_limit > 0)
             )
             """
         )

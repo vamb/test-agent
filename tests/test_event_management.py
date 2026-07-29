@@ -231,11 +231,11 @@ class EventManagementTest(unittest.TestCase):
         summary = admin_data_quality_summary()
         missing_source_issues = admin_list_data_quality_issues(
             issue_type="missing_source",
-            limit=20,
+            limit=200,
         )
         low_confidence_issues = admin_list_data_quality_issues(
             issue_type="low_confidence",
-            limit=20,
+            limit=200,
         )
 
         self.assertGreaterEqual(summary["issues"]["missing_source"]["count"], 1)

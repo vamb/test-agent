@@ -302,6 +302,17 @@ ai-agent/
 | W6 | 6 | RAG 引用注入回答 | 把事件来源和知识文档 chunk 注入回答上下文和前端展示 | 回答能显示来源标题、citation、chunk 或事件来源链接 | 待开始 |
 | W7 | 7 | Langfuse 集成预留 | 后端接 trace/tool/token/error 上报；前端只保留跳转入口 | 可从 run_id 对应到 Langfuse trace；不开发自研 Trace 后台 | 待开始 |
 
+## 后端重构工作表
+
+| 批次 | 优先级 | 重构项 | 范围 | 验收标准 | 状态 |
+|---|---:|---|---|---|---|
+| R1 | 1 | 统一向量任务表 schema 兜底 | `knowledge/service.py` 的运行时建表逻辑与 `schema_vector_jobs.sql` 保持一致 | schema 文件测试覆盖约束；后端全量测试通过 | 已完成 |
+| R2 | 2 | 拆分 FastAPI 路由 | 将 `apps/api/main.py` 拆成 agent、events、imports、admin、knowledge、vectors routers | 已拆出 agent、events、imports、admin、knowledge/vector routers；`main.py` 降到 124 行；路由路径不变；后端全量测试通过 | 已完成 |
+| R3 | 3 | 拆分管理服务 | 将 `EventManagementService` 拆为事件、来源、关系、数据质量、总览、批次核验服务 | 对外 API 返回兼容；管理测试全过 | 待开始 |
+| R4 | 4 | 抽公共历史实体 upsert | 合并 import 和 management 中 region/country/polity/category ensure 逻辑 | 导入和事件编辑行为不变；重复实现减少 | 待开始 |
+| R5 | 5 | 写接口 Pydantic 化 | 为事件、来源、关系、导入、向量任务写接口补 request/response models | 错误返回更稳定；前端调用不变 | 待开始 |
+| R6 | 6 | 清理轻微代码味道 | 重复 import、分页/JSON safe/helper 重复逻辑 | 已清理 `main.py` 重复 import；后续 helper 重复逻辑再逐步处理 | 进行中 |
+
 ## 后端下一步建议
 
 对照新的管理后台计划，后端和前端管理系统第一轮已基本补齐。下一步后端不再优先补 CRUD，而是围绕真实数据演练和 Agent 输出协议增强：
