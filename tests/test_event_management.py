@@ -2,7 +2,23 @@ import unittest
 from uuid import uuid4
 
 from apps.api.main import (
+    admin_add_source,
+    admin_bulk_update_events,
+    admin_bulk_verify_sources,
+    admin_create_relation,
+    admin_data_quality_summary,
+    admin_delete_relation,
+    admin_delete_source,
+    admin_dictionaries,
     admin_dispute_event,
+    admin_get_event_detail,
+    admin_get_event_changes,
+    admin_list_data_quality_issues,
+    admin_list_events,
+    admin_list_relations,
+    admin_overview,
+    admin_update_relation,
+    admin_update_source,
     admin_update_event,
     admin_verify_source,
 )
@@ -95,6 +111,41 @@ class EventManagementTest(unittest.TestCase):
         detail = service.get_event_detail(event_id)
         self.assertEqual(detail["event"]["source_status"], "disputed")
 
+    def test_update_event_extended_fields(self) -> None:
+        event_id = self._create_managed_event("测试扩展字段事件")
+
+        updated = admin_update_event(
+            event_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "reason": "unit-test extended update",
+                "updates": {
+                    "start_year": 903,
+                    "end_year": 904,
+                    "start_date_text": "903年",
+                    "end_date_text": "904年",
+                    "time_precision": "range",
+                    "region": "测试新地区",
+                    "polity": "测试新政权",
+                    "modern_country": "测试新国家",
+                    "category": ["测试新分类"],
+                    "causes": ["扩展原因"],
+                    "effects": ["扩展影响"],
+                    "importance_score": 2.5,
+                },
+            },
+        )
+
+        self.assertTrue(updated["success"])
+        self.assertEqual(updated["event"]["start_year"], 903)
+        self.assertEqual(updated["event"]["end_year"], 904)
+        self.assertEqual(updated["event"]["region"], "测试新地区")
+        self.assertEqual(updated["event"]["polity"], "测试新政权")
+        self.assertIn("测试新分类", updated["event"]["category"])
+        self.assertIn("扩展原因", updated["event"]["causes"])
+
     def test_verify_source_marks_primary_and_reliable(self) -> None:
         event_id = self._create_managed_event("测试来源核验事件")
         detail = HistoricalQueryService(
@@ -116,6 +167,240 @@ class EventManagementTest(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertGreaterEqual(float(result["source"]["reliability"]), 0.9)
         self.assertTrue(result["source"]["is_primary"])
+
+    def test_admin_lists_events_and_changes(self) -> None:
+        event_id = self._create_managed_event("测试列表事件")
+        updated = admin_update_event(
+            event_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "updates": {"summary": "列表测试更新。"},
+            },
+        )
+        overview = admin_overview()
+        events = admin_list_events(query="测试列表事件", limit=5)
+        changes = admin_get_event_changes(event_id)
+
+        self.assertTrue(updated["success"])
+        self.assertGreaterEqual(int(overview["events"]["total_events"]), 1)
+        self.assertGreaterEqual(events["total"], 1)
+        self.assertGreaterEqual(changes["total"], 1)
+
+    def test_data_quality_summary_and_issues(self) -> None:
+        event = valid_import_event("测试质量问题事件")
+        event["sources"] = []
+        event["confidence"] = 0.4
+        batch = ImportReviewService(self.settings.postgres).create_batch(
+            filename="quality-test.json",
+            source_note="unit-test",
+            created_by="test",
+            events=[event],
+        )
+        staging = ImportReviewService(self.settings.postgres).list_staging_rows(batch["id"])
+        row_id = staging["rows"][0]["id"]
+        fixed_payload = valid_import_event("测试质量问题事件")
+        fixed_payload["sources"] = []
+        fixed_payload["confidence"] = 0.4
+        # Insert directly through staging is rejected without sources; create a normal event then remove source.
+        event_id = self._create_managed_event("测试质量问题事件")
+        admin_update_event(
+            event_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "updates": {"confidence": 0.4},
+            },
+        )
+        detail = HistoricalQueryService(
+            PostgresHistoricalEventRepository(self.settings.postgres)
+        ).get_event_detail(event_id)
+        source_id = detail["event"]["sources"][0]["id"]
+        admin_delete_source(
+            source_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+            },
+        )
+
+        summary = admin_data_quality_summary()
+        missing_source_issues = admin_list_data_quality_issues(
+            issue_type="missing_source",
+            limit=20,
+        )
+        low_confidence_issues = admin_list_data_quality_issues(
+            issue_type="low_confidence",
+            limit=20,
+        )
+
+        self.assertGreaterEqual(summary["issues"]["missing_source"]["count"], 1)
+        self.assertGreaterEqual(summary["issues"]["low_confidence"]["count"], 1)
+        self.assertTrue(any(issue["target_id"] == event_id for issue in missing_source_issues["issues"]))
+        self.assertTrue(any(issue["target_id"] == event_id for issue in low_confidence_issues["issues"]))
+
+    def test_dictionaries_and_admin_event_detail(self) -> None:
+        source_event_id = self._create_managed_event("测试详情源事件")
+        target_event_id = self._create_managed_event("测试详情目标事件")
+        relation = admin_create_relation(
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "relation": {
+                    "source_event_id": source_event_id,
+                    "target_event_id": target_event_id,
+                    "relation_type": "contemporary",
+                    "explanation": "详情页关系测试。",
+                    "confidence": 0.5,
+                },
+            },
+        )
+        admin_update_event(
+            source_event_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "updates": {"summary": "详情聚合测试更新。"},
+            },
+        )
+
+        dictionaries = admin_dictionaries()
+        detail = admin_get_event_detail(source_event_id)
+
+        self.assertIn("event_statuses", dictionaries)
+        self.assertIn("source_types", dictionaries)
+        self.assertTrue(detail["found"])
+        self.assertEqual(detail["event"]["id"], source_event_id)
+        self.assertGreaterEqual(len(detail["sources"]), 1)
+        self.assertTrue(any(item["id"] == relation["relation"]["id"] for item in detail["relations"]))
+        self.assertGreaterEqual(len(detail["changes"]), 1)
+        self.assertIn("embedding", detail)
+
+    def test_source_crud(self) -> None:
+        event_id = self._create_managed_event("测试来源 CRUD 事件")
+        add_result = admin_add_source(
+            event_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "source": {
+                    "source_title": "新增测试来源",
+                    "source_type": "note",
+                    "citation": "新增测试引用",
+                    "reliability": 0.6,
+                },
+            },
+        )
+        source_id = add_result["source"]["id"]
+        update_result = admin_update_source(
+            source_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "updates": {"reliability": 0.7, "citation": "更新测试引用"},
+            },
+        )
+        delete_result = admin_delete_source(
+            source_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+            },
+        )
+
+        self.assertTrue(add_result["success"])
+        self.assertTrue(update_result["success"])
+        self.assertEqual(update_result["source"]["citation"], "更新测试引用")
+        self.assertTrue(delete_result["deleted"])
+
+    def test_bulk_update_events_and_verify_sources(self) -> None:
+        first_event_id = self._create_managed_event("测试批量事件一")
+        second_event_id = self._create_managed_event("测试批量事件二")
+        first_detail = HistoricalQueryService(
+            PostgresHistoricalEventRepository(self.settings.postgres)
+        ).get_event_detail(first_event_id)
+        second_detail = HistoricalQueryService(
+            PostgresHistoricalEventRepository(self.settings.postgres)
+        ).get_event_detail(second_event_id)
+        source_ids = [
+            first_detail["event"]["sources"][0]["id"],
+            second_detail["event"]["sources"][0]["id"],
+        ]
+
+        updated = admin_bulk_update_events(
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "event_ids": [first_event_id, second_event_id],
+                "updates": {"source_status": "reviewing", "confidence": 0.72},
+            }
+        )
+        verified = admin_bulk_verify_sources(
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "source_ids": source_ids,
+                "reliability": 0.88,
+            }
+        )
+
+        self.assertTrue(updated["success"])
+        self.assertEqual(updated["updated"], 2)
+        self.assertTrue(verified["success"])
+        self.assertEqual(verified["verified"], 2)
+
+    def test_relation_crud(self) -> None:
+        source_event_id = self._create_managed_event("测试关系源事件")
+        target_event_id = self._create_managed_event("测试关系目标事件")
+        created = admin_create_relation(
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "relation": {
+                    "source_event_id": source_event_id,
+                    "target_event_id": target_event_id,
+                    "relation_type": "contemporary",
+                    "explanation": "两个测试事件同年发生。",
+                    "confidence": 0.6,
+                },
+            },
+        )
+        relation_id = created["relation"]["id"]
+        listed = admin_list_relations(event_id=source_event_id, limit=5)
+        updated = admin_update_relation(
+            relation_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+                "updates": {"confidence": 0.8, "explanation": "更新后的关系说明。"},
+            },
+        )
+        deleted = admin_delete_relation(
+            relation_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+            },
+        )
+
+        self.assertTrue(created["success"])
+        self.assertGreaterEqual(listed["total"], 1)
+        self.assertTrue(updated["success"])
+        self.assertEqual(float(updated["relation"]["confidence"]), 0.8)
+        self.assertTrue(deleted["deleted"])
 
 
 if __name__ == "__main__":

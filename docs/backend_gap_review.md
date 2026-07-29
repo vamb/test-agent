@@ -3,7 +3,7 @@
 审查日期：2026-07-28  
 依据：`AI智能体开发大纲工作.pdf`、当前代码和数据库状态
 
-当前状态：后端基础 MVP、Function Calling 稳定性、模型观测/成本记录、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复执行、数据导入审核流、RAG 检索、事件管理、权限/人工确认、React 查询页和横向对照表 UI MVP 已完成；下一步建议做前端联调优化、数据管理后台，或把手写工作流迁移到 LangGraph。
+当前状态：后端基础 MVP、Function Calling 稳定性、模型观测/成本记录、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复执行、数据导入审核流、RAG 检索、事件管理、权限/人工确认、React 查询页和横向对照表 UI MVP 已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、工具调用链、token/cost 和评测分析后续交给 Langfuse，不自研重复后台。
 
 ## 当前后端已完成
 
@@ -40,29 +40,66 @@
 | Redis | 缓存、队列、锁 | 已完成队列 MVP | 已支持 Redis list、processing 队列、ack、失败重试、死信队列和 visibility timeout 回收 | 低 |
 | LangGraph | Checkpoint、Interrupt、恢复 | 未实现 | 目前无 LangGraph 工作流 | 中 |
 | RAG | 文档上传、切分、混合检索、引用 | 已完成检索 MVP | 已有本地 embedding 和 pgvector 检索；还缺混合检索、真实 embedding、引用注入 Agent 回答 | 中 |
-| OpenTelemetry | Trace、模型调用、工具调用 | 未实现 | 当前已有数据库级模型/工具记录，但没有标准 Trace | 中 |
-| 成本统计 | token、耗时、模型成本 | 已完成 MVP | 已采集到 `agent_steps`；还缺模型价格配置管理和汇总报表 | 中 |
+| Langfuse 集成 | Trace、模型调用、工具调用、评测分析 | 未实现 | 当前已有数据库级模型/工具记录，但还没有上报 Langfuse；后台不自研 Trace 分析页 | 中 |
+| 成本统计 | token、耗时、模型成本 | 已完成 MVP | 已采集到 `agent_steps`；后续成本看板交给 Langfuse，本系统只保留必要配置和上报能力 | 中 |
 | 权限/RBAC | 后端真实权限判断 | 已完成 MVP | 当前是 admin token + confirmed，缺用户、角色、租户隔离和权限策略落库 | 高，上线前必须补 |
 | 人工确认 | 高风险操作暂停确认 | 已完成 MVP | 当前写接口需要显式确认字段，缺可恢复的 interrupt / approval 工作流 | 中 |
 | Prompt Injection 防护 | 工具边界、来源隔离、安全策略 | 未实现 | 当前还没有外部文档/RAG，后续必须补 |
 | 数据导入审核 | staging -> 校验 -> 人工确认 -> 入库 | 已完成 MVP | 还缺导入差异预览、批量修正和异步执行 | 中 |
-| 管理接口 | 新增、修改、归档、审核事件 | 已完成 MVP | 还缺前端后台、批量操作和更细粒度权限 | 中 |
+| 管理接口 | 导入审核、事件、来源、关系、知识库、向量管理 | 已完成事件管理 MVP | 还缺前端后台、批量操作、知识库管理、向量覆盖率/重算能力和更细粒度权限 | 中 |
 | MCP | 标准工具协议 | 未实现 | 当前只是本地工具函数 | 低，等单 Agent 稳定后做 |
 | Docker Compose | 部署 FastAPI/PostgreSQL/Redis | 未实现 | 当前依赖本机服务 | 中 |
 | Pytest | 自动化测试 | 部分完成 | 当前用 `unittest`，未引入 pytest | 低 |
+
+## 管理后台后端增强清单
+
+新的前端管理后台需要后端补齐以下业务接口。这些能力服务数据资产、知识库和向量管理，不包含 Langfuse 已覆盖的 Agent Trace、工具调用链、成本看板和评测分析。
+
+| 优先级 | 能力 | 建议 API | 状态 | 说明 |
+|---:|---|---|---|---|
+| 1 | 管理总览统计 | `GET /admin/overview` | 已完成 | 汇总事件数、待审核批次、低置信事件、无来源事件、知识文档数、向量覆盖率 |
+| 2 | 导入批次列表 | `GET /imports/batches` | 已完成 | 支持 status、created_by 和分页 |
+| 3 | staging 行修正 | `PATCH /imports/staging/{row_id}` | 已完成 | 更新 raw payload，重新校验该行，刷新 row status |
+| 4 | 批次重新校验 | `POST /imports/batches/{batch_id}/revalidate` | 已完成 | 重新校验批次并更新 valid_rows、error_rows、status |
+| 5 | 后台事件列表 | `GET /admin/events` | 已完成 | 支持关键词、年份、地区、状态、置信度、是否有来源的分页筛选 |
+| 6 | 事件审计日志 | `GET /admin/events/{event_id}/changes` | 已完成 | 查看 create/update/archive/dispute/source verify 等变更 |
+| 7 | 来源 CRUD | `POST /admin/events/{event_id}/sources`、`PATCH /admin/sources/{source_id}`、`DELETE /admin/sources/{source_id}` | 已完成 | 支持新增、编辑、删除来源 |
+| 8 | 关系 CRUD | `GET /admin/relations`、`POST /admin/relations`、`PATCH /admin/relations/{relation_id}`、`DELETE /admin/relations/{relation_id}` | 已完成 | 维护 contemporary、cause、effect、influence、uncertain 等关系 |
+| 9 | 知识文档管理 | `GET /knowledge/documents`、`GET /knowledge/documents/{document_id}/chunks`、`PATCH /knowledge/documents/{document_id}` | 已完成 | 支持文档列表、chunk 查看、停用和元数据更新 |
+| 10 | 文档向量重算 | `POST /knowledge/documents/{document_id}/reembed` | 已完成 | 文档内容或 embedding 配置变化后重算 chunk embedding |
+| 11 | 向量状态 | `GET /vectors/status` | 已完成 | 展示 embedding 覆盖率、维度、provider、索引状态 |
+| 12 | 批量向量重建 | `POST /vectors/rebuild`、`POST /vectors/rebuild-jobs` | 已完成 | 触发历史事件或知识文档的批量 embedding 重算，支持 job 创建、查看和处理 |
+
+## 下一轮后端加强工作表（暂不考虑权限）
+
+| 批次 | 优先级 | 能力 | 建议 API / 交付物 | 说明 | 状态 |
+|---|---:|---|---|---|---|
+| B1 | 1 | 数据质量检查 summary | `GET /admin/data-quality/summary` | 返回无来源、低置信、疑似重复、时间异常、关系缺证据等计数 | 已完成 |
+| B1 | 2 | 数据质量问题列表 | `GET /admin/data-quality/issues` | 支持 issue_type、severity、分页和目标跳转 | 已完成 |
+| B1 | 3 | 数据字典接口 | `GET /admin/dictionaries` | 返回 regions、polities、categories 和各类枚举 | 已完成 |
+| B1 | 4 | 后台事件详情聚合 | `GET /admin/events/{event_id}` | 返回完整事件、来源、关系、审计、导入批次和 embedding 状态 | 已完成 |
+| B2 | 5 | 事件批量更新 | `POST /admin/events/bulk-update` | 批量更新状态、置信度、分类或归档 | 已完成 |
+| B2 | 6 | staging 批量重校验 | `POST /imports/staging/bulk-revalidate` | 支持 row_ids 或 batch_id | 已完成 |
+| B2 | 7 | 来源批量核验 | `POST /admin/sources/bulk-verify` | 批量更新 reliability / is_primary | 已完成 |
+| B3 | 8 | 导入合并策略 | `POST /imports/staging/{row_id}/merge` | 支持 keep_existing、replace_existing、merge_sources、merge_categories、merge_sources_and_categories | 已完成 |
+| B3 | 9 | 导入解析轻量版 | `POST /imports/parse` | 支持 JSON/CSV 解析成标准 events payload | 已完成 |
+| B4 | 10 | 知识库版本和重切分 | 文档版本字段 / re-chunk 接口 | 文档更新保留版本，chunk 变化可查看 | 暂缓 |
+| B4 | 11 | 向量任务自动处理 | Worker 或队列消费 vector jobs | 向量 job 自动完成，失败可查看和重试 | 暂缓 |
 
 ## 建议后端下一步顺序
 
 ### 第一优先级：前端联调优化和数据管理后台
 
-目标：在 Web 工作台 MVP 基础上补齐真实使用流程和数据维护入口。
+目标：在 Web 工作台 MVP 基础上补齐真实使用流程和数据维护入口。该后台只负责业务数据、来源、关系、知识库和向量管理；Agent 运行观测和评测分析交给 Langfuse。
 
 要做：
 
-1. 浏览器联调和错误态打磨。
-2. SSE 断线/失败提示。
-3. 导入批次审核 UI。
-4. 事件新增、修改、争议标记和来源核验 UI。
+1. 先补数据质量检查 summary 和问题列表。
+2. 再补数据字典接口和后台事件详情聚合接口。
+3. 接着补事件、staging、来源的批量操作。
+4. 然后补导入合并策略和 JSON/CSV 解析轻量版。
+5. 前端再接数据导入审核、事件库、来源、关系、知识库和向量管理页面。
+6. Langfuse 只保留 trace 跳转入口，不开发自研运行分析后台。
 
 验收：
 

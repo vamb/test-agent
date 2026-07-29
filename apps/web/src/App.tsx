@@ -14,6 +14,7 @@ import {
   CalendarRange,
   ChevronRight,
   Clock3,
+  Database,
   ExternalLink,
   FileText,
   Globe2,
@@ -23,6 +24,20 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
+import {
+  AdminEventDetailPage,
+  AdminEventsPage,
+  AdminImportCreatePage,
+  AdminImportDetailPage,
+  AdminImportsPage,
+  AdminKnowledgeDetailPage,
+  AdminKnowledgePage,
+  AdminLayout,
+  AdminOverviewPage,
+  AdminQualityPage,
+  AdminRelationsPage,
+  AdminVectorsPage,
+} from "./AdminPages";
 import {
   AgentStreamEvent,
   CompareRow,
@@ -52,6 +67,19 @@ export function App() {
         <Routes>
           <Route path="/" element={<ChatPage />} />
           <Route path="/events/:eventId" element={<EventDetailPage />} />
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminOverviewPage />} />
+            <Route path="imports" element={<AdminImportsPage />} />
+            <Route path="imports/new" element={<AdminImportCreatePage />} />
+            <Route path="imports/:batchId" element={<AdminImportDetailPage />} />
+            <Route path="events" element={<AdminEventsPage />} />
+            <Route path="events/:eventId" element={<AdminEventDetailPage />} />
+            <Route path="relations" element={<AdminRelationsPage />} />
+            <Route path="quality" element={<AdminQualityPage />} />
+            <Route path="knowledge" element={<AdminKnowledgePage />} />
+            <Route path="knowledge/:documentId" element={<AdminKnowledgeDetailPage />} />
+            <Route path="vectors" element={<AdminVectorsPage />} />
+          </Route>
         </Routes>
       </main>
     </BrowserRouter>
@@ -208,6 +236,11 @@ function ChatPage() {
           <MessageSquareText size={17} />
           新建提问
         </button>
+
+        <Link className="rail-action subtle" to="/admin">
+          <Database size={17} />
+          数据管理台
+        </Link>
 
         <div className="rail-section">
           <p>快捷对照</p>

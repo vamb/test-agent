@@ -1,6 +1,18 @@
 import unittest
 
-from apps.api.main import ingest_knowledge_document, search_knowledge
+from apps.api.main import (
+    get_knowledge_document_chunks,
+    get_vector_status,
+    create_vector_rebuild_job,
+    get_vector_rebuild_job,
+    ingest_knowledge_document,
+    list_knowledge_documents,
+    process_vector_rebuild_job,
+    rebuild_vectors,
+    reembed_knowledge_document,
+    search_knowledge,
+    update_knowledge_document,
+)
 from apps.api.settings import AppSettings
 from knowledge.service import KnowledgeService
 from tools.database.postgres import PostgresClient
@@ -50,6 +62,56 @@ class KnowledgeServiceTest(unittest.TestCase):
         self.assertIn("document_id", document)
         self.assertGreaterEqual(result["count"], 1)
         self.assertIn("怛罗斯", result["results"][0]["content"])
+
+    def test_document_management_and_vector_status(self) -> None:
+        document = ingest_knowledge_document(
+            {
+                "title": "知识库管理测试资料",
+                "content": "这是一段用于测试知识库文档列表、chunk 查看和向量重算的资料。",
+                "citation": "测试资料：知识库管理",
+                "created_by": "test",
+            }
+        )
+        documents = list_knowledge_documents(query="知识库管理测试", limit=5)
+        chunks = get_knowledge_document_chunks(document["document_id"])
+        updated = update_knowledge_document(
+            document["document_id"],
+            {"updates": {"status": "inactive"}},
+        )
+        reembedded = reembed_knowledge_document(document["document_id"])
+        status = get_vector_status()
+        rebuilt = rebuild_vectors({"target": "knowledge", "limit": 5})
+
+        self.assertGreaterEqual(documents["total"], 1)
+        self.assertTrue(chunks["found"])
+        self.assertGreaterEqual(chunks["total"], 1)
+        self.assertTrue(updated["success"])
+        self.assertEqual(updated["document"]["status"], "inactive")
+        self.assertTrue(reembedded["success"])
+        self.assertIn("knowledge_chunks", status)
+        self.assertTrue(rebuilt["success"])
+
+    def test_vector_rebuild_job_lifecycle(self) -> None:
+        ingest_knowledge_document(
+            {
+                "title": "向量任务测试资料",
+                "content": "这是一段用于测试向量重建任务的资料。",
+                "citation": "测试资料：向量任务",
+                "created_by": "test",
+            }
+        )
+
+        created = create_vector_rebuild_job(
+            {"target": "knowledge", "limit": 5, "created_by": "test"}
+        )
+        job_id = created["job"]["id"]
+        fetched = get_vector_rebuild_job(job_id)
+        processed = process_vector_rebuild_job(job_id)
+
+        self.assertTrue(created["created"])
+        self.assertTrue(fetched["found"])
+        self.assertTrue(processed["processed"])
+        self.assertEqual(processed["job"]["status"], "completed")
 
 
 if __name__ == "__main__":

@@ -13,8 +13,8 @@
 | 阶段 1：基础 MVP | 第 2-3 周 | 做出最小可用单智能体 | React 聊天页、FastAPI 接口、单模型接入、流式回复、3 个只读工具、手写 Agent Loop | 智能体可根据用户目标选择工具，连续执行 2-5 步后返回真实结果 |
 | 阶段 2：任务型 Agent | 第 4-6 周 | 引入任务状态、工作流、恢复和人工确认 | LangGraph 工作流、PostgreSQL 任务状态、SSE 步骤流、取消/重试/恢复、Playwright 工具 | 服务重启后任务可恢复，高风险操作会暂停等待用户确认 |
 | 阶段 3：知识与记忆 | 第 7-8 周 | 增加 RAG、引用来源、对话摘要和长期偏好 | 文档上传、pgvector、混合检索、来源引用、用户偏好、权限过滤 | 回答能引用正确来源，用户之间无法检索到彼此的数据 |
-| 阶段 4：生产安全与评测 | 第 9-11 周 | 建立权限、安全、审计、评测和观测体系 | RBAC、多租户、工具权限策略、Prompt Injection 防护、Trace、成本统计、评测集、回归测试 | 每次 Prompt 或模型升级都能通过自动化评测判断质量变化 |
-| 阶段 5：平台化增强 | 第 12 周及以后 | 把单智能体能力产品化、配置化、可运营化 | 工具管理、Prompt 版本、模型配置、MCP 接入、智能体模板、运行监控、用户反馈闭环 | 可以通过配置创建或调整智能体，而不是每次改代码 |
+| 阶段 4：生产安全与评测 | 第 9-11 周 | 建立权限、安全、审计、评测和观测体系 | RBAC、多租户、工具权限策略、Prompt Injection 防护、Langfuse 集成、评测集、回归测试 | 每次 Prompt 或模型升级都能通过自动化评测和 Langfuse 观测判断质量变化 |
+| 阶段 5：平台化增强 | 第 12 周及以后 | 把单智能体能力产品化、配置化、可运营化 | 数据管理后台、知识库后台、向量管理、工具配置、模型配置、MCP 接入、用户反馈闭环 | 可以通过管理后台维护业务数据和知识库，通过 Langfuse 查看 Agent 运行与评测 |
 
 ## 每周执行计划
 
@@ -29,9 +29,9 @@
 | 第 7 周 | 2026-09-08 至 2026-09-14 | 知识库和 RAG | 实现文档上传；文档解析、切分、入库；接入 pgvector；实现混合检索和来源引用 | 能基于文档回答并给出来源 |
 | 第 8 周 | 2026-09-15 至 2026-09-21 | 记忆和上下文工程 | 实现对话摘要；区分任务状态、短期上下文、长期偏好、知识库；加入数据权限过滤；裁剪工具返回内容 | 长任务上下文不失控，记忆可控且可追溯 |
 | 第 9 周 | 2026-09-22 至 2026-09-28 | 权限和安全基线 | 实现用户身份、RBAC、多租户隔离；工具按风险分级；防 Prompt Injection；限制文件、网络、执行范围 | 权限不依赖模型判断，高风险路径有后端硬校验 |
-| 第 10 周 | 2026-09-29 至 2026-10-05 | 可观测性和成本统计 | 接入 OpenTelemetry；记录 Run、Model Call、Tool Call；统计 token、耗时、失败原因、工具成功率 | 每个任务有完整 Trace 和成本视图 |
-| 第 11 周 | 2026-10-06 至 2026-10-12 | 评测和回归测试 | 建立 Agent Evaluation Dataset；设计期望工具、禁止工具、最大步数、期望结果；加入 Prompt Injection、权限、断网、并发测试 | Prompt 或模型升级前后可自动对比质量 |
-| 第 12 周 | 2026-10-13 至 2026-10-19 | 平台化第一版 | 工具管理页面；Prompt 版本管理；模型配置；MCP 接入试点；运行监控；用户反馈入口 | 具备从项目 Demo 向内部平台演进的基础 |
+| 第 10 周 | 2026-09-29 至 2026-10-05 | Langfuse 可观测性集成 | 接入 Langfuse；上报 Run、Model Call、Tool Call、token、耗时、失败原因、成本数据；后台只保留 Langfuse 跳转入口 | 每个任务可在 Langfuse 查看完整 Trace、成本和工具调用链 |
+| 第 11 周 | 2026-10-06 至 2026-10-12 | 评测和回归测试 | 建立 Agent Evaluation Dataset；设计期望工具、禁止工具、最大步数、期望结果；评测结果优先接入 Langfuse datasets/evals；加入 Prompt Injection、权限、断网、并发测试 | Prompt 或模型升级前后可通过自动化测试和 Langfuse 对比质量 |
+| 第 12 周 | 2026-10-13 至 2026-10-19 | 平台化第一版 | 数据导入审核后台、事件库管理、来源管理、关系管理、知识库管理、向量管理、模型配置、MCP 接入试点、用户反馈入口 | 具备从项目 Demo 向内部数据运营平台演进的基础；观测和评测详情不自研，交给 Langfuse |
 
 ## 优先学习清单
 
@@ -104,6 +104,112 @@ ai-agent/
 
 不建议一开始做多智能体。只有当角色权限完全不同、上下文过大、任务可并行、不同步骤需要不同模型，或者单 Agent 工具太多导致选择变差时，再考虑拆分 Planner、Executor、Researcher、Reviewer、Supervisor 等角色。
 
+## 管理后台与 Langfuse 边界
+
+管理后台定位为“历史知识数据运营台”，只负责业务数据资产、内容质量、知识库和向量检索管理。Agent 运行观测、Trace、token/cost、工具调用链和评测分析不自研，后续统一交给 Langfuse。
+
+### 我们需要开发的管理功能
+
+| 模块 | 是否开发 | 主要功能 | 说明 |
+|---|---|---|---|
+| 管理总览 | 开发 | 事件总数、待审核批次、低置信事件、无来源事件、知识文档数、向量覆盖率 | 只展示业务数据资产状态，不做 Agent Trace 看板 |
+| 数据导入 | 开发 | 上传或粘贴 JSON/CSV，创建导入批次，显示校验摘要 | 对接 import batch 和 staging 流程 |
+| 导入审核 | 开发 | 查看 staging 行、错误原因、修正、拒绝、确认入库 | 数据建设的第一优先级后台 |
+| 事件库管理 | 开发 | 搜索、筛选、查看、编辑、归档、标记争议 | 管理结构化历史事件 |
+| 来源管理 | 开发 | 管理 citation、excerpt、URL、source type、reliability、核验状态 | 保证历史回答可追溯 |
+| 关系管理 | 开发 | 维护 cause、effect、contemporary、influence、uncertain 等事件关系 | 用于关联分析和横向对照解释 |
+| 知识库管理 | 开发 | 导入文档、查看 chunk、停用文档、测试召回 | 管理 RAG 文档资产 |
+| 向量管理 | 开发 | 查看 embedding 覆盖率、重算向量、索引状态、语义检索测试 | 不展示原始 1536 维向量，只管理覆盖、质量和任务 |
+| 系统设置 | 部分开发 | admin token、embedding provider、向量维度、导入规则、状态枚举 | 不包含 Langfuse 的 Trace 详情页 |
+
+### 交给 Langfuse、不需要我们开发的功能
+
+| 功能 | 是否开发 | Langfuse 职责 | 本系统保留内容 |
+|---|---|---|---|
+| Agent 运行详情页 | 不开发 | 查看完整 trace、输入输出、span、observation | 只保存必要 run_id，并提供 Langfuse 链接 |
+| 工具调用步骤查看 | 不开发 | 展示 tool call 链路、参数、结果、耗时、错误 | 前端聊天页可保留简要状态，不做后台分析页 |
+| token、耗时、成本统计看板 | 不开发 | 统计模型调用成本、延迟、token 使用 | 后端只负责上报数据 |
+| 运行错误分析 | 不开发 | 聚合失败 trace、错误原因、异常 span | 本后台最多展示失败数量和跳转链接 |
+| Prompt 版本观测 | 不开发 | 关联 prompt 版本与 trace/eval 结果 | 本系统只保留实际使用的 prompt 文件或配置 |
+| 评测中心 UI | 不开发 | 使用 Langfuse datasets/evals 管理评测结果 | 本仓库保留自动化评测脚本和本地测试数据 |
+| Agent run 搜索与筛选 | 不开发 | 按用户、时间、模型、标签搜索 traces | 本后台不重复实现 run 列表 |
+
+### 后台第一版开发顺序
+
+| 优先级 | 模块 | 验收标准 |
+|---:|---|---|
+| 1 | 数据导入 + 导入审核 | 可以通过前端完成一批历史事件的创建批次、查看 staging、修正错误、确认入库或拒绝 |
+| 2 | 事件库 + 来源管理 | 可以搜索事件、编辑核心字段、补充来源、核验来源、标记争议或归档 |
+| 3 | 知识库 + 检索测试 | 可以导入文档、查看 chunk 数、执行语义检索并判断召回质量 |
+| 4 | 向量管理 | 可以查看 embedding 覆盖率、发现缺失/过期向量、触发重算任务 |
+| 5 | 关系管理 + 系统设置 | 可以维护事件关系和基础配置，不涉及 Agent Trace 分析 |
+
+### 管理后台需要补强的后端能力
+
+当前后端已经具备查询、导入审核、事件管理、知识库检索的 MVP，但新的管理后台需要列表、筛选、修正、批量、状态统计和向量任务能力。下面这些是我们要开发的业务后端能力，不和 Langfuse 重叠。
+
+| 优先级 | 后端能力 | 建议 API | 用途 | 状态 |
+|---:|---|---|---|---|
+| 1 | 管理总览统计 | `GET /admin/overview` | 返回事件总数、待审核批次、低置信事件、无来源事件、知识文档数、向量覆盖率 | 已完成 |
+| 2 | 导入批次列表 | `GET /imports/batches` | 支持按 status、created_by、时间分页查看导入批次 | 已完成 |
+| 3 | staging 行修正 | `PATCH /imports/staging/{row_id}` | 修正错误行并重新校验，避免只能拒绝整个批次 | 已完成 |
+| 4 | 批次重新校验 | `POST /imports/batches/{batch_id}/revalidate` | 对批次中的 staging 行重新跑校验，更新 valid/error 统计 | 已完成 |
+| 5 | 后台事件列表 | `GET /admin/events` | 支持关键词、年份、地区、状态、置信度、是否有来源的分页筛选 | 已完成 |
+| 6 | 事件审计日志 | `GET /admin/events/{event_id}/changes` | 查看事件新增、修改、归档、争议标记、来源核验记录 | 已完成 |
+| 7 | 来源 CRUD | `POST /admin/events/{event_id}/sources`、`PATCH /admin/sources/{source_id}`、`DELETE /admin/sources/{source_id}` | 新增、编辑、删除或停用来源；现有后端只有来源核验 | 已完成 |
+| 8 | 关系管理 CRUD | `GET /admin/relations`、`POST /admin/relations`、`PATCH /admin/relations/{relation_id}`、`DELETE /admin/relations/{relation_id}` | 管理事件之间的同期、因果、影响和不确定关系 | 已完成 |
+| 9 | 知识文档管理 | `GET /knowledge/documents`、`GET /knowledge/documents/{document_id}/chunks`、`PATCH /knowledge/documents/{document_id}` | 列出文档、查看 chunk、停用或更新文档元数据 | 已完成 |
+| 10 | 文档向量重算 | `POST /knowledge/documents/{document_id}/reembed` | 文档内容或 embedding 配置变化后重算 chunk embedding | 已完成 |
+| 11 | 向量状态 | `GET /vectors/status` | 返回事件和知识库 embedding 覆盖率、维度、provider、索引状态 | 已完成 |
+| 12 | 批量向量重建 | `POST /vectors/rebuild`、`POST /vectors/rebuild-jobs` | 触发历史事件或知识文档的批量 embedding 重算任务，支持任务创建、查看和处理 | 已完成 |
+
+### 后端继续加强工作表（暂不考虑权限）
+
+当前后端已经能支撑管理后台第一版。下一轮加强不再以“补 CRUD”为主，而是提高数据运营效率和数据质量。
+
+| 批次 | 优先级 | 工作项 | 建议 API / 交付物 | 目标 | 验收标准 | 状态 |
+|---|---:|---|---|---|---|---|
+| B1 | 1 | 数据质量检查 summary | `GET /admin/data-quality/summary` | 给总览页提供问题数量和严重程度概览 | 返回无来源、低置信、疑似重复、时间异常、关系缺证据等计数 | 已完成 |
+| B1 | 2 | 数据质量问题列表 | `GET /admin/data-quality/issues` | 让运营者可以按问题类型进入修复 | 支持 issue_type、severity、limit、offset；每条问题可跳转事件或关系 | 已完成 |
+| B1 | 3 | 数据字典接口 | `GET /admin/dictionaries` | 支撑前端筛选器和编辑表单 | 返回 regions、polities、categories、event_statuses、source_types、relation_types、time_precisions | 已完成 |
+| B1 | 4 | 后台事件详情聚合 | `GET /admin/events/{event_id}` | 前端事件详情页一次拿齐管理所需数据 | 返回完整事件字段、分类、来源、关系、审计、导入批次和 embedding 状态 | 已完成 |
+| B2 | 5 | 事件批量更新 | `POST /admin/events/bulk-update` | 提升事件维护效率 | 支持批量更新状态、置信度、分类、归档；记录审计日志 | 已完成 |
+| B2 | 6 | staging 批量重校验 | `POST /imports/staging/bulk-revalidate` | 批量处理导入错误修复后的行 | 支持 row_ids 或 batch_id；返回成功/失败统计 | 已完成 |
+| B2 | 7 | 来源批量核验 | `POST /admin/sources/bulk-verify` | 批量处理来源质量 | 支持 source_ids、reliability、is_primary；记录事件审计 | 已完成 |
+| B3 | 8 | 导入合并策略 | `POST /imports/staging/{row_id}/merge` | 让重复预览后可以真正处理冲突 | 支持 keep_existing、replace_existing、merge_sources、merge_categories、merge_sources_and_categories | 已完成 |
+| B3 | 9 | 导入文件解析轻量版 | `POST /imports/parse` | 提升导入体验 | 支持 JSON 文本/对象和 CSV 文本解析为标准 events payload | 已完成 |
+| B4 | 10 | 知识库版本和重切分 | 文档版本字段 / re-chunk 接口 | 支撑文档更新后的可追溯管理 | 文档更新保留版本，chunk 变化可查看 | 暂缓 |
+| B4 | 11 | 向量任务自动处理 | Worker 或队列消费 vector jobs | 数据量变大后避免手动 process | 创建任务后可异步完成，失败有错误信息和重试入口 | 暂缓 |
+
+### 管理后台前端开发工作表
+
+前端管理系统只覆盖历史数据、知识库和向量运营；Agent 运行详情、工具调用链、成本看板和评测分析不做自研页面，后续通过 Langfuse 跳转查看。
+
+| 批次 | 优先级 | 页面 / 能力 | 路由建议 | 对接 API | 验收标准 | 状态 |
+|---|---:|---|---|---|---|---|
+| F1 | 1 | 管理后台壳子和导航 | `/admin` | `GET /admin/overview`、`GET /vectors/status` | 有后台侧边导航、顶部状态、概览指标、数据质量入口；和聊天页路由互通 | 已完成 |
+| F1 | 2 | 管理 API client 和类型拆分 | `apps/web/src/adminApi.ts` | 已有管理后端接口 | 管理接口集中封装，页面不直接拼 URL；失败、加载、空状态统一 | 已完成 |
+| F2 | 3 | 数据导入工作台 | `/admin/imports/new` | `POST /imports/parse`、`POST /imports/batches` | 支持粘贴 JSON/CSV、解析预览、错误提示、创建导入批次 | 已完成 |
+| F2 | 4 | 导入批次列表和审核详情 | `/admin/imports`、`/admin/imports/:batchId` | `GET /imports/batches`、`GET /imports/batches/{batch_id}/staging`、`GET /imports/batches/{batch_id}/preview` | 可查看批次、staging 行、校验错误、重复候选和差异 | 已完成 |
+| F2 | 5 | staging 修正、合并和确认入库 | `/admin/imports/:batchId` | `PATCH /imports/staging/{row_id}`、`POST /imports/staging/{row_id}/merge`、`POST /imports/batches/{batch_id}/confirm`、`POST /imports/batches/{batch_id}/reject` | 可修正错误行、批量重校验、处理重复、确认或拒绝批次 | 已完成 |
+| F3 | 6 | 事件库列表和筛选 | `/admin/events` | `GET /admin/events`、`POST /admin/events/bulk-update` | 支持关键词、年份、地区、状态、最低置信度、有无来源筛选和批量归档 | 已完成 |
+| F3 | 7 | 后台事件详情编辑 | `/admin/events/:eventId` | `GET /admin/events/{event_id}`、`PATCH /admin/events/{event_id}` | 事件核心字段已改为表单编辑，可保存并查看审计、来源、关系 | 已完成 |
+| F3 | 8 | 来源和关系维护 | `/admin/events/:eventId`、`/admin/relations` | 来源新增/编辑/删除/核验、关系列表/新增/编辑/删除 | 可维护来源 reliability、citation、excerpt、URL，也可维护事件关系说明和置信度 | 已完成 |
+| F4 | 9 | 数据质量修复台 | `/admin/quality` | `GET /admin/data-quality/summary`、`GET /admin/data-quality/issues` | 可按问题类型进入事件或关系修复；总览页问题卡片可跳转 | 已完成 |
+| F4 | 10 | 知识库管理 | `/admin/knowledge`、`/admin/knowledge/:documentId` | `GET /knowledge/documents`、`GET /knowledge/documents/{document_id}/chunks`、`PATCH /knowledge/documents/{document_id}`、`POST /knowledge/documents/{document_id}/reembed` | 可查看文档、chunk、更新元数据、停用/归档、触发 reembed | 已完成 |
+| F4 | 11 | 向量管理 | `/admin/vectors` | `GET /vectors/status`、`POST /vectors/rebuild-jobs`、`POST /vectors/rebuild-jobs/{job_id}/process` | 可看 embedding 覆盖率、创建/处理重建任务、查看任务状态 | 已完成 |
+| F5 | 12 | 前端结构化整理和视觉 QA | 全局 | 无新增 | 已拆出 `AdminPages.tsx` 和 `adminApi.ts`，`npm run build` 通过；更细移动端视觉 QA 后续继续 | 已完成第一版 |
+
+### 不应自研的后端能力
+
+| 能力 | 处理方式 |
+|---|---|
+| Agent run 搜索与分析接口 | 交给 Langfuse，后端只保留必要 run_id / trace_id 映射 |
+| 工具调用链聚合接口 | 交给 Langfuse spans / observations |
+| token/cost 汇总报表接口 | 交给 Langfuse 成本统计 |
+| 运行错误聚合分析接口 | 交给 Langfuse trace 筛选和错误聚合 |
+| 评测中心专用 UI 接口 | 交给 Langfuse datasets/evals，本仓库保留自动化评测脚本 |
+
 ## 当前实际进度
 
 更新时间：2026-07-29
@@ -113,17 +219,19 @@ ai-agent/
 | 时间 | 本次完成 | 验证结果 | 下一步 |
 |---|---|---|---|
 | 2026-07-28 | 完成 React 查询页和横向对照表 UI MVP：新增 `apps/web`，支持 Agent SSE 步骤流、年份/时间段地区对照、事件详情和来源展示 | 前端 `npm run build` 通过；后端单元测试 40/40 通过 | 继续做前端联调优化、数据管理后台，或把手写 checkpoint 迁移到 LangGraph |
-| 2026-07-29 | 完成前端产品形态调整：从三栏工作台改为主流 AI 聊天页；新增 `react-router-dom` 页面跳转；事件卡片可跳转 `/events/:eventId` 详情页；补齐移动端适配；前端默认后端端口改为 `19000` | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常，数据源为 PostgreSQL | 优先做 Agent 返回结构标准化、横向对照结果详情页，然后接数据导入审核后台 |
+| 2026-07-29 | 完成前端产品形态调整：从三栏工作台改为主流 AI 聊天页；新增 `react-router-dom` 页面跳转；事件卡片可跳转 `/events/:eventId` 详情页；补齐移动端适配；前端默认后端端口改为 `19000`；明确管理后台与 Langfuse 边界，并倒推后端增强清单 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常，数据源为 PostgreSQL | 优先补齐导入审核后台后端接口，再接数据导入审核后台；随后补事件/来源/知识库/向量管理接口 |
+| 2026-07-29 | 完成管理后台后端继续加强 B1/B2/B3：数据质量 summary/问题列表、数据字典、后台事件详情聚合、事件/来源/staging 批量操作、导入 JSON/CSV 解析和重复 staging 合并策略 | 后端 `python -m unittest discover tests` 通过，54/54 | 开始开发管理后台前端，优先接入数据导入审核、事件详情维护、数据质量修复和批量操作 |
+| 2026-07-29 | 完成管理后台前端可运营版：新增 `/admin` 管理台、导入解析/审核/合并、事件库高级筛选、事件表单编辑、来源新增/编辑/删除/核验、关系新增/编辑/删除、数据质量修复台、知识文档元数据维护和向量任务管理 | 前端 `npm.cmd run build` 通过；`/admin`、`/admin/events`、`/admin/relations` 返回 200 | 开始真实数据导入演练，使用 20-50 条历史事件验证导入、审核、修正、合并、入库、质量修复和事件维护闭环 |
 
 ### 当前状态摘要
 
 | 项目 | 当前状态 |
 |---|---|
-| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP、React 聊天主界面、React Router 跳转、事件详情页和移动端适配已完成 |
-| 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理 |
-| 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；也可用快捷对照生成地区横向事件卡片；移动端可正常浏览聊天页和详情页 |
-| 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 40/40 通过，MVP 评测最近一次 4/4 通过 |
-| 下一步重点 | Agent 返回结构标准化、横向对照结果详情页、数据导入审核后台、RAG 引用注入 |
+| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP、管理后台支撑 API B1/B2/B3、React 聊天主界面、React Router 跳转、事件详情页、移动端适配和管理后台可运营版已完成；Agent 观测与评测分析交给 Langfuse |
+| 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理、管理后台数据运营 |
+| 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；也可用管理后台完成导入解析、批次审核、staging 修正/合并、确认入库、事件编辑、来源维护、关系维护、数据质量查看、知识库文档维护和向量任务处理 |
+| 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 54/54 通过，MVP 评测最近一次 4/4 通过 |
+| 下一步重点 | 真实数据导入演练、管理后台体验问题修复、Agent 返回结构标准化、引用/来源注入回答、Langfuse 集成预留 |
 | 暂不推进 | 多智能体、MCP、Playwright、复杂 RBAC、Kubernetes，等单 Agent 与数据管理链路稳定后再做 |
 
 | 模块 | 状态 | 已在线完成的功能 | 对应 PDF 功能/章节 |
@@ -139,13 +247,13 @@ ai-agent/
 | 历史查询工具 | 已完成 MVP | 支持 `search_events_by_year`、`search_events_by_range`、`compare_regions`、`get_event_detail`、`find_contemporary_events`、`find_related_events` | 第四阶段：设计工具系统 |
 | PostgreSQL Repository | 已完成 | API 默认查询 PostgreSQL，JSON 样例数据作为 fallback | 最终技术选型：PostgreSQL；工具返回真实系统结果 |
 | Agent 执行记录 | 已完成 MVP | 每次 Agent 查询写入 `agent_runs` 和 `agent_steps`，可按 `run_id` 回放 | 第十一阶段：任务持久化与故障恢复；第十四阶段：可观测性 |
-| 自动评测 | 已完成 MVP | `evaluation.runner` 可写入 `evaluation_runs`，当前 MVP 评测 4/4 通过 | 第十三阶段：评测体系 |
+| 自动评测 | 已完成 MVP，后续评测 UI 交给 Langfuse | `evaluation.runner` 可写入 `evaluation_runs`，当前 MVP 评测 4/4 通过；后续不自研评测中心后台，优先接 Langfuse datasets/evals | 第十三阶段：评测体系 |
 | 规则 Agent 路由 | 已完成 | 支持年份题、时间段题、地区对照题、事件关系题的多步工具调用 | 第三阶段：实现最小 Agent Loop |
 | ModelAdapter | 已完成 MVP | 已有可替换模型适配器接口、`RuleBasedModelAdapter` 和模型工厂 | 第二阶段：学习大模型基础；系统架构：Model Adapter |
 | OpenAI Function Calling | 已完成 MVP | 已把 ToolRegistry 转换为 OpenAI tools，可通过环境变量切换真实模型 | 第二阶段：Structured Output；最终技术选型：JSON Schema Function Calling |
 | ToolRegistry / ToolExecutor | 已完成 MVP | 已实现 `ToolDefinition`、`ToolRegistry`、`ToolExecutor`，统一执行历史查询工具 | 第四阶段：设计工具系统 |
 | Function Calling 稳定性 | 已完成 MVP | ToolExecutor 已支持 JSON Schema 参数校验、默认值填充、单工具超时、幂等工具重试、失败观察结果 | 第三阶段：参数校验、超时、重试、失败处理 |
-| 模型观测和成本统计 | 已完成 MVP | Agent 步骤已记录模型输入摘要、输出摘要、token 输入/输出、模型耗时和估算成本 | 第三阶段：Token/成本预算；第十四阶段：可观测性 |
+| 模型观测和成本统计 | 已完成 MVP，后续不自研后台 | Agent 步骤已记录模型输入摘要、输出摘要、token 输入/输出、模型耗时和估算成本；后续 Trace、成本看板和运行分析交给 Langfuse | 第三阶段：Token/成本预算；第十四阶段：可观测性 |
 | SSE 步骤流 | 已完成 MVP | 新增 `/agent/query/stream`，实时输出 run_started、step_started、tool_called、tool_result、final_answer 等事件 | 第十六阶段：前后端通信；系统架构：API Gateway SSE |
 | Agent 运行状态增强 | 已完成 MVP | 已新增取消入口 `/agent/runs/{run_id}/cancel`，Loop 会检查 cancelled 状态，失败/取消不会被误标 completed | 第十一阶段：任务持久化与故障恢复 |
 | Redis 队列 / Worker | 已完成 MVP | 已新增 `/agent/query/async`、`/agent/queue/health`、`/agent/queue/process-one`、`/agent/queue/recover-stale` 和 `apps.worker.agent_worker`，支持 Redis list 入队、processing 队列、worker 消费、PostgreSQL 原子 claim、成功 ack、失败重试、死信队列、visibility timeout 回收和结果回放 | 系统架构：Task Worker；第十一阶段：任务持久化与故障恢复 |
@@ -155,46 +263,40 @@ ai-agent/
 | 事件管理和人工确认 | 已完成 MVP | 已新增 `/admin/events`、修改、归档、争议标记、来源核验接口；写操作必须带 `admin_token` 和 `confirmed=true`，并写入 `event_change_logs` 审计日志 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
 | 手写 Agent Loop | 已完成 MVP | API 和评测已切换到新 Loop，支持最大步数、步骤记录、工具结果裁剪 | 第三阶段：实现最小 Agent Loop |
 | 后端缺口审查 | 已完成 | 已形成 `docs/backend_gap_review.md`，记录与 PDF 技术栈的差距 | 第十九：推荐开发顺序；第二十二：最终技术选型建议 |
-| 前端 | 已完成 MVP | 已新增 `apps/web` React + TypeScript + Vite 聊天主界面，支持 Agent SSE、React Router 页面跳转、事件详情页、事件卡片链接、快捷横向对照和移动端适配 | 第一阶段 MVP：React 聊天页面、流式回复；第十六阶段：前后端通信；业务可视化前端 |
+| 前端 | 已完成可运营版 | 已新增 `apps/web` React + TypeScript + Vite 聊天主界面和 `/admin` 管理后台；支持 Agent SSE、React Router 页面跳转、事件详情页、事件卡片链接、快捷横向对照、移动端适配、导入审核、事件/来源/关系/知识库/向量管理 | 第一阶段 MVP：React 聊天页面、流式回复；第十六阶段：前后端通信；业务可视化前端；平台化第一版 |
 
 ### 紧要但未完成的能力
 
-| 优先级 | 后端能力 | 当前状态 | 为什么紧要 | 对应 PDF 功能/章节 |
+| 优先级 | 能力 | 当前状态 | 为什么紧要 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
-| 1 | Agent 返回结构标准化 | 未完成 | 当前前端从工具 observation 中提取事件，能跑但协议不够稳定；需要后端明确返回 `references` / `links`，支撑事件、来源、对照页统一跳转 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
-| 2 | 横向对照结果详情页 | 未完成 | 事件详情页已完成，但一次横向比较还没有独立详情页；需要支持 `/compare` 或 `/compare/:id` 展示地区分栏、时间线和关联说明 | 业务可视化前端；第四阶段：查询型工具 |
-| 3 | 数据导入审核后台 | 未完成 | 后端已有导入审核流，前端还未接；真实数据建设需要创建批次、查看 staging、确认入库、驳回和错误提示 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
-| 4 | 完整 RBAC / 多租户权限 | 未完成 | 当前只有 admin token + confirmed MVP，后续上线需要用户身份、角色、租户隔离和权限策略落库 | 第十二阶段：安全体系 |
-| 5 | RAG 增强 | 部分完成 | MVP 已有本地 embedding 和 pgvector 检索；还缺真实模型 embedding、混合检索、引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
-| 6 | LangGraph checkpoint / 恢复机制 | 未完成 | 当前手写 Agent Loop 已有 checkpoint 恢复 MVP；还未迁移到 LangGraph 原生 checkpoint / interrupt | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
-| 7 | 标准 Trace / 成本汇总 | 部分完成 | 已有数据库记录，但还没有 OpenTelemetry、Langfuse/LangSmith 或成本报表 | 第十四阶段：可观测性 |
+| 1 | 真实数据导入演练 | 未开始 | 管理后台已可用，需要用 20-50 条真实历史事件跑完整流程，暴露字段、校验、重复合并和体验问题 | 第十阶段：人工确认机制；平台化第一版 |
+| 2 | Agent 返回结构标准化 | 未完成 | 当前前端从工具 observation 中提取事件，能跑但协议不够稳定；需要后端明确返回 `references` / `links` / `events`，支撑事件、来源、对照页统一跳转 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
+| 3 | RAG 引用注入回答 | 部分完成 | MVP 已有本地 embedding 和 pgvector 检索，但 Agent 回答还没有稳定引用知识文档和来源 | 第八阶段：RAG 知识库 |
+| 4 | 管理后台真实运营体验 QA | 未开始 | 需要在真实导入演练中检查表单、筛选、错误状态、移动端和空状态，避免只在样例数据上看起来可用 | 平台化第一版 |
+| 5 | Langfuse 可观测性集成 | 未完成 | 已有数据库记录，但后台不自研 Trace/成本报表；后续接入 Langfuse 统一查看运行、工具调用、token 和成本 | 第十四阶段：可观测性 |
+| 6 | 完整 RBAC / 多租户权限 | 暂缓 | 当前暂不考虑权限；后续上线需要用户身份、角色、租户隔离和权限策略落库 | 第十二阶段：安全体系 |
 
 ## 前端和主链路下一步计划
 
 | 优先级 | 接下来准备做什么 | 目标 | 对应 PDF 功能/章节 |
 |---:|---|---|---|
-| 1 | Agent 返回结构标准化 | 后端在 `final_answer` 或同步接口中稳定返回 `answer`、`references`、`links`，前端不再依赖递归解析 observation | 第二阶段：Structured Output；第三阶段：最小 Agent Loop；第十六阶段：前后端通信 |
-| 2 | 横向对照结果详情页 | 新增对照详情页，展示时间范围、地区分栏、事件卡片、可疑关联和跳转事件详情能力 | 第四阶段：工具系统；业务可视化前端 |
-| 3 | 数据导入审核后台第一版 | 在前端接入 import batch、staging、confirm、reject，形成真实数据建设入口 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
-| 4 | RAG 来源引用注入 | Agent 回答中展示来源引用卡片，详情页可查看来源片段和可靠性 | 第八阶段：RAG 知识库 |
-| 5 | 会话历史持久化 | 将 `agent_runs` 扩展为可浏览会话列表，刷新后可找回历史问答 | 第七阶段：状态、记忆和上下文；第十一阶段：任务持久化 |
+| 1 | 真实数据导入演练 | 准备 20-50 条历史事件，走 `/admin/imports/new` 到确认入库、质量修复、事件/来源/关系维护完整流程 | 第十阶段：人工确认机制；平台化第一版 |
+| 2 | 管理后台体验修复 | 根据演练结果修复字段校验、错误提示、表单 ergonomics、重复合并提示、空状态和移动端问题 | 平台化第一版 |
+| 3 | Agent 返回结构标准化 | 后端在 `final_answer` 或同步接口中稳定返回 `answer`、`references`、`links`、`events`，前端不再依赖递归解析 observation | 第二阶段：Structured Output；第三阶段：最小 Agent Loop；第十六阶段：前后端通信 |
+| 4 | RAG 引用注入回答 | 把知识库检索和事件来源稳定注入 Agent 答案，回答可以显示引用来源和文档 chunk | 第八阶段：RAG 知识库 |
+| 5 | Langfuse 集成预留 | 后端上报 trace、tool call、token、成本和错误信息，后台只提供跳转入口，不自研 Agent run 搜索与分析页 | 第十四阶段：可观测性；第十三阶段：评测体系 |
 
 ## 后端下一步建议
 
-对照 PDF 技术栈，后端 MVP 已完成查询、数据库、执行记录、评测闭环和手写 Agent Loop。建议下一步优先补：
+对照新的管理后台计划，后端和前端管理系统第一轮已基本补齐。下一步后端不再优先补 CRUD，而是围绕真实数据演练和 Agent 输出协议增强：
 
 | 优先级 | 接下来准备做什么 | 目标 | 对应 PDF 功能/章节 |
 |---:|---|---|---|
-| 1 | Function Calling 参数校验、工具超时、错误重试 | 已完成 MVP：模型错误参数会被拦截，工具超时会失败返回，幂等工具支持重试 | 第三阶段：最小 Agent Loop 必须补齐参数校验、超时、重试 |
-| 2 | 模型 token、耗时、成本统计 | 已完成 MVP：步骤记录可查看模型摘要、token、耗时和估算成本 | 第十四阶段：可观测性 |
-| 3 | SSE 步骤流 | 已完成 MVP：`/agent/query/stream` 可逐步输出 Agent 运行事件 | 第十六阶段：前后端通信；系统架构：API Gateway SSE |
-| 4 | Agent 运行状态增强 | 已完成 MVP：支持 cancelled 入口，失败/取消状态不会误标 completed | 第十一阶段：任务持久化与故障恢复 |
-| 5 | 数据导入审核流 | 已完成 MVP：支持 staging、校验、人工确认、正式入库，避免污染历史事件表 | 第十阶段：人工确认机制；第十二阶段：安全体系 |
-| 6 | RAG / embedding / pgvector 检索 | 已完成 MVP：pgvector 已参与知识文档语义检索 | 第八阶段：RAG 知识库 |
-| 7 | 事件管理接口和权限/人工确认 | 已完成 MVP：新增、修改、归档、争议标记、来源核验，写操作需 admin token 和显式确认 | 平台化第一版；工具权限策略；第十二阶段：安全体系 |
-| 8 | React 查询页和横向对照表 UI | 已完成 MVP：可交互年份查询、时间段对照表、Agent 分析区和事件来源详情 | 第一阶段基础 MVP；前端 React + TypeScript |
-| 9 | Redis / Worker / 任务队列 | 已完成 Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收和 checkpoint 恢复 MVP | 系统架构：Task Worker；最终技术选型：Redis |
-| 10 | LangGraph 工作流 | 后续增强：把当前手写 Loop、checkpoint 和人工确认迁移到 LangGraph | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
-| 11 | MCP 接入 | 等本地工具边界稳定后，把核心工具服务标准化给外部智能体复用 | 第九阶段：MCP 能力标准化 |
+| 1 | 真实数据导入演练脚本和样例数据 | 准备可重复导入的 20-50 条事件样例，用于验证管理后台和数据校验 | 第十阶段：人工确认机制；平台化第一版 |
+| 2 | Agent 返回结构标准化 | 稳定返回 `answer`、`references`、`links`、`events`，支撑前端引用和跳转 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
+| 3 | RAG 引用注入 | 把事件来源和知识文档 chunk 作为引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
+| 4 | Langfuse 集成 | 上报 trace、tool call、token、成本和错误；不开发自研运行分析后台 | 第十四阶段：可观测性 |
+| 5 | LangGraph 工作流 | 后续增强：把当前手写 Loop、checkpoint 和人工确认迁移到 LangGraph | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
+| 6 | MCP 接入 | 等本地工具边界稳定后，把核心工具服务标准化给外部智能体复用 | 第九阶段：MCP 能力标准化 |
 
 详细缺口见 [backend_gap_review.md](docs/backend_gap_review.md)。

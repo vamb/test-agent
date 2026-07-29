@@ -14,7 +14,7 @@ React Web
       -> RAG Tools
     -> PostgreSQL + pgvector
     -> Redis
-    -> Trace / Evaluation
+    -> Langfuse Trace / Evaluation
 ```
 
 ## 推荐技术栈
@@ -32,8 +32,8 @@ React Web
 | 向量检索 | pgvector |
 | 缓存和任务锁 | Redis |
 | 数据导入 | Python ETL |
-| Trace | OpenTelemetry + Langfuse/LangSmith |
-| 测试 | Pytest + Agent Evaluation Dataset |
+| Trace / Evaluation | Langfuse |
+| 测试 | Pytest + Agent Evaluation Dataset，评测结果后续接入 Langfuse |
 | 部署 | Docker Compose |
 
 ## 核心数据模型
@@ -162,3 +162,61 @@ Agent 输出时必须遵守：
 | 地图视图 | 按区域展示事件分布 |
 | 关系图 | 展示事件之间的影响关系 |
 | 数据管理后台 | 导入、校对、审核历史事件 |
+
+### 管理后台前端路由
+
+管理后台采用同一个 React/Vite 应用，不单独新建前端工程。当前聊天页继续作为 `/`，后台挂在 `/admin` 下，页面风格延续深色档案工作台，但控件更偏运营系统：信息密度高、表格清晰、编辑表单稳定、批量操作可预期。
+
+| 路由 | 页面 | 核心能力 |
+|---|---|---|
+| `/admin` | 管理总览 | 数据资产指标、导入待处理、数据质量摘要、向量覆盖率、快速入口 |
+| `/admin/imports/new` | 数据导入工作台 | JSON/CSV 粘贴解析、预览错误、创建 import batch |
+| `/admin/imports` | 导入批次列表 | 批次状态筛选、分页、进入审核详情 |
+| `/admin/imports/:batchId` | 导入审核详情 | staging 行、校验错误、重复候选、差异预览、修正、重校验、合并、确认或拒绝 |
+| `/admin/events` | 事件库列表 | 搜索筛选、分页、批量更新、进入事件详情 |
+| `/admin/events/:eventId` | 后台事件详情 | 事件字段编辑、来源、关系、审计日志、导入批次、向量状态 |
+| `/admin/relations` | 关系管理 | 事件关系搜索、新增、编辑、删除、证据来源维护 |
+| `/admin/quality` | 数据质量修复台 | 问题 summary、问题列表、跳转到事件或关系修复 |
+| `/admin/knowledge` | 知识库管理 | 文档列表、状态筛选、检索、进入 chunk 详情 |
+| `/admin/knowledge/:documentId` | 知识文档详情 | chunk 查看、元数据更新、停用、reembed |
+| `/admin/vectors` | 向量管理 | embedding 覆盖率、重建任务创建、任务状态和手动处理 |
+
+前端实现顺序：
+
+| 批次 | 范围 | 验收 |
+|---|---|---|
+| F1 | 后台壳子、导航、API client、总览 | `/admin` 可运行，能读取 overview 和 vector status |
+| F2 | 导入解析、批次、staging 审核、合并、确认 | 可从前端完成一批事件导入入库 |
+| F3 | 事件列表、事件详情、来源和关系维护 | 可完成事件日常维护，不依赖 curl |
+| F4 | 数据质量、知识库、向量管理 | 可按质量问题修复数据，可管理 RAG 文档和向量任务 |
+| F5 | 组件拆分、移动端、视觉 QA、构建验证 | `npm run build` 通过，桌面/移动端无重叠 |
+
+## 管理后台与 Langfuse 分工
+
+本系统自研后台只负责历史知识数据运营，不重复开发 Langfuse 已覆盖的 Agent 观测和评测分析能力。
+
+### 我们开发的后台能力
+
+| 模块 | 功能 |
+|---|---|
+| 管理总览 | 展示事件总数、待审核批次、低置信事件、无来源事件、知识文档数、向量覆盖率 |
+| 数据导入 | 上传或粘贴历史事件数据，创建 import batch |
+| 导入审核 | 查看 staging 行、校验错误、修正、拒绝、确认入库 |
+| 事件库管理 | 搜索、筛选、编辑、归档、标记争议 |
+| 来源管理 | 管理 citation、excerpt、URL、source type、reliability 和核验状态 |
+| 关系管理 | 维护事件之间的 contemporary、cause、effect、influence、uncertain 等关系 |
+| 知识库管理 | 导入文档、查看 chunk、停用文档、测试语义召回 |
+| 向量管理 | 查看 embedding 覆盖率、重算向量、检查索引状态、测试向量检索 |
+| 系统设置 | 管理 admin token、embedding provider、向量维度、导入规则和状态枚举 |
+
+### 交给 Langfuse 的能力
+
+| 能力 | 处理方式 |
+|---|---|
+| Agent 运行详情 | 不自研页面，使用 Langfuse trace |
+| 工具调用链 | 不自研分析页，使用 Langfuse spans / observations |
+| token、耗时、成本统计 | 不自研看板，后端负责上报到 Langfuse |
+| 运行错误分析 | 不自研聚合分析，使用 Langfuse trace 和筛选能力 |
+| Prompt 版本与运行关联 | 使用 Langfuse 记录和分析 |
+| 评测中心 UI | 不自研，后续接 Langfuse datasets/evals |
+| Agent run 搜索与筛选 | 不自研后台列表，使用 Langfuse 搜索能力 |
