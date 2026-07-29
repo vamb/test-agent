@@ -30,7 +30,12 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_document_id
   ON knowledge_chunks (document_id);
 
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_status
+  ON knowledge_documents (status);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_created_at
+  ON knowledge_documents (created_at DESC);
+
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_embedding
   ON knowledge_chunks USING ivfflat (embedding vector_cosine_ops)
   WITH (lists = 100);
-

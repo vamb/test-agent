@@ -30,7 +30,8 @@ server=PostgreSQL 17.9
 当前已在 `historical_agent` 数据库正式建表：
 
 ```text
-tables=19
+core_tables=19
+current_app_tables=23+
 regions=6
 categories=10
 modern_countries=5
@@ -40,7 +41,28 @@ pgvector=enabled
 historical_events.embedding=vector
 ```
 
-历史事件查询当前仍使用 JSON 样例数据。当前已提供正式表结构和基础字典种子数据：
+当前后端默认使用 PostgreSQL。完整管理后台还依赖事件审计、知识库、事件向量列和向量重建任务表。
+
+完整初始化入口：
+
+```text
+infrastructure/database/init.sql
+```
+
+它会按顺序执行：
+
+```text
+schema.sql
+schema_event_management.sql
+schema_knowledge.sql
+schema_vector_optional.sql
+schema_vector_jobs.sql
+seed_reference_data.sql
+```
+
+其中 `schema_knowledge.sql` 和 `schema_vector_optional.sql` 要求本机 PostgreSQL 已安装 pgvector。
+
+基础表结构和基础字典种子数据：
 
 ```text
 infrastructure/database/schema.sql
@@ -90,9 +112,21 @@ GET /health/db
 
 ## 建表命令
 
-确认要在当前数据库创建表后执行：
+如果要初始化当前完整应用所需表结构，推荐执行：
+
+```bash
+psql -h localhost -p 5432 -U postgres -d historical_agent -f infrastructure/database/init.sql
+```
+
+如果只需要不依赖 pgvector 的基础历史事件和 Agent 运行表，可以执行：
 
 ```bash
 psql -h localhost -p 5432 -U postgres -d historical_agent -f infrastructure/database/schema.sql
 psql -h localhost -p 5432 -U postgres -d historical_agent -f infrastructure/database/seed_reference_data.sql
+```
+
+样例事件关系种子依赖样例事件已存在，不放入完整初始化入口。需要补样例关系时再单独执行：
+
+```bash
+psql -h localhost -p 5432 -U postgres -d historical_agent -f infrastructure/database/seed_sample_relations.sql
 ```

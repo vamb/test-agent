@@ -728,6 +728,11 @@ textarea:focus {
   margin-bottom: 18px;
 }
 
+.metric-grid.compact {
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  margin-bottom: 0;
+}
+
 .metric-card,
 .admin-panel {
   border: 1px solid var(--line);
@@ -766,6 +771,10 @@ textarea:focus {
 .admin-panel {
   min-width: 0;
   padding: 16px;
+}
+
+.batch-review-panel {
+  margin-bottom: 14px;
 }
 
 .panel-title {

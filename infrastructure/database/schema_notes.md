@@ -101,6 +101,7 @@ Agent 做关联分析时必须根据 `relation_type` 和 `confidence` 区分强�
 | `agent_runs` | 一次用户请求 |
 | `agent_steps` | 模型调用、工具调用、观察结果、错误信息 |
 | `tools` | 工具注册、风险等级、是否需要确认 |
+| `event_change_logs` | 管理后台对事件、来源和关系的写操作审计 |
 
 这些表用于：
 
@@ -127,6 +128,21 @@ infrastructure/database/schema_vector_optional.sql
 ```
 
 安装 PostgreSQL 的 pgvector 扩展后，再执行该脚本为 `historical_events` 增加 `embedding vector(1536)` 字段和向量索引。
+
+当前完整管理后台还需要知识库和向量任务表：
+
+```text
+infrastructure/database/schema_knowledge.sql
+infrastructure/database/schema_vector_jobs.sql
+```
+
+为了避免新环境漏执行脚本，推荐使用完整初始化入口：
+
+```text
+infrastructure/database/init.sql
+```
+
+`init.sql` 会执行基础 schema、事件审计、知识库、事件向量列、向量重建任务表和基础字典种子。样例事件关系种子 `seed_sample_relations.sql` 依赖样例事件数据，不放入默认初始化入口。
 
 历史 Agent 很容易“看起来回答得像”，所以必须用评测集检查：
 

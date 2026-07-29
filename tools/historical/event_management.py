@@ -93,6 +93,7 @@ class EventManagementService:
         end_year: int | None = None,
         regions: list[str] | None = None,
         statuses: list[str] | None = None,
+        import_batch_id: str | None = None,
         min_confidence: float | None = None,
         has_sources: bool | None = None,
         limit: int = 50,
@@ -116,6 +117,9 @@ class EventManagementService:
         if statuses:
             where.append("e.status = ANY(%s)")
             params.append(statuses)
+        if import_batch_id:
+            where.append("e.import_batch_id = %s")
+            params.append(import_batch_id)
         if min_confidence is not None:
             where.append("e.confidence >= %s")
             params.append(min_confidence)
@@ -153,6 +157,7 @@ class EventManagementService:
                       e.summary,
                       e.status::text AS source_status,
                       e.confidence,
+                      e.import_batch_id::text,
                       count(s.id) AS source_count,
                       e.created_at,
                       e.updated_at
@@ -217,6 +222,7 @@ class EventManagementService:
             "low_confidence",
             "verified_weak_source",
             "duplicate_event",
+            "duplicate_title",
             "empty_summary",
             "empty_causes",
             "empty_effects",
@@ -246,6 +252,7 @@ class EventManagementService:
             "low_confidence",
             "verified_weak_source",
             "duplicate_event",
+            "duplicate_title",
             "empty_summary",
             "empty_causes",
             "empty_effects",
@@ -397,6 +404,122 @@ class EventManagementService:
             "changes": changes,
             "import_batch": import_batch,
             "embedding": embedding_status,
+        }
+
+    def import_batch_review(self, batch_id: str) -> dict[str, Any]:
+        with psycopg.connect(self.postgres_settings.dsn, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                      id::text,
+                      filename,
+                      source_note,
+                      status::text,
+                      total_rows,
+                      valid_rows,
+                      error_rows,
+                      created_by,
+                      created_at,
+                      imported_at
+                    FROM import_batches
+                    WHERE id = %s
+                    """,
+                    [batch_id],
+                )
+                batch = cur.fetchone()
+                if not batch:
+                    return {"found": False, "batch_id": batch_id}
+
+                cur.execute(
+                    """
+                    SELECT
+                      e.id::text,
+                      e.title,
+                      e.start_year,
+                      e.end_year,
+                      coalesce(r.name, '') AS region,
+                      coalesce(p.name, '') AS polity,
+                      e.status::text AS source_status,
+                      e.confidence,
+                      e.summary,
+                      coalesce(array_length(e.causes, 1), 0) AS causes_count,
+                      coalesce(array_length(e.effects, 1), 0) AS effects_count,
+                      count(s.id) AS source_count,
+                      count(s.id) FILTER (WHERE s.reliability >= 0.7) AS reliable_source_count,
+                      min(s.reliability) AS min_source_reliability,
+                      max(s.reliability) AS max_source_reliability
+                    FROM historical_events e
+                    LEFT JOIN regions r ON r.id = e.region_id
+                    LEFT JOIN polities p ON p.id = e.polity_id
+                    LEFT JOIN event_sources s ON s.event_id = e.id
+                    WHERE e.import_batch_id = %s
+                    GROUP BY e.id, r.name, p.name
+                    ORDER BY e.start_year, e.title
+                    """,
+                    [batch_id],
+                )
+                events = [self._json_safe(dict(row)) for row in cur.fetchall()]
+
+                event_ids = [event["id"] for event in events]
+                duplicate_candidates: list[dict[str, Any]] = []
+                if event_ids:
+                    cur.execute(
+                        """
+                        SELECT
+                          seed.id::text AS seed_event_id,
+                          seed.title,
+                          seed.start_year,
+                          other.id::text AS candidate_event_id,
+                          coalesce(r.name, '') AS candidate_region,
+                          coalesce(p.name, '') AS candidate_polity,
+                          other.status::text AS candidate_status,
+                          other.import_batch_id::text AS candidate_import_batch_id
+                        FROM historical_events seed
+                        JOIN historical_events other
+                          ON other.title = seed.title
+                         AND other.start_year = seed.start_year
+                         AND other.id <> seed.id
+                        LEFT JOIN regions r ON r.id = other.region_id
+                        LEFT JOIN polities p ON p.id = other.polity_id
+                        WHERE seed.id = ANY(%s::uuid[])
+                        ORDER BY seed.title, other.updated_at DESC
+                        """,
+                        [event_ids],
+                    )
+                    duplicate_candidates = [self._json_safe(dict(row)) for row in cur.fetchall()]
+
+        low_confidence = [event for event in events if float(event["confidence"]) < 0.7]
+        weak_sources = [
+            event
+            for event in events
+            if int(event["source_count"]) == 0 or int(event["reliable_source_count"]) == 0
+        ]
+        empty_structure = [
+            event
+            for event in events
+            if not str(event["summary"]).strip()
+            or int(event["causes_count"]) == 0
+            or int(event["effects_count"]) == 0
+        ]
+        return {
+            "found": True,
+            "batch": self._json_safe(dict(batch)),
+            "count": len(events),
+            "events": events,
+            "review": {
+                "low_confidence_count": len(low_confidence),
+                "weak_source_count": len(weak_sources),
+                "duplicate_candidate_count": len(duplicate_candidates),
+                "empty_structure_count": len(empty_structure),
+                "ready_for_manual_review": len(events) > 0,
+            },
+            "issues": {
+                "low_confidence": low_confidence,
+                "weak_sources": weak_sources,
+                "duplicate_candidates": duplicate_candidates,
+                "empty_structure": empty_structure,
+            },
         }
 
     def create_event(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1307,7 +1430,13 @@ class EventManagementService:
         return None
 
     def _quality_issue_severity(self, issue_type: str) -> str:
-        high = {"missing_source", "verified_weak_source", "duplicate_event", "relation_missing_evidence"}
+        high = {
+            "missing_source",
+            "verified_weak_source",
+            "duplicate_event",
+            "duplicate_title",
+            "relation_missing_evidence",
+        }
         medium = {"low_confidence", "empty_summary", "archived_visible"}
         if issue_type in high:
             return "high"
@@ -1342,6 +1471,15 @@ class EventManagementService:
                   HAVING count(*) > 1
                 ) duplicates
             """,
+            "duplicate_title": """
+                SELECT count(*)
+                FROM (
+                  SELECT e.title, e.start_year
+                  FROM historical_events e
+                  GROUP BY e.title, e.start_year
+                  HAVING count(*) > 1
+                ) duplicates
+            """,
             "empty_summary": "SELECT count(*) FROM historical_events WHERE trim(summary) = ''",
             "empty_causes": "SELECT count(*) FROM historical_events WHERE coalesce(array_length(causes, 1), 0) = 0",
             "empty_effects": "SELECT count(*) FROM historical_events WHERE coalesce(array_length(effects, 1), 0) = 0",
@@ -1363,7 +1501,7 @@ class EventManagementService:
             cur.execute(
                 """
                 SELECT
-                  min(e.id)::text AS target_id,
+                  min(e.id::text) AS target_id,
                   e.title,
                   e.start_year,
                   coalesce(r.name, '') AS region,
@@ -1387,6 +1525,40 @@ class EventManagementService:
                     target_id=row["target_id"],
                     title=row["title"],
                     message=f"同标题、同年份、同地区/政权的事件有 {row['duplicate_count']} 条。",
+                    metadata=dict(row),
+                )
+                for row in cur.fetchall()
+            ]
+
+        if issue_type == "duplicate_title":
+            cur.execute(
+                """
+                SELECT
+                  min(e.id::text) AS target_id,
+                  e.title,
+                  e.start_year,
+                  count(*) AS duplicate_count,
+                  array_agg(e.id::text ORDER BY e.updated_at DESC) AS event_ids,
+                  array_agg(coalesce(r.name, '') ORDER BY e.updated_at DESC) AS regions,
+                  array_agg(coalesce(p.name, '') ORDER BY e.updated_at DESC) AS polities
+                FROM historical_events e
+                LEFT JOIN regions r ON r.id = e.region_id
+                LEFT JOIN polities p ON p.id = e.polity_id
+                GROUP BY e.title, e.start_year
+                HAVING count(*) > 1
+                ORDER BY count(*) DESC, e.title
+                LIMIT 200
+                """
+            )
+            return [
+                self._issue_row(
+                    issue_type=issue_type,
+                    severity=severity,
+                    severity_rank=severity_rank,
+                    target_type="event",
+                    target_id=row["target_id"],
+                    title=row["title"],
+                    message=f"同标题、同年份的事件有 {row['duplicate_count']} 条，需人工判断是重复还是不同视角记录。",
                     metadata=dict(row),
                 )
                 for row in cur.fetchall()

@@ -500,6 +500,11 @@ def admin_dictionaries() -> dict:
     return event_management_service.dictionaries()
 
 
+@app.get("/admin/import-batches/{batch_id}/review")
+def admin_import_batch_review(batch_id: str) -> dict:
+    return event_management_service.import_batch_review(batch_id)
+
+
 @app.get("/admin/events")
 def admin_list_events(
     query: str = "",
@@ -507,6 +512,7 @@ def admin_list_events(
     end_year: int | None = None,
     regions: Annotated[list[str] | None, Query()] = None,
     statuses: Annotated[list[str] | None, Query()] = None,
+    import_batch_id: str | None = None,
     min_confidence: float | None = None,
     has_sources: bool | None = None,
     limit: int = 50,
@@ -518,6 +524,7 @@ def admin_list_events(
         end_year=end_year,
         regions=regions,
         statuses=statuses,
+        import_batch_id=import_batch_id,
         min_confidence=min_confidence,
         has_sources=has_sources,
         limit=limit,

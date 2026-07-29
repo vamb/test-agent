@@ -19,3 +19,5 @@ CREATE INDEX IF NOT EXISTS idx_event_change_logs_event_id
 CREATE INDEX IF NOT EXISTS idx_event_change_logs_action
   ON event_change_logs (action);
 
+CREATE INDEX IF NOT EXISTS idx_event_change_logs_created_at
+  ON event_change_logs (created_at DESC);

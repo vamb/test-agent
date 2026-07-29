@@ -388,6 +388,12 @@ CREATE INDEX idx_historical_events_modern_country
 CREATE INDEX idx_historical_events_status
   ON historical_events (status);
 
+CREATE INDEX idx_historical_events_import_batch
+  ON historical_events (import_batch_id);
+
+CREATE INDEX idx_historical_events_title_year
+  ON historical_events (title, start_year);
+
 CREATE INDEX idx_historical_events_importance
   ON historical_events (importance_score DESC);
 

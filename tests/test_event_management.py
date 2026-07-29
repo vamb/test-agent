@@ -13,6 +13,7 @@ from apps.api.main import (
     admin_dispute_event,
     admin_get_event_detail,
     admin_get_event_changes,
+    admin_import_batch_review,
     admin_list_data_quality_issues,
     admin_list_events,
     admin_list_relations,
@@ -241,6 +242,73 @@ class EventManagementTest(unittest.TestCase):
         self.assertGreaterEqual(summary["issues"]["low_confidence"]["count"], 1)
         self.assertTrue(any(issue["target_id"] == event_id for issue in missing_source_issues["issues"]))
         self.assertTrue(any(issue["target_id"] == event_id for issue in low_confidence_issues["issues"]))
+
+    def test_list_events_by_import_batch_and_duplicate_title_quality(self) -> None:
+        first = valid_import_event("测试重复标题质量事件")
+        first["start_year"] = 906
+        first["end_year"] = 906
+        first["polity"] = "测试政权甲"
+        second = valid_import_event("测试重复标题质量事件")
+        second["start_year"] = 906
+        second["end_year"] = 906
+        second["polity"] = "测试政权乙"
+        batch = ImportReviewService(self.settings.postgres).create_batch(
+            filename="duplicate-title-quality.json",
+            source_note="unit-test",
+            created_by="test",
+            events=[first, second],
+        )
+        imported = ImportReviewService(self.settings.postgres).confirm_import(
+            batch["id"],
+            confirmed_by="test",
+        )
+
+        listed = admin_list_events(import_batch_id=batch["id"], limit=10)
+        duplicate_title_issues = admin_list_data_quality_issues(
+            issue_type="duplicate_title",
+            limit=20,
+        )
+
+        self.assertTrue(imported["imported"])
+        self.assertEqual(listed["total"], 2)
+        self.assertEqual(
+            {event["id"] for event in listed["events"]},
+            set(imported["event_ids"]),
+        )
+        self.assertTrue(
+            any(issue["title"] == "测试重复标题质量事件" for issue in duplicate_title_issues["issues"])
+        )
+
+    def test_import_batch_review_summarizes_seed_quality(self) -> None:
+        first = valid_import_event("测试批次核验事件")
+        first["start_year"] = 907
+        first["end_year"] = 907
+        first["polity"] = "测试政权甲"
+        first["confidence"] = 0.65
+        first["sources"][0]["reliability"] = 0.6
+        second = valid_import_event("测试批次核验事件")
+        second["start_year"] = 907
+        second["end_year"] = 907
+        second["polity"] = "测试政权乙"
+        batch = ImportReviewService(self.settings.postgres).create_batch(
+            filename="batch-review-quality.json",
+            source_note="unit-test",
+            created_by="test",
+            events=[first, second],
+        )
+        ImportReviewService(self.settings.postgres).confirm_import(
+            batch["id"],
+            confirmed_by="test",
+        )
+
+        review = admin_import_batch_review(batch["id"])
+
+        self.assertTrue(review["found"])
+        self.assertEqual(review["count"], 2)
+        self.assertEqual(review["review"]["low_confidence_count"], 1)
+        self.assertEqual(review["review"]["weak_source_count"], 1)
+        self.assertGreaterEqual(review["review"]["duplicate_candidate_count"], 2)
+        self.assertTrue(review["review"]["ready_for_manual_review"])
 
     def test_dictionaries_and_admin_event_detail(self) -> None:
         source_event_id = self._create_managed_event("测试详情源事件")

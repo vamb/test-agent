@@ -1,0 +1,338 @@
+[
+  {
+    "title": "雅尔穆克战役",
+    "start_year": 636,
+    "end_year": 636,
+    "start_date_text": "636年",
+    "end_date_text": "636年",
+    "time_precision": "year",
+    "region": "中东",
+    "polity": "正统哈里发国与拜占庭帝国",
+    "modern_country": "叙利亚、约旦",
+    "category": ["战争", "军事", "帝国扩张"],
+    "summary": "正统哈里发国军队在雅尔穆克击败拜占庭军队，成为阿拉伯征服叙利亚和黎凡特地区的重要转折点。",
+    "causes": ["阿拉伯军队向拜占庭东部省份扩张", "拜占庭与萨珊长期战争后国力受损"],
+    "effects": ["拜占庭失去叙利亚控制权", "伊斯兰政权在黎凡特扩张"],
+    "actors": ["哈立德·本·瓦利德", "拜占庭帝国"],
+    "source_status": "reviewing",
+    "confidence": 0.78,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Battle of the Yarmuk",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Battle_of_the_Yarmuk",
+        "citation": "Wikipedia, Battle of the Yarmuk",
+        "excerpt": "Used as a starting reference for date, participants, and broad significance.",
+        "reliability": 0.62
+      }
+    ]
+  },
+  {
+    "title": "伊斯兰征服萨珊波斯",
+    "start_year": 633,
+    "end_year": 654,
+    "start_date_text": "约633年至654年",
+    "end_date_text": "654年",
+    "time_precision": "range",
+    "region": "中东",
+    "polity": "正统哈里发国与萨珊帝国",
+    "modern_country": "伊朗、伊拉克",
+    "category": ["战争", "帝国扩张", "王朝更替"],
+    "summary": "阿拉伯穆斯林军队在 7 世纪中叶征服萨珊帝国核心地区，改变西亚政治和宗教格局。",
+    "causes": ["正统哈里发国军事扩张", "萨珊帝国长期战争和内乱后衰弱"],
+    "effects": ["萨珊帝国灭亡", "伊朗高原逐步纳入伊斯兰政治秩序"],
+    "actors": ["正统哈里发国", "萨珊帝国"],
+    "source_status": "reviewing",
+    "confidence": 0.74,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Muslim conquest of Persia",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Muslim_conquest_of_Persia",
+        "citation": "Wikipedia, Muslim conquest of Persia",
+        "excerpt": "Used as a starting reference for chronology and broad historical framing.",
+        "reliability": 0.6
+      }
+    ]
+  },
+  {
+    "title": "大化改新",
+    "start_year": 645,
+    "end_year": 646,
+    "start_date_text": "645年至646年",
+    "end_date_text": "646年",
+    "time_precision": "range",
+    "region": "东亚",
+    "polity": "飞鸟时代日本",
+    "modern_country": "日本",
+    "category": ["政治", "制度改革"],
+    "summary": "日本飞鸟时代围绕中央集权和律令制展开政治改革，后世常称为大化改新。",
+    "causes": ["苏我氏权力过大", "日本统治集团吸收唐制和东亚制度经验"],
+    "effects": ["中央集权改革推进", "律令国家建设加速"],
+    "actors": ["中大兄皇子", "中臣镰足"],
+    "source_status": "reviewing",
+    "confidence": 0.72,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Taika Reform",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Taika_Reform",
+        "citation": "Wikipedia, Taika Reform",
+        "excerpt": "Used as a starting reference for dates and reform outline.",
+        "reliability": 0.58
+      }
+    ]
+  },
+  {
+    "title": "白江口之战",
+    "start_year": 663,
+    "end_year": 663,
+    "start_date_text": "663年",
+    "end_date_text": "663年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "唐朝、新罗、倭国、百济复兴势力",
+    "modern_country": "韩国、日本、中国",
+    "category": ["战争", "外交", "区域秩序"],
+    "summary": "唐朝和新罗联军在白江口击败倭国与百济复兴势力，影响朝鲜半岛和日本列岛的政治走向。",
+    "causes": ["百济灭亡后的复兴运动", "倭国支援百济复兴势力", "唐朝和新罗推进半岛军事行动"],
+    "effects": ["百济复兴失败", "倭国加强本土防御和国家改革", "新罗统一进程推进"],
+    "actors": ["唐朝", "新罗", "倭国", "百济复兴势力"],
+    "source_status": "reviewing",
+    "confidence": 0.75,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Battle of Baekgang",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Baekgang",
+        "citation": "Wikipedia, Battle of Baekgang",
+        "excerpt": "Used as a starting reference for participants and date.",
+        "reliability": 0.6
+      }
+    ]
+  },
+  {
+    "title": "倭马亚征服西班牙",
+    "start_year": 711,
+    "end_year": 718,
+    "start_date_text": "711年至718年",
+    "end_date_text": "718年",
+    "time_precision": "range",
+    "region": "西欧",
+    "polity": "倭马亚哈里发国与西哥特王国",
+    "modern_country": "西班牙、葡萄牙",
+    "category": ["战争", "帝国扩张", "宗教"],
+    "summary": "倭马亚军队进入伊比利亚半岛并击败西哥特王国，安达卢斯伊斯兰政权由此形成。",
+    "causes": ["倭马亚哈里发国向西扩张", "西哥特王国内部政治分裂"],
+    "effects": ["伊比利亚半岛形成安达卢斯", "西欧与伊斯兰世界长期接触加深"],
+    "actors": ["塔里克·伊本·齐亚德", "倭马亚哈里发国", "西哥特王国"],
+    "source_status": "reviewing",
+    "confidence": 0.73,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Umayyad conquest of Hispania",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Umayyad_conquest_of_Hispania",
+        "citation": "Wikipedia, Umayyad conquest of Hispania",
+        "excerpt": "Used as a starting reference for date range and historical framing.",
+        "reliability": 0.6
+      }
+    ]
+  },
+  {
+    "title": "第二次阿拉伯围攻君士坦丁堡",
+    "start_year": 717,
+    "end_year": 718,
+    "start_date_text": "717年至718年",
+    "end_date_text": "718年",
+    "time_precision": "range",
+    "region": "东地中海",
+    "polity": "拜占庭帝国与倭马亚哈里发国",
+    "modern_country": "土耳其",
+    "category": ["战争", "围城", "帝国竞争"],
+    "summary": "倭马亚军队围攻君士坦丁堡，拜占庭成功守城，阻止了阿拉伯势力直接占领拜占庭首都。",
+    "causes": ["倭马亚哈里发国持续向安纳托利亚和拜占庭核心区扩张", "拜占庭内政动荡"],
+    "effects": ["拜占庭首都得以保全", "东地中海力量平衡维持"],
+    "actors": ["利奥三世", "倭马亚哈里发国"],
+    "source_status": "reviewing",
+    "confidence": 0.76,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Siege of Constantinople (717-718)",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Siege_of_Constantinople_(717%E2%80%93718)",
+        "citation": "Wikipedia, Siege of Constantinople (717-718)",
+        "excerpt": "Used as a starting reference for chronology and significance.",
+        "reliability": 0.61
+      }
+    ]
+  },
+  {
+    "title": "帕拉王朝兴起",
+    "start_year": 750,
+    "end_year": 750,
+    "start_date_text": "约750年",
+    "end_date_text": "约750年",
+    "time_precision": "approximate",
+    "region": "南亚",
+    "polity": "帕拉王朝",
+    "modern_country": "印度、孟加拉国",
+    "category": ["政治", "王朝建立", "宗教"],
+    "summary": "瞿波罗在孟加拉地区建立帕拉王朝，后续成为印度东北部和孟加拉地区的重要佛教支持政权。",
+    "causes": ["孟加拉地区政治分裂", "地方精英寻求稳定统治"],
+    "effects": ["孟加拉地区出现较稳定王朝", "佛教中心和寺院网络获得支持"],
+    "actors": ["瞿波罗"],
+    "source_status": "reviewing",
+    "confidence": 0.68,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Pala Empire",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Pala_Empire",
+        "citation": "Wikipedia, Pala Empire",
+        "excerpt": "Used as a starting reference for approximate founding and regional context.",
+        "reliability": 0.56
+      }
+    ]
+  },
+  {
+    "title": "平安京迁都",
+    "start_year": 794,
+    "end_year": 794,
+    "start_date_text": "794年",
+    "end_date_text": "794年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "平安时代日本",
+    "modern_country": "日本",
+    "category": ["政治", "城市", "文化"],
+    "summary": "日本朝廷迁都平安京，通常被视为平安时代开始的重要标志。",
+    "causes": ["朝廷调整都城和政治空间", "奈良佛教势力与宫廷政治关系复杂"],
+    "effects": ["平安京成为长期政治中心", "平安时代贵族文化逐步形成"],
+    "actors": ["桓武天皇"],
+    "source_status": "reviewing",
+    "confidence": 0.78,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Heian-kyo",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Heian-ky%C5%8D",
+        "citation": "Wikipedia, Heian-kyo",
+        "excerpt": "Used as a starting reference for date and capital relocation.",
+        "reliability": 0.6
+      }
+    ]
+  },
+  {
+    "title": "凡尔登条约",
+    "start_year": 843,
+    "end_year": 843,
+    "start_date_text": "843年",
+    "end_date_text": "843年",
+    "time_precision": "year",
+    "region": "西欧",
+    "polity": "加洛林帝国",
+    "modern_country": "法国、德国、意大利",
+    "category": ["政治", "条约", "王朝分裂"],
+    "summary": "查理曼后继者签订凡尔登条约，将加洛林帝国分为三个主要部分，影响中世纪西欧政治格局。",
+    "causes": ["路易一世死后继承冲突", "加洛林王室内部权力竞争"],
+    "effects": ["西法兰克、中法兰克、东法兰克分立", "后续法国和德意志政治发展获得历史基础"],
+    "actors": ["洛泰尔一世", "日耳曼人路易", "秃头查理"],
+    "source_status": "reviewing",
+    "confidence": 0.8,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Treaty of Verdun",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Treaty_of_Verdun",
+        "citation": "Wikipedia, Treaty of Verdun",
+        "excerpt": "Used as a starting reference for date, parties, and political impact.",
+        "reliability": 0.62
+      }
+    ]
+  },
+  {
+    "title": "保加利亚基督教化",
+    "start_year": 864,
+    "end_year": 865,
+    "start_date_text": "864年至865年",
+    "end_date_text": "865年",
+    "time_precision": "range",
+    "region": "东欧",
+    "polity": "第一保加利亚帝国",
+    "modern_country": "保加利亚",
+    "category": ["宗教", "政治", "文化"],
+    "summary": "保加利亚统治者鲍里斯一世推动基督教化，使保加利亚逐步纳入拜占庭和斯拉夫基督教文化圈。",
+    "causes": ["保加利亚需要统一多族群统治", "拜占庭与罗马教会影响竞争"],
+    "effects": ["基督教成为保加利亚国家宗教", "斯拉夫文字和教会文化传播获得基础"],
+    "actors": ["鲍里斯一世"],
+    "source_status": "reviewing",
+    "confidence": 0.7,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Christianization of Bulgaria",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Christianization_of_Bulgaria",
+        "citation": "Wikipedia, Christianization of Bulgaria",
+        "excerpt": "Used as a starting reference for chronology and religious-political context.",
+        "reliability": 0.58
+      }
+    ]
+  },
+  {
+    "title": "维京大军入侵英格兰",
+    "start_year": 865,
+    "end_year": 878,
+    "start_date_text": "865年至878年",
+    "end_date_text": "878年",
+    "time_precision": "range",
+    "region": "西欧",
+    "polity": "盎格鲁-撒克逊诸王国",
+    "modern_country": "英国",
+    "category": ["战争", "迁徙", "政治"],
+    "summary": "被称为维京大军的斯堪的纳维亚军队进入英格兰，对盎格鲁-撒克逊诸王国造成长期军事压力。",
+    "causes": ["维京扩张和掠夺活动增强", "英格兰诸王国分立"],
+    "effects": ["英格兰北部和东部形成丹麦法区", "威塞克斯王国在阿尔弗雷德统治下重组防御"],
+    "actors": ["维京大军", "阿尔弗雷德大帝"],
+    "source_status": "reviewing",
+    "confidence": 0.75,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Great Heathen Army",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Great_Heathen_Army",
+        "citation": "Wikipedia, Great Heathen Army",
+        "excerpt": "Used as a starting reference for date range and regional impact.",
+        "reliability": 0.6
+      }
+    ]
+  },
+  {
+    "title": "赞吉起义爆发",
+    "start_year": 869,
+    "end_year": 883,
+    "start_date_text": "869年至883年",
+    "end_date_text": "883年",
+    "time_precision": "range",
+    "region": "中东",
+    "polity": "阿拔斯王朝",
+    "modern_country": "伊拉克",
+    "category": ["社会", "叛乱", "政治"],
+    "summary": "伊拉克南部赞吉奴隶和其他群体发动长期起义，严重冲击阿拔斯王朝在下美索不达米亚的统治。",
+    "causes": ["盐沼地区劳役和奴役条件恶劣", "阿拔斯中央权威下降"],
+    "effects": ["阿拔斯王朝军事和财政压力加重", "伊拉克南部社会秩序受到冲击"],
+    "actors": ["阿里·本·穆罕默德", "阿拔斯王朝"],
+    "source_status": "reviewing",
+    "confidence": 0.72,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Zanj Rebellion",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Zanj_Rebellion",
+        "citation": "Wikipedia, Zanj Rebellion",
+        "excerpt": "Used as a starting reference for date range, location, and broad impact.",
+        "reliability": 0.58
+      }
+    ]
+  }
+]

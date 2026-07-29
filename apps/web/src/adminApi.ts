@@ -89,6 +89,7 @@ export type AdminEventListItem = {
   status?: string;
   source_status?: string;
   confidence?: number;
+  import_batch_id?: string;
   source_count?: number;
   category?: string[];
   summary?: string;
@@ -170,6 +171,21 @@ export type VectorJob = {
   error_message?: string;
 };
 
+export type ImportBatchReview = {
+  found: boolean;
+  batch?: ImportBatch;
+  count?: number;
+  events?: AdminEventListItem[];
+  review?: {
+    low_confidence_count: number;
+    weak_source_count: number;
+    duplicate_candidate_count: number;
+    empty_structure_count: number;
+    ready_for_manual_review: boolean;
+  };
+  issues?: Record<string, unknown[]>;
+};
+
 export const adminApi = {
   getOverview: () => request<AdminOverview>("/admin/overview"),
   getVectorStatus: () => request<Record<string, unknown>>("/vectors/status"),
@@ -196,6 +212,8 @@ export const adminApi = {
     }),
   getBatch: (batchId: string) =>
     request<ImportBatch & { found?: boolean }>(`/imports/batches/${batchId}`),
+  getBatchReview: (batchId: string) =>
+    request<ImportBatchReview>(`/admin/import-batches/${batchId}/review`),
   getStagingRows: (batchId: string) =>
     request<{ rows: StagingRow[]; count: number }>(`/imports/batches/${batchId}/staging`),
   previewBatch: (batchId: string) =>

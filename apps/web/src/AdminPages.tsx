@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Archive,
   ArrowLeft,
@@ -26,6 +26,7 @@ import {
   AdminRelation,
   AdminSource,
   ImportBatch,
+  ImportBatchReview,
   KnowledgeDocument,
   StagingRow,
   VectorJob,
@@ -346,6 +347,7 @@ export function AdminImportCreatePage() {
 export function AdminImportDetailPage() {
   const { batchId = "" } = useParams();
   const [batch, setBatch] = useState<ImportBatch | null>(null);
+  const [review, setReview] = useState<ImportBatchReview | null>(null);
   const [rows, setRows] = useState<StagingRow[]>([]);
   const [selected, setSelected] = useState<StagingRow | null>(null);
   const [editor, setEditor] = useState("");
@@ -355,9 +357,10 @@ export function AdminImportDetailPage() {
 
   function load() {
     setState("loading");
-    Promise.all([adminApi.getBatch(batchId), adminApi.previewBatch(batchId)])
-      .then(([batchResult, preview]) => {
+    Promise.all([adminApi.getBatch(batchId), adminApi.previewBatch(batchId), adminApi.getBatchReview(batchId)])
+      .then(([batchResult, preview, reviewResult]) => {
         setBatch(batchResult);
+        setReview(reviewResult);
         setRows(preview.rows || []);
         setSelected((current) => current ? (preview.rows || []).find((row) => row.id === current.id) || null : (preview.rows || [])[0] || null);
         setState("done");
@@ -409,12 +412,36 @@ export function AdminImportDetailPage() {
       state={state}
       error={error}
       action={<div className="button-row tight">
+        <Link className="ghost-button" to={`/admin/events?import_batch_id=${encodeURIComponent(batchId)}`}><Database size={16} /> 查看入库事件</Link>
         <button className="ghost-button" onClick={() => void batchAction("revalidate")}><RefreshCcw size={16} /> 重校验</button>
         <button className="primary-button" onClick={() => void batchAction("confirm")}><CheckCircle2 size={16} /> 确认入库</button>
         <button className="danger-button" onClick={() => void batchAction("reject")}><Archive size={16} /> 拒绝</button>
       </div>}
     >
       {message && <div className="notice-line">{message}</div>}
+      {review?.found && (
+        <section className="admin-panel batch-review-panel">
+          <PanelTitle icon={<ShieldAlert size={18} />} title="入库批次核验" />
+          <div className="metric-grid compact">
+            <MetricCard title="本批事件" value={review.count ?? 0} />
+            <MetricCard title="低置信" value={review.review?.low_confidence_count ?? 0} tone="warn" />
+            <MetricCard title="弱来源" value={review.review?.weak_source_count ?? 0} tone="warn" />
+            <MetricCard title="重复候选" value={review.review?.duplicate_candidate_count ?? 0} tone="warn" />
+            <MetricCard title="结构缺口" value={review.review?.empty_structure_count ?? 0} />
+          </div>
+          <div className="button-row">
+            <Link className="ghost-button" to={`/admin/events?import_batch_id=${encodeURIComponent(batchId)}`}>
+              <Database size={16} /> 查看本批事件
+            </Link>
+            <Link className="ghost-button" to="/admin/quality">
+              <ShieldAlert size={16} /> 打开数据质量
+            </Link>
+          </div>
+          {Boolean(review.review?.duplicate_candidate_count) && (
+            <JsonBlock value={{ duplicate_candidates: review.issues?.duplicate_candidates }} compact />
+          )}
+        </section>
+      )}
       <div className="admin-two-col">
         <section className="admin-panel">
           <PanelTitle icon={<Database size={18} />} title={`Staging rows ${rows.length}`} />
@@ -461,9 +488,11 @@ export function AdminImportDetailPage() {
 }
 
 export function AdminEventsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [importBatchId, setImportBatchId] = useState(searchParams.get("import_batch_id") || "");
   const [startYear, setStartYear] = useState("");
   const [endYear, setEndYear] = useState("");
   const [minConfidence, setMinConfidence] = useState("");
@@ -481,6 +510,7 @@ export function AdminEventsPage() {
       query,
       regions: region ? [region] : undefined,
       statuses: statusFilter ? [statusFilter] : undefined,
+      import_batch_id: importBatchId || undefined,
       start_year: startYear || undefined,
       end_year: endYear || undefined,
       min_confidence: minConfidence || undefined,
@@ -511,10 +541,22 @@ export function AdminEventsPage() {
     load();
   }
 
+  function search() {
+    const nextParams = new URLSearchParams(searchParams);
+    if (importBatchId) {
+      nextParams.set("import_batch_id", importBatchId);
+    } else {
+      nextParams.delete("import_batch_id");
+    }
+    setSearchParams(nextParams, { replace: true });
+    load();
+  }
+
   return (
     <AdminPageShell eyebrow="Event library" title="事件库" description="搜索、筛选和批量维护历史事件。" state={state} error={error}>
       <div className="admin-toolbar">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、摘要、地区或政权" />
+        <input value={importBatchId} onChange={(event) => setImportBatchId(event.target.value)} placeholder="导入批次 ID" />
         <input value={startYear} onChange={(event) => setStartYear(event.target.value)} placeholder="开始年份" type="number" />
         <input value={endYear} onChange={(event) => setEndYear(event.target.value)} placeholder="结束年份" type="number" />
         <select value={region} onChange={(event) => setRegion(event.target.value)}>
@@ -531,7 +573,7 @@ export function AdminEventsPage() {
           <option value="true">有来源</option>
           <option value="false">无来源</option>
         </select>
-        <button className="primary-button" onClick={load}><Search size={16} /> 搜索</button>
+        <button className="primary-button" onClick={search}><Search size={16} /> 搜索</button>
         <button className="ghost-button" onClick={bulkArchive} disabled={!selected.length}><Archive size={16} /> 批量归档</button>
       </div>
       <div className="admin-table">
@@ -876,6 +918,7 @@ export function AdminQualityPage() {
           <option value="missing_source">missing_source</option>
           <option value="low_confidence">low_confidence</option>
           <option value="duplicate_event">duplicate_event</option>
+          <option value="duplicate_title">duplicate_title</option>
           <option value="relation_missing_evidence">relation_missing_evidence</option>
         </select>
       </div>
