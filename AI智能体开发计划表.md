@@ -106,23 +106,24 @@ ai-agent/
 
 ## 当前实际进度
 
-更新时间：2026-07-28
+更新时间：2026-07-29
 
 ### 最近一次进度更新
 
 | 时间 | 本次完成 | 验证结果 | 下一步 |
 |---|---|---|---|
 | 2026-07-28 | 完成 React 查询页和横向对照表 UI MVP：新增 `apps/web`，支持 Agent SSE 步骤流、年份/时间段地区对照、事件详情和来源展示 | 前端 `npm run build` 通过；后端单元测试 40/40 通过 | 继续做前端联调优化、数据管理后台，或把手写 checkpoint 迁移到 LangGraph |
+| 2026-07-29 | 完成前端产品形态调整：从三栏工作台改为主流 AI 聊天页；新增 `react-router-dom` 页面跳转；事件卡片可跳转 `/events/:eventId` 详情页；补齐移动端适配；前端默认后端端口改为 `19000` | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常，数据源为 PostgreSQL | 优先做 Agent 返回结构标准化、横向对照结果详情页，然后接数据导入审核后台 |
 
 ### 当前状态摘要
 
 | 项目 | 当前状态 |
 |---|---|
-| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP、React 查询页和横向对照表 UI MVP 已完成 |
-| 已完成主链路 | FastAPI API、React Web、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理 |
-| 当前可运行能力 | 用户可在 Web 工作台中运行 Agent、查看 SSE 工具调用过程、按年份/时间段生成地区横向对照表、点击事件查看详情和来源 |
-| 当前验证结果 | 前端 `npm run build` 通过；后端单元测试 40/40 通过，MVP 评测 4/4 通过 |
-| 下一步重点 | 前端联调优化、数据管理后台、RAG 引用注入，或把手写 checkpoint 迁移到 LangGraph |
+| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP、React 聊天主界面、React Router 跳转、事件详情页和移动端适配已完成 |
+| 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理 |
+| 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；也可用快捷对照生成地区横向事件卡片；移动端可正常浏览聊天页和详情页 |
+| 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 40/40 通过，MVP 评测最近一次 4/4 通过 |
+| 下一步重点 | Agent 返回结构标准化、横向对照结果详情页、数据导入审核后台、RAG 引用注入 |
 | 暂不推进 | 多智能体、MCP、Playwright、复杂 RBAC、Kubernetes，等单 Agent 与数据管理链路稳定后再做 |
 
 | 模块 | 状态 | 已在线完成的功能 | 对应 PDF 功能/章节 |
@@ -154,18 +155,29 @@ ai-agent/
 | 事件管理和人工确认 | 已完成 MVP | 已新增 `/admin/events`、修改、归档、争议标记、来源核验接口；写操作必须带 `admin_token` 和 `confirmed=true`，并写入 `event_change_logs` 审计日志 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
 | 手写 Agent Loop | 已完成 MVP | API 和评测已切换到新 Loop，支持最大步数、步骤记录、工具结果裁剪 | 第三阶段：实现最小 Agent Loop |
 | 后端缺口审查 | 已完成 | 已形成 `docs/backend_gap_review.md`，记录与 PDF 技术栈的差距 | 第十九：推荐开发顺序；第二十二：最终技术选型建议 |
-| 前端 | 已完成 MVP | 已新增 `apps/web` React + TypeScript + Vite 工作台，支持 Agent SSE、横向对照表、事件详情和来源展示 | 第一阶段 MVP：React 聊天页面、流式回复；业务可视化前端 |
+| 前端 | 已完成 MVP | 已新增 `apps/web` React + TypeScript + Vite 聊天主界面，支持 Agent SSE、React Router 页面跳转、事件详情页、事件卡片链接、快捷横向对照和移动端适配 | 第一阶段 MVP：React 聊天页面、流式回复；第十六阶段：前后端通信；业务可视化前端 |
 
 ### 紧要但未完成的能力
 
 | 优先级 | 后端能力 | 当前状态 | 为什么紧要 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
-| 1 | 前端联调优化和可用性打磨 | 部分完成 | Web 工作台 MVP 已完成；还需要浏览器联调、异常态优化、移动端细节和真实用户流程打磨 | 第一阶段 MVP：React 聊天页面；业务可视化前端 |
-| 2 | 完整 RBAC / 多租户权限 | 未完成 | 当前只有 admin token + confirmed MVP，后续上线需要用户身份、角色、租户隔离和权限策略落库 | 第十二阶段：安全体系 |
-| 3 | LangGraph checkpoint / 恢复机制 | 未完成 | 当前手写 Agent Loop 已有 checkpoint 恢复 MVP；还未迁移到 LangGraph 原生 checkpoint / interrupt | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
-| 4 | RAG 增强 | 部分完成 | MVP 已有本地 embedding 和 pgvector 检索；还缺真实模型 embedding、混合检索、引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
-| 5 | 数据导入审核增强 | 部分完成 | MVP 已有 staging、校验、确认入库；还缺差异预览、批量修正和导入任务异步化 | 第十阶段：人工确认机制；第十二阶段：安全体系 |
-| 6 | 标准 Trace / 成本汇总 | 部分完成 | 已有数据库记录，但还没有 OpenTelemetry、Langfuse/LangSmith 或成本报表 | 第十四阶段：可观测性 |
+| 1 | Agent 返回结构标准化 | 未完成 | 当前前端从工具 observation 中提取事件，能跑但协议不够稳定；需要后端明确返回 `references` / `links`，支撑事件、来源、对照页统一跳转 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
+| 2 | 横向对照结果详情页 | 未完成 | 事件详情页已完成，但一次横向比较还没有独立详情页；需要支持 `/compare` 或 `/compare/:id` 展示地区分栏、时间线和关联说明 | 业务可视化前端；第四阶段：查询型工具 |
+| 3 | 数据导入审核后台 | 未完成 | 后端已有导入审核流，前端还未接；真实数据建设需要创建批次、查看 staging、确认入库、驳回和错误提示 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
+| 4 | 完整 RBAC / 多租户权限 | 未完成 | 当前只有 admin token + confirmed MVP，后续上线需要用户身份、角色、租户隔离和权限策略落库 | 第十二阶段：安全体系 |
+| 5 | RAG 增强 | 部分完成 | MVP 已有本地 embedding 和 pgvector 检索；还缺真实模型 embedding、混合检索、引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
+| 6 | LangGraph checkpoint / 恢复机制 | 未完成 | 当前手写 Agent Loop 已有 checkpoint 恢复 MVP；还未迁移到 LangGraph 原生 checkpoint / interrupt | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
+| 7 | 标准 Trace / 成本汇总 | 部分完成 | 已有数据库记录，但还没有 OpenTelemetry、Langfuse/LangSmith 或成本报表 | 第十四阶段：可观测性 |
+
+## 前端和主链路下一步计划
+
+| 优先级 | 接下来准备做什么 | 目标 | 对应 PDF 功能/章节 |
+|---:|---|---|---|
+| 1 | Agent 返回结构标准化 | 后端在 `final_answer` 或同步接口中稳定返回 `answer`、`references`、`links`，前端不再依赖递归解析 observation | 第二阶段：Structured Output；第三阶段：最小 Agent Loop；第十六阶段：前后端通信 |
+| 2 | 横向对照结果详情页 | 新增对照详情页，展示时间范围、地区分栏、事件卡片、可疑关联和跳转事件详情能力 | 第四阶段：工具系统；业务可视化前端 |
+| 3 | 数据导入审核后台第一版 | 在前端接入 import batch、staging、confirm、reject，形成真实数据建设入口 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
+| 4 | RAG 来源引用注入 | Agent 回答中展示来源引用卡片，详情页可查看来源片段和可靠性 | 第八阶段：RAG 知识库 |
+| 5 | 会话历史持久化 | 将 `agent_runs` 扩展为可浏览会话列表，刷新后可找回历史问答 | 第七阶段：状态、记忆和上下文；第十一阶段：任务持久化 |
 
 ## 后端下一步建议
 

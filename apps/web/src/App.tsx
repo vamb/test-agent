@@ -1,16 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity,
-  Archive,
-  BookOpen,
-  Braces,
+  BrowserRouter,
+  Link,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+import {
+  ArrowLeft,
+  ArrowUp,
+  Bot,
   CalendarRange,
   ChevronRight,
-  Database,
+  Clock3,
+  ExternalLink,
+  FileText,
+  Globe2,
   Loader2,
   MessageSquareText,
+  PanelLeft,
   Search,
-  Table2,
+  Sparkles,
 } from "lucide-react";
 import {
   AgentStreamEvent,
@@ -21,23 +32,48 @@ import {
   streamAgentQuery,
 } from "./api";
 
+const defaultQuestion = "755年中国发生安史之乱时，中东、中亚和西欧发生了什么？";
 const defaultRegions = ["东亚", "中东", "中亚", "西欧"];
 
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  status?: "streaming" | "done" | "error";
+  runId?: string;
+  steps?: AgentStreamEvent[];
+  events?: TimelineEvent[];
+};
+
 export function App() {
-  const [question, setQuestion] = useState(
-    "755年中国发生安史之乱时，中东和中亚发生了什么？",
+  return (
+    <BrowserRouter>
+      <main className="app-frame">
+        <Routes>
+          <Route path="/" element={<ChatPage />} />
+          <Route path="/events/:eventId" element={<EventDetailPage />} />
+        </Routes>
+      </main>
+    </BrowserRouter>
   );
+}
+
+function ChatPage() {
+  const [question, setQuestion] = useState(defaultQuestion);
   const [startYear, setStartYear] = useState(700);
   const [endYear, setEndYear] = useState(800);
   const [regionsText, setRegionsText] = useState(defaultRegions.join("、"));
-  const [rows, setRows] = useState<CompareRow[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
-  const [agentEvents, setAgentEvents] = useState<AgentStreamEvent[]>([]);
-  const [answer, setAnswer] = useState("");
-  const [runId, setRunId] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      status: "done",
+      content:
+        "你可以问一个历史时间点，我会尽量把同一时期不同地区发生的事情放在一起比较。回答里的事件卡片可以点击进入详情页。",
+    },
+  ]);
   const [isAsking, setIsAsking] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
-  const [error, setError] = useState("");
 
   const regions = useMemo(
     () =>
@@ -48,94 +84,136 @@ export function App() {
     [regionsText],
   );
 
-  useEffect(() => {
-    void handleCompare();
-  }, []);
-
   async function handleAsk() {
+    const input = question.trim();
+    if (!input || isAsking) return;
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: input,
+    };
+    const assistantId = crypto.randomUUID();
+    const assistantMessage: ChatMessage = {
+      id: assistantId,
+      role: "assistant",
+      content: "正在分析时间线与地区关联...",
+      status: "streaming",
+      steps: [],
+      events: [],
+    };
+
+    setMessages((current) => [...current, userMessage, assistantMessage]);
     setIsAsking(true);
-    setError("");
-    setAnswer("");
-    setRunId("");
-    setAgentEvents([]);
+
     try {
-      await streamAgentQuery(question, (event) => {
-        setAgentEvents((current) => [...current, event]);
-        if (event.run_id) setRunId(event.run_id);
-        if (event.event === "final_answer") setAnswer(event.answer || "");
+      await streamAgentQuery(input, (event) => {
+        setMessages((current) =>
+          current.map((message) => {
+            if (message.id !== assistantId) return message;
+            const steps = [...(message.steps || []), event];
+            const events = mergeEvents(message.events || [], extractEvents(event));
+            return {
+              ...message,
+              runId: event.run_id || message.runId,
+              steps,
+              events,
+              content:
+                event.event === "final_answer"
+                  ? event.answer || message.content
+                  : message.content,
+              status: event.event === "final_answer" ? "done" : "streaming",
+            };
+          }),
+        );
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Agent 请求失败");
+      const errorText = err instanceof Error ? err.message : "Agent 请求失败";
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantId
+            ? { ...message, content: errorText, status: "error" }
+            : message,
+        ),
+      );
     } finally {
       setIsAsking(false);
     }
   }
 
   async function handleCompare() {
+    if (isComparing || !regions.length) return;
     setIsComparing(true);
-    setError("");
+    const assistantId = crypto.randomUUID();
+    setMessages((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: `对照 ${startYear}-${endYear} 年：${regions.join("、")}`,
+      },
+      {
+        id: assistantId,
+        role: "assistant",
+        content: "正在生成横向历史对照...",
+        status: "streaming",
+        events: [],
+        steps: [],
+      },
+    ]);
+
     try {
       const result = await compareRegions({ startYear, endYear, regions });
-      setRows(result.rows);
-      const firstEvent = result.rows.flatMap((row) => row.events)[0];
-      if (firstEvent) {
-        void handleSelectEvent(firstEvent.id);
-      }
+      const events = result.rows.flatMap((row) => row.events);
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantId
+            ? {
+                ...message,
+                status: "done",
+                content: buildCompareSummary(result.rows, startYear, endYear),
+                events,
+              }
+            : message,
+        ),
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "横向对照请求失败");
+      const errorText = err instanceof Error ? err.message : "横向对照请求失败";
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantId
+            ? { ...message, content: errorText, status: "error" }
+            : message,
+        ),
+      );
     } finally {
       setIsComparing(false);
     }
   }
 
-  async function handleSelectEvent(eventId: string) {
-    try {
-      const detail = await getEventDetail(eventId);
-      if (detail.found) setSelectedEvent(detail.event);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "事件详情请求失败");
-    }
-  }
-
   return (
-    <main className="app-shell">
-      <section className="topbar">
-        <div>
-          <p className="eyebrow">Historical Timeline Agent</p>
-          <h1>历史时间对照工作台</h1>
+    <div className="chat-layout">
+      <aside className="conversation-rail">
+        <div className="brand-mark">
+          <div className="brand-symbol">
+            <Globe2 size={22} />
+          </div>
+          <div>
+            <strong>历史时间对照 Agent</strong>
+            <span>AI research workspace</span>
+          </div>
         </div>
-        <div className="status-strip">
-          <StatusPill icon={<Database size={15} />} label="PostgreSQL" value="online" />
-          <StatusPill icon={<Activity size={15} />} label="SSE" value="stream" />
-          <StatusPill icon={<Archive size={15} />} label="Redis" value="worker" />
-        </div>
-      </section>
 
-      {error && <div className="error-banner">{error}</div>}
+        <button className="rail-action" onClick={() => setQuestion(defaultQuestion)}>
+          <MessageSquareText size={17} />
+          新建提问
+        </button>
 
-      <section className="workspace-grid">
-        <aside className="query-panel">
-          <PanelTitle icon={<Search size={18} />} title="查询控制" />
-          <label className="field-label" htmlFor="question">
-            Agent 问题
-          </label>
-          <textarea
-            id="question"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            rows={5}
-          />
-          <button className="primary-button" onClick={handleAsk} disabled={isAsking}>
-            {isAsking ? <Loader2 className="spin" size={17} /> : <MessageSquareText size={17} />}
-            运行 Agent
-          </button>
-
-          <div className="rule" />
-
-          <PanelTitle icon={<CalendarRange size={18} />} title="横向对照" compact />
-          <div className="year-grid">
+        <div className="rail-section">
+          <p>快捷对照</p>
+          <div className="year-inputs">
             <label>
-              开始年
+              开始
               <input
                 type="number"
                 value={startYear}
@@ -143,7 +221,7 @@ export function App() {
               />
             </label>
             <label>
-              结束年
+              结束
               <input
                 type="number"
                 value={endYear}
@@ -151,158 +229,287 @@ export function App() {
               />
             </label>
           </div>
-          <label className="field-label" htmlFor="regions">
+          <label className="rail-label">
             地区
+            <input
+              value={regionsText}
+              onChange={(event) => setRegionsText(event.target.value)}
+            />
           </label>
-          <input
-            id="regions"
-            value={regionsText}
-            onChange={(event) => setRegionsText(event.target.value)}
-          />
-          <button className="secondary-button" onClick={handleCompare} disabled={isComparing}>
-            {isComparing ? <Loader2 className="spin" size={17} /> : <Table2 size={17} />}
-            生成对照表
+          <button className="rail-action subtle" onClick={handleCompare} disabled={isComparing}>
+            {isComparing ? <Loader2 className="spin" size={17} /> : <CalendarRange size={17} />}
+            生成横向对照
           </button>
-        </aside>
+        </div>
 
-        <section className="timeline-panel">
-          <PanelTitle icon={<Table2 size={18} />} title={`${startYear}-${endYear} 年横向对照`} />
-          <div className="timeline-table">
-            {rows.map((row) => (
-              <article className="region-row" key={row.region}>
-                <div className="region-cell">{row.region}</div>
-                <div className="event-lane">
-                  {row.events.length ? (
-                    row.events.map((event) => (
-                      <button
-                        className={`event-ticket ${
-                          selectedEvent?.id === event.id ? "selected" : ""
-                        }`}
-                        key={event.id}
-                        onClick={() => handleSelectEvent(event.id)}
-                      >
-                        <span className="event-year">{event.start_year}</span>
-                        <strong>{event.title}</strong>
-                        <small>{event.polity}</small>
-                      </button>
-                    ))
-                  ) : (
-                    <span className="empty-lane">暂无样例事件</span>
-                  )}
-                </div>
-              </article>
-            ))}
+        <div className="rail-section quiet">
+          <p>当前服务</p>
+          <span>Frontend 5174</span>
+          <span>Backend 19000</span>
+          <span>PostgreSQL connected</span>
+        </div>
+      </aside>
+
+      <section className="chat-surface">
+        <header className="chat-header">
+          <button className="icon-button" aria-label="toggle sidebar">
+            <PanelLeft size={19} />
+          </button>
+          <div>
+            <p className="eyebrow">Timeline conversation</p>
+            <h1>从聊天进入历史档案</h1>
+          </div>
+          <div className="header-status">
+            <Sparkles size={16} />
+            <span>Function calling + SSE</span>
+          </div>
+        </header>
+
+        <div className="message-list">
+          {messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
+          ))}
+        </div>
+
+        <section className="composer">
+          <div className="composer-inner">
+            <textarea
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleAsk();
+                }
+              }}
+              rows={2}
+              placeholder="输入一个历史时间点或问题，例如：公元750年前后各地区发生了什么？"
+            />
+            <button className="send-button" onClick={handleAsk} disabled={isAsking}>
+              {isAsking ? <Loader2 className="spin" size={19} /> : <ArrowUp size={19} />}
+            </button>
           </div>
         </section>
-
-        <aside className="detail-panel">
-          <PanelTitle icon={<BookOpen size={18} />} title="事件详情与来源" />
-          {selectedEvent ? (
-            <EventDetail event={selectedEvent} />
-          ) : (
-            <div className="placeholder">选择对照表中的事件查看来源和影响。</div>
-          )}
-        </aside>
       </section>
+    </div>
+  );
+}
 
-      <section className="agent-grid">
-        <div className="agent-steps">
-          <PanelTitle icon={<Braces size={18} />} title="Agent 执行过程" />
-          <div className="step-list">
-            {agentEvents.map((event, index) => (
-              <div className="step-line" key={`${event.event}-${index}`}>
-                <span>{event.event}</span>
-                <strong>{event.tool_name || event.status || event.run_id || "message"}</strong>
+function MessageBubble({
+  message,
+}: {
+  message: ChatMessage;
+}) {
+  const steps = message.steps || [];
+  const events = message.events || [];
+
+  return (
+    <article className={`message-row ${message.role}`}>
+      <div className="message-avatar">
+        {message.role === "assistant" ? <Bot size={18} /> : <span>你</span>}
+      </div>
+      <div className="message-body">
+        <div className={`message-card ${message.status === "error" ? "error" : ""}`}>
+          {message.status === "streaming" && (
+            <div className="streaming-line">
+              <Loader2 className="spin" size={15} />
+              <span>正在读取工具返回...</span>
+            </div>
+          )}
+          <p>{message.content}</p>
+          {message.runId && <small className="run-id">run_id: {message.runId}</small>}
+        </div>
+
+        {events.length > 0 && (
+          <div className="result-cluster">
+            <div className="cluster-title">
+              <Search size={15} />
+              <span>可查看的事件详情</span>
+            </div>
+            <div className="event-card-grid">
+              {events.slice(0, 8).map((event) => (
+                <Link
+                  className="event-link-card"
+                  key={event.id}
+                  to={`/events/${encodeURIComponent(event.id)}`}
+                >
+                  <div>
+                    <span>{event.start_year}</span>
+                    <strong>{event.title}</strong>
+                    <small>{event.region} / {event.polity}</small>
+                  </div>
+                  <ExternalLink size={16} />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {steps.length > 0 && (
+          <details className="tool-trace">
+            <summary>查看 Agent 执行过程</summary>
+            {steps.map((step, index) => (
+              <div className="trace-line" key={`${step.event}-${index}`}>
+                <span>{step.event}</span>
+                <strong>{step.tool_name || step.status || step.run_id || "message"}</strong>
               </div>
             ))}
-            {!agentEvents.length && <div className="placeholder">运行 Agent 后显示工具调用轨迹。</div>}
+          </details>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function EventDetailPage() {
+  const navigate = useNavigate();
+  const { eventId = "" } = useParams();
+  const [event, setEvent] = useState<TimelineEvent | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    void getEventDetail(eventId)
+      .then((detail) => {
+        if (!detail.found) {
+          setError("没有找到这个事件。");
+          setEvent(null);
+          return;
+        }
+        setEvent(detail.event);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "事件详情请求失败"))
+      .finally(() => setLoading(false));
+  }, [eventId]);
+
+  return (
+    <section className="detail-page">
+      <header className="detail-topbar">
+        <button className="back-button" onClick={() => navigate("/")}>
+          <ArrowLeft size={18} />
+          返回聊天
+        </button>
+        <p className="eyebrow">Historical archive</p>
+      </header>
+
+      {loading && (
+        <div className="detail-loading">
+          <Loader2 className="spin" size={22} />
+          正在读取事件档案...
+        </div>
+      )}
+
+      {!loading && error && <div className="error-banner">{error}</div>}
+
+      {!loading && event && (
+        <article className="archive-document">
+          <div className="archive-kicker">
+            <span>{event.region}</span>
+            <span>{event.polity}</span>
+            <span>{event.source_status || "draft"}</span>
           </div>
-        </div>
-        <div className="agent-answer">
-          <PanelTitle icon={<MessageSquareText size={18} />} title="Agent 分析" />
-          {runId && <p className="run-id">run_id: {runId}</p>}
-          <pre>{answer || "等待分析结果..."}</pre>
-        </div>
-      </section>
-    </main>
+          <h1>{event.title}</h1>
+          <div className="archive-meta">
+            <span>
+              <Clock3 size={15} />
+              {event.start_year}-{event.end_year || event.start_year}
+            </span>
+            <span>置信度 {Number(event.confidence || 0).toFixed(2)}</span>
+          </div>
+
+          <section className="archive-section lead">
+            <h2>事件摘要</h2>
+            <p>{event.summary}</p>
+          </section>
+
+          <div className="archive-columns">
+            <ArchiveList title="前因" items={event.causes || []} />
+            <ArchiveList title="影响" items={event.effects || []} />
+          </div>
+
+          <section className="archive-section">
+            <h2>来源与引用</h2>
+            {(event.sources || []).length ? (
+              <div className="source-grid">
+                {(event.sources || []).map((source) => (
+                  <article className="source-record" key={source.id}>
+                    <FileText size={18} />
+                    <div>
+                      <strong>{source.source_title}</strong>
+                      <span>
+                        {source.source_type} / reliability{" "}
+                        {Number(source.reliability || 0).toFixed(2)}
+                      </span>
+                      <p>{source.citation || source.excerpt || "暂无引用文本"}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="muted-text">这个事件还没有绑定来源。</p>
+            )}
+          </section>
+        </article>
+      )}
+    </section>
   );
 }
 
-function StatusPill({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function ArchiveList({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="status-pill">
-      {icon}
-      <span>{label}</span>
-      <b>{value}</b>
-    </div>
-  );
-}
-
-function PanelTitle({
-  icon,
-  title,
-  compact = false,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  compact?: boolean;
-}) {
-  return (
-    <div className={`panel-title ${compact ? "compact" : ""}`}>
-      {icon}
+    <section className="archive-section">
       <h2>{title}</h2>
-    </div>
+      {items.length ? (
+        items.map((item) => (
+          <p className="archive-list-item" key={item}>
+            <ChevronRight size={15} />
+            {item}
+          </p>
+        ))
+      ) : (
+        <p className="muted-text">暂无结构化记录。</p>
+      )}
+    </section>
   );
 }
 
-function EventDetail({ event }: { event: TimelineEvent }) {
-  return (
-    <div className="event-detail">
-      <p className="eyebrow">{event.region} / {event.polity}</p>
-      <h3>{event.title}</h3>
-      <p>{event.summary}</p>
-      <div className="metric-row">
-        <span>{event.start_year}-{event.end_year || event.start_year}</span>
-        <span>{event.source_status || "draft"}</span>
-        <span>置信度 {Number(event.confidence || 0).toFixed(2)}</span>
-      </div>
-      <DetailList title="原因" items={event.causes || []} />
-      <DetailList title="影响" items={event.effects || []} />
-      <div className="source-list">
-        <h4>来源</h4>
-        {(event.sources || []).map((source) => (
-          <article className="source-item" key={source.id}>
-            <div>
-              <strong>{source.source_title}</strong>
-              <small>{source.source_type} / reliability {Number(source.reliability).toFixed(2)}</small>
-            </div>
-            <p>{source.citation || source.excerpt || "暂无引用文本"}</p>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
+function extractEvents(event: AgentStreamEvent): TimelineEvent[] {
+  const candidates: TimelineEvent[] = [];
+  collectEvents(event.observation, candidates);
+  return candidates;
 }
 
-function DetailList({ title, items }: { title: string; items: string[] }) {
-  if (!items.length) return null;
-  return (
-    <div className="detail-list">
-      <h4>{title}</h4>
-      {items.map((item) => (
-        <p key={item}>
-          <ChevronRight size={14} />
-          {item}
-        </p>
-      ))}
-    </div>
-  );
+function collectEvents(value: unknown, result: TimelineEvent[]) {
+  if (!value) return;
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectEvents(item, result));
+    return;
+  }
+  if (typeof value !== "object") return;
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.id === "string" &&
+    typeof record.title === "string" &&
+    typeof record.start_year === "number"
+  ) {
+    result.push(record as unknown as TimelineEvent);
+  }
+  Object.values(record).forEach((item) => collectEvents(item, result));
+}
+
+function mergeEvents(current: TimelineEvent[], next: TimelineEvent[]) {
+  const byId = new Map<string, TimelineEvent>();
+  [...current, ...next].forEach((event) => byId.set(event.id, event));
+  return [...byId.values()];
+}
+
+function buildCompareSummary(rows: CompareRow[], startYear: number, endYear: number) {
+  const total = rows.reduce((sum, row) => sum + row.events.length, 0);
+  const activeRegions = rows.filter((row) => row.events.length).map((row) => row.region);
+  if (!total) {
+    return `${startYear}-${endYear} 年暂时没有检索到这些地区的样例事件。`;
+  }
+  return `${startYear}-${endYear} 年共检索到 ${total} 条事件，涉及 ${activeRegions.join("、")}。你可以点击下方事件卡片查看详细档案。`;
 }
