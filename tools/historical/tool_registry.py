@@ -10,6 +10,7 @@ from tools.registry.base import ToolDefinition, ToolRegistry
 def build_historical_tool_registry(
     service: HistoricalQueryService,
     knowledge_service: KnowledgeService | None = None,
+    enable_confirmation_probe: bool = False,
 ) -> ToolRegistry:
     registry = ToolRegistry()
 
@@ -150,6 +151,33 @@ def build_historical_tool_registry(
                 query=str(args["query"]),
                 limit=int(args.get("limit", 3)),
             ),
+        )
+
+    if enable_confirmation_probe:
+        registry.register(
+            ToolDefinition(
+                name="confirmation_probe",
+                description=(
+                    "Local end-to-end probe for the human confirmation flow. "
+                    "It performs no data mutation and should only be enabled in development."
+                ),
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string"},
+                        "confirmed": {"type": "boolean", "default": False},
+                    },
+                    "required": ["target"],
+                },
+                risk_level="high",
+                requires_confirmation=True,
+            ),
+            lambda args: {
+                "success": True,
+                "target": str(args.get("target", "")),
+                "confirmed": bool(args.get("confirmed", False)),
+                "message": "确认探针已执行，没有修改业务数据。",
+            },
         )
 
     return registry

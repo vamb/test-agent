@@ -51,6 +51,11 @@
    - 新增完整初始化入口 `infrastructure/database/init.sql`
    - 纳入事件审计、知识库、事件向量列、向量重建任务和基础字典
    - 补充管理后台筛选和核验所需索引
+9. 已完成的 LangGraph 确认恢复前端交互：
+   - 聊天页可识别 `confirmation_required` SSE 事件
+   - 展示待确认工具名、参数和确认按钮
+   - 点击确认后调用 `POST /agent/runs/{run_id}/confirm`
+   - 确认恢复结果会合并回原 assistant 消息，并清除等待确认状态
 
 ## 我们要开发的管理功能
 
@@ -113,6 +118,17 @@
 | W16 | 16 | LangGraph SSE streaming | `LangGraphAgentWorkflow.stream()` 复用细粒度节点并输出兼容前端的 SSE 事件，不再回退旧 Loop stream | 已完成第一版 |
 | W17 | 17 | LangGraph 人工确认中断节点 | 新增 `confirmation_required` 节点；高风险或需确认工具未带 `confirmed: true` 时暂停执行，run 标记 `waiting_for_user`，streaming 输出 `confirmation_required` | 已完成第一版 |
 | W18 | 18 | 确认后恢复执行入口 | 新增 `POST /agent/runs/{run_id}/confirm` 和 `LangGraphAgentWorkflow.confirm_existing`；从 confirmation step 恢复并带 `confirmed: true` 继续执行 | 已完成第一版 |
+| W19 | 19 | 确认恢复前端交互 | 聊天页收到 `confirmation_required` SSE 后展示确认面板；确认按钮调用 `/agent/runs/{run_id}/confirm` 并合并恢复后的答案、事件、引用、链接和步骤 | 已完成第一版 |
+| W20 | 20 | LangGraph 确认链路端到端联调 | 新增默认关闭的本地确认探针；真实后端和浏览器已跑通 `confirmation_required -> confirm -> completed` | 已完成 |
+
+## 后续建议
+
+| 优先级 | 工作项 | 目标 | 验收标准 |
+|---:|---|---|---|
+| 1 | Agent 驱动的事件修订草案 | 让聊天页可让 Agent 生成事件字段修订建议，确认后调用后端写接口落库 | 高风险修订工具先返回确认面板；确认后写入事件变更审计，前端展示修订结果和事件链接 |
+| 2 | Agent 驱动的来源核验/可靠度调整 | 让 Agent 可基于用户指令对来源可靠度提出并执行确认后的更新 | 确认前不修改来源；确认后调用来源核验接口，后台事件详情可看到审计记录 |
+| 3 | 前端确认面板增强 | 为真实业务工具展示更友好的参数摘要和影响范围，而不是只展示 JSON | 事件修订/来源核验确认面板能显示目标事件、字段变化、风险提示和跳转入口 |
+| 4 | Langfuse datasets/evals 接入 | 暂后；把本地评测集和运行结果同步到 Langfuse | 本地评测可创建或更新 Langfuse dataset；评测运行能回写 scores/metadata |
 
 ## 后端重构工作表
 

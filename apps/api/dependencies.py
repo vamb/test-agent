@@ -36,4 +36,8 @@ agent_queue = AgentRunQueue(recorder, settings.queue)
 import_review_service = ImportReviewService(settings.postgres)
 event_management_service = EventManagementService(settings.postgres, settings.security)
 knowledge_service = KnowledgeService(settings.postgres)
-tool_registry = build_historical_tool_registry(service, knowledge_service=knowledge_service)
+tool_registry = build_historical_tool_registry(
+    service,
+    knowledge_service=knowledge_service,
+    enable_confirmation_probe=settings.agent_runtime.enable_confirmation_probe,
+)

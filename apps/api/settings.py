@@ -118,10 +118,18 @@ class ObservabilitySettings:
 @dataclass(frozen=True)
 class AgentRuntimeSettings:
     workflow_engine: str = "loop"
+    enable_confirmation_probe: bool = False
 
     @classmethod
     def from_env(cls) -> "AgentRuntimeSettings":
-        return cls(workflow_engine=os.getenv("AGENT_WORKFLOW_ENGINE", "loop"))
+        return cls(
+            workflow_engine=os.getenv("AGENT_WORKFLOW_ENGINE", "loop"),
+            enable_confirmation_probe=os.getenv(
+                "AGENT_ENABLE_CONFIRMATION_PROBE",
+                "false",
+            ).lower()
+            in {"1", "true", "yes", "on"},
+        )
 
 
 @dataclass(frozen=True)

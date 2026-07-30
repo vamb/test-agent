@@ -12,6 +12,7 @@ import {
   ArrowUp,
   Bot,
   CalendarRange,
+  CheckCircle2,
   ChevronRight,
   Clock3,
   Database,
@@ -22,6 +23,7 @@ import {
   MessageSquareText,
   PanelLeft,
   Search,
+  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import {
@@ -44,6 +46,7 @@ import {
   AgentReference,
   CompareRow,
   TimelineEvent,
+  confirmAgentRun,
   compareRegions,
   getEventDetail,
   streamAgentQuery,
@@ -56,12 +59,17 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  status?: "streaming" | "done" | "error";
+  status?: "streaming" | "waiting_confirmation" | "confirming" | "done" | "error";
   runId?: string;
   steps?: AgentStreamEvent[];
   events?: TimelineEvent[];
   references?: AgentReference[];
   links?: AgentLink[];
+  confirmation?: {
+    toolName: string;
+    toolArguments: Record<string, unknown>;
+    error?: string;
+  };
 };
 
 export function App() {
@@ -155,10 +163,22 @@ function ChatPage() {
               references,
               links,
               content:
-                event.event === "final_answer"
+                event.event === "final_answer" || event.event === "confirmation_required"
                   ? event.answer || message.content
                   : message.content,
-              status: event.event === "final_answer" ? "done" : "streaming",
+              status:
+                event.event === "final_answer"
+                  ? "done"
+                  : event.event === "confirmation_required"
+                    ? "waiting_confirmation"
+                    : "streaming",
+              confirmation:
+                event.event === "confirmation_required"
+                  ? {
+                      toolName: event.tool_name || "unknown_tool",
+                      toolArguments: event.tool_arguments || {},
+                    }
+                  : message.confirmation,
             };
           }),
         );
@@ -174,6 +194,69 @@ function ChatPage() {
       );
     } finally {
       setIsAsking(false);
+    }
+  }
+
+  async function handleConfirmRun(messageId: string) {
+    const target = messages.find((message) => message.id === messageId);
+    if (!target?.runId || target.status === "confirming") return;
+
+    setMessages((current) =>
+      current.map((message) =>
+        message.id === messageId
+          ? {
+              ...message,
+              status: "confirming",
+              confirmation: message.confirmation
+                ? { ...message.confirmation, error: undefined }
+                : message.confirmation,
+            }
+          : message,
+      ),
+    );
+
+    try {
+      const result = await confirmAgentRun(target.runId);
+      setMessages((current) =>
+        current.map((message) => {
+          if (message.id !== messageId) return message;
+          const confirmedSteps = (result.steps || []).map((step) => ({
+            ...step,
+            event: step.event || "confirmed_tool_result",
+            run_id: step.run_id || result.run_id || message.runId,
+          }));
+          return {
+            ...message,
+            status: "done",
+            runId: result.run_id || message.runId,
+            content: result.answer || message.content,
+            events: mergeEvents(message.events || [], result.events || []),
+            references: mergeReferences(message.references || [], result.references || []),
+            links: mergeLinks(message.links || [], result.links || []),
+            steps: [...(message.steps || []), ...confirmedSteps],
+            confirmation: undefined,
+          };
+        }),
+      );
+    } catch (err) {
+      const errorText = err instanceof Error ? err.message : "确认恢复失败";
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                status: "waiting_confirmation",
+                confirmation: message.confirmation
+                  ? { ...message.confirmation, error: errorText }
+                  : {
+                      toolName: "unknown_tool",
+                      toolArguments: {},
+                      error: errorText,
+                    },
+              }
+            : message,
+        ),
+      );
     }
   }
 
@@ -308,7 +391,11 @@ function ChatPage() {
 
         <div className="message-list">
           {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble
+              key={message.id}
+              message={message}
+              onConfirm={() => void handleConfirmRun(message.id)}
+            />
           ))}
         </div>
 
@@ -338,8 +425,10 @@ function ChatPage() {
 
 function MessageBubble({
   message,
+  onConfirm,
 }: {
   message: ChatMessage;
+  onConfirm: () => void;
 }) {
   const steps = message.steps || [];
   const events = message.events || [];
@@ -359,9 +448,43 @@ function MessageBubble({
               <span>正在读取工具返回...</span>
             </div>
           )}
+          {message.status === "confirming" && (
+            <div className="streaming-line">
+              <Loader2 className="spin" size={15} />
+              <span>正在恢复执行...</span>
+            </div>
+          )}
           <p>{message.content}</p>
           {message.runId && <small className="run-id">run_id: {message.runId}</small>}
         </div>
+
+        {message.confirmation && (
+          <section className="confirmation-panel">
+            <div className="confirmation-copy">
+              <ShieldAlert size={18} />
+              <div>
+                <strong>需要确认后继续</strong>
+                <span>{message.confirmation.toolName}</span>
+              </div>
+            </div>
+            <pre>{JSON.stringify(message.confirmation.toolArguments, null, 2)}</pre>
+            {message.confirmation.error && (
+              <p className="confirmation-error">{message.confirmation.error}</p>
+            )}
+            <button
+              className="primary-button confirmation-button"
+              onClick={onConfirm}
+              disabled={!message.runId || message.status === "confirming"}
+            >
+              {message.status === "confirming" ? (
+                <Loader2 className="spin" size={16} />
+              ) : (
+                <CheckCircle2 size={16} />
+              )}
+              确认并继续执行
+            </button>
+          </section>
+        )}
 
         {events.length > 0 && (
           <div className="result-cluster">

@@ -20,6 +20,24 @@ class RuleBasedModelAdapter:
         called_tools = [message["name"] for message in messages if message.get("role") == "tool"]
         years = [int(item) for item in re.findall(r"-?\d{3,4}", user_input)]
 
+        if self._asks_for_confirmation_probe(user_input, tools):
+            if "confirmation_probe" not in called_tools:
+                return ModelDecision(
+                    action="call_tool",
+                    reason="The user requested a local confirmation flow probe.",
+                    tool_call=ToolCall(
+                        "confirmation_probe",
+                        {"target": "chat-confirmation-e2e"},
+                    ),
+                )
+            return ModelDecision(
+                action="finish",
+                reason="Confirmation probe completed.",
+                answer=self._format_confirmation_probe_result(
+                    self._last_tool_result(messages, "confirmation_probe"),
+                ),
+            )
+
         if self._asks_for_relation(user_input):
             return self._decide_relation(user_input, years, messages, called_tools, tools)
 
@@ -242,6 +260,12 @@ class RuleBasedModelAdapter:
         keywords = ["关系", "关联", "影响", "因果", "有关"]
         return any(keyword in text for keyword in keywords)
 
+    def _asks_for_confirmation_probe(self, text: str, tools: list[dict[str, Any]]) -> bool:
+        if not any(tool.get("name") == "confirmation_probe" for tool in tools):
+            return False
+        keywords = ["确认联调", "确认恢复联调", "人工确认联调", "confirmation probe"]
+        return any(keyword in text.lower() for keyword in keywords)
+
     def _format_year_result(self, observation: dict, knowledge: dict | None = None) -> str:
         events = observation.get("events", [])
         if not events:
@@ -332,3 +356,11 @@ class RuleBasedModelAdapter:
             content = str(item.get("content", "")).strip().replace("\n", " ")
             excerpt = content[:80]
             lines.append(f"- {citation}：{excerpt}")
+
+    def _format_confirmation_probe_result(self, observation: dict) -> str:
+        if observation.get("success"):
+            return (
+                "确认恢复链路联调已完成：前端确认按钮触发后，后端已带 "
+                "`confirmed: true` 恢复执行确认探针。"
+            )
+        return "确认恢复链路联调未完成，请查看工具返回。"

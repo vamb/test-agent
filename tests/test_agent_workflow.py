@@ -167,6 +167,19 @@ class AgentWorkflowTest(unittest.TestCase):
         self.assertEqual(confirmation["tool_name"], "dangerous_write")
         self.assertIn("需要人工确认", confirmation["answer"])
 
+    def test_rule_based_confirmation_probe_triggers_confirmation_event(self) -> None:
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=RuleBasedModelAdapter(),
+                tool_registry=self._confirmation_probe_registry(),
+            )
+
+        events = list(workflow.stream("请做一次确认联调"))
+        confirmation = [event for event in events if event["event"] == "confirmation_required"][0]
+
+        self.assertEqual(confirmation["tool_name"], "confirmation_probe")
+        self.assertEqual(confirmation["tool_arguments"]["target"], "chat-confirmation-e2e")
+
     def test_langgraph_confirm_existing_resumes_waiting_run(self) -> None:
         if not self.db_available:
             self.skipTest("PostgreSQL is not available")
@@ -218,6 +231,31 @@ class AgentWorkflowTest(unittest.TestCase):
                 requires_confirmation=True,
             ),
             lambda payload: calls.append(payload) or {"success": True},
+        )
+        return registry
+
+    def _confirmation_probe_registry(self) -> ToolRegistry:
+        registry = ToolRegistry()
+        registry.register(
+            ToolDefinition(
+                name="confirmation_probe",
+                description="Confirmation probe",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string"},
+                        "confirmed": {"type": "boolean", "default": False},
+                    },
+                    "required": ["target"],
+                },
+                risk_level="high",
+                requires_confirmation=True,
+            ),
+            lambda payload: {
+                "success": True,
+                "target": payload["target"],
+                "confirmed": payload.get("confirmed") is True,
+            },
         )
         return registry
 

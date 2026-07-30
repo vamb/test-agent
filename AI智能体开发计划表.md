@@ -233,11 +233,11 @@ ai-agent/
 
 | 项目 | 当前状态 |
 |---|---|
-| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP、管理后台支撑 API B1/B2/B3、React 聊天主界面、React Router 跳转、事件详情页、移动端适配和管理后台可运营版已完成；Agent 观测与评测分析交给 Langfuse |
-| 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理、管理后台数据运营 |
-| 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；也可用管理后台完成导入解析、批次审核、staging 修正/合并、确认入库、事件编辑、来源维护、关系维护、数据质量查看、知识库文档维护和向量任务处理；当前已新增 12 条小批量种子事件入库 |
-| 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 58/58 通过，MVP 评测最近一次 4/4 通过 |
-| 下一步重点 | 提交 W18 改动、做确认恢复的前端交互、Langfuse datasets/evals 对接 |
+| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP、管理后台支撑 API B1/B2/B3、React 聊天主界面、React Router 跳转、事件详情页、移动端适配、管理后台可运营版、LangGraph 细粒度节点、人工确认中断、确认恢复入口、前端确认交互和确认链路端到端联调已完成；Agent 观测与评测分析交给 Langfuse |
+| 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理、管理后台数据运营、LangGraph 确认暂停和确认恢复真实联调 |
+| 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；遇到 `confirmation_required` 可在聊天页确认并继续执行；也可用管理后台完成导入解析、批次审核、staging 修正/合并、确认入库、事件编辑、来源维护、关系维护、数据质量查看、知识库文档维护和向量任务处理；当前已完成 12 条小批量种子事件和 22 条扩展种子事件导入演练 |
+| 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 82/82 通过，MVP 评测最近一次 4/4 通过 |
+| 下一步重点 | Agent 驱动的事件修订草案、Agent 驱动的来源核验/可靠度调整、真实业务工具的前端确认面板增强 |
 | 暂不推进 | 多智能体、MCP、Playwright、复杂 RBAC、Kubernetes，等单 Agent 与数据管理链路稳定后再做 |
 
 | 模块 | 状态 | 已在线完成的功能 | 对应 PDF 功能/章节 |
@@ -315,6 +315,8 @@ ai-agent/
 | W16 | 16 | LangGraph SSE streaming | `LangGraphAgentWorkflow.stream()` 复用细粒度节点并输出 `run_started/step_started/tool_called/tool_result/final_answer/run_completed` 等兼容前端的 SSE 事件 | `AGENT_WORKFLOW_ENGINE=langgraph` 时 streaming 不回退旧 Loop；后端全量测试通过 | 已完成第一版 |
 | W17 | 17 | LangGraph 人工确认中断节点 | 新增 `confirmation_required` 节点；高风险或需确认工具未带 `confirmed: true` 时暂停执行，run 标记 `waiting_for_user`，streaming 输出 `confirmation_required` | 高风险工具不会被误执行；同步和 streaming 均可返回确认提示；后端全量测试通过 | 已完成第一版 |
 | W18 | 18 | 确认后恢复执行入口 | 新增 `AgentRunRecorder.claim_waiting_run`、`LangGraphAgentWorkflow.confirm_existing` 和 `POST /agent/runs/{run_id}/confirm` | waiting run 可确认后恢复执行；待确认 step 覆盖为 completed；后端全量测试通过 | 已完成第一版 |
+| W19 | 19 | 确认恢复前端交互 | 聊天页识别 `confirmation_required` SSE 事件，展示待确认工具、参数和确认按钮；确认后调用 `/agent/runs/{run_id}/confirm` 并把恢复结果合并回原 assistant 消息 | 前端可完成等待确认、确认中、恢复完成和错误重试状态；前端构建通过 | 已完成第一版 |
+| W20 | 20 | LangGraph 确认链路端到端联调 | 新增默认关闭的 `AGENT_ENABLE_CONFIRMATION_PROBE` 本地确认探针；真实启动 LangGraph 后端和当前前端，用浏览器跑通确认暂停与恢复 | API 和浏览器均验证 `confirmation_required -> confirm -> completed`；run step 参数包含 `confirmed: true` | 已完成 |
 
 ## 后端重构工作表
 
@@ -329,15 +331,14 @@ ai-agent/
 
 ## 后端下一步建议
 
-对照新的管理后台计划，后端和前端管理系统第一轮已基本补齐。下一步后端不再优先补 CRUD，而是围绕真实数据演练和 Agent 输出协议增强：
+对照新的管理后台计划，后端和前端管理系统第一轮已基本补齐。按当前取舍，Langfuse datasets/evals 和完整 RBAC 暂后；下一步优先补真实业务工具及其前端确认体验：
 
 | 优先级 | 接下来准备做什么 | 目标 | 对应 PDF 功能/章节 |
 |---:|---|---|---|
-| 1 | 真实数据导入演练脚本和样例数据 | 准备可重复导入的 20-50 条事件样例，用于验证管理后台和数据校验 | 第十阶段：人工确认机制；平台化第一版 |
-| 2 | Agent 返回结构标准化 | 稳定返回 `answer`、`references`、`links`、`events`，支撑前端引用和跳转 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
-| 3 | RAG 引用注入 | 已完成第一版；事件来源和知识文档 chunk 已作为引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
-| 4 | Langfuse 集成 | 已完成 SDK 第一版；后续可继续把本地评测结果接入 Langfuse datasets/evals；不开发自研运行分析后台 | 第十四阶段：可观测性 |
-| 5 | LangGraph 工作流 | 已完成迁移前置、细粒度 decision/tool/finalize 节点、LangGraph SSE streaming、人工确认中断和确认后恢复执行入口；后续补前端确认交互 | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
-| 6 | MCP 接入 | 等本地工具边界稳定后，把核心工具服务标准化给外部智能体复用 | 第九阶段：MCP 能力标准化 |
+| 1 | Agent 驱动的事件修订草案 | 让聊天页可让 Agent 生成事件字段修订建议，确认后调用后端写接口落库并写审计 | 第十阶段：人工确认机制；第十二阶段：安全体系 |
+| 2 | Agent 驱动的来源核验/可靠度调整 | 让 Agent 可基于用户指令对来源可靠度提出并执行确认后的更新 | 第八阶段：引用来源；平台化第一版 |
+| 3 | 前端确认面板增强 | 针对真实业务工具展示目标事件、字段差异、影响范围和跳转入口，而不是只展示 JSON | 第十六阶段：前后端通信；平台化第一版 |
+| 4 | 继续数据质量运营 | 按专题扩展真实历史事件，并用质量台账持续处理低置信、弱来源和重复候选 | 第十阶段：人工确认机制；平台化第一版 |
+| 5 | Langfuse datasets/evals 和 RBAC | 暂后；等后端与配套前端功能更完整后再接 | 第十三阶段：评测体系；第十二阶段：安全体系 |
 
 详细缺口见 [backend_gap_review.md](docs/backend_gap_review.md)。

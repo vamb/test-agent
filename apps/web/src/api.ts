@@ -46,6 +46,16 @@ export type AgentStreamEvent = {
   error_message?: string;
 };
 
+export type AgentConfirmResponse = {
+  confirmed: boolean;
+  run_id?: string;
+  answer?: string;
+  events?: TimelineEvent[];
+  references?: AgentReference[];
+  links?: AgentLink[];
+  steps?: AgentStreamEvent[];
+};
+
 export type AgentReference = {
   id: string;
   title: string;
@@ -128,4 +138,14 @@ export async function streamAgentQuery(
       onEvent(JSON.parse(dataLine.slice(6)) as AgentStreamEvent);
     }
   }
+}
+
+export async function confirmAgentRun(runId: string) {
+  const response = await fetch(`${API_BASE_URL}/agent/runs/${encodeURIComponent(runId)}/confirm`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`Agent 确认恢复失败：${response.status}`);
+  }
+  return (await response.json()) as AgentConfirmResponse;
 }

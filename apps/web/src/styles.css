@@ -330,6 +330,59 @@ textarea:focus {
   overflow-wrap: anywhere;
 }
 
+.confirmation-panel {
+  margin-top: 10px;
+  border: 1px solid rgba(216, 193, 106, 0.48);
+  background: rgba(23, 32, 28, 0.82);
+  padding: 12px;
+}
+
+.confirmation-copy {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--accent);
+}
+
+.confirmation-copy svg {
+  flex: 0 0 auto;
+}
+
+.confirmation-copy strong,
+.confirmation-copy span {
+  display: block;
+}
+
+.confirmation-copy span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.confirmation-panel pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 12px 0;
+  border: 1px solid var(--line);
+  background: #0b100e;
+  color: #dfe5da;
+  padding: 10px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.confirmation-error {
+  color: #ffd8d1;
+  margin-bottom: 10px;
+  line-height: 1.55;
+}
+
+.confirmation-button {
+  width: fit-content;
+}
+
 .result-cluster {
   margin-top: 10px;
 }
