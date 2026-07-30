@@ -24,6 +24,8 @@
 | 2026-07-30 | 完成管理后台体验修复 W3 第三批：移动端后台表格卡片化，压缩工具栏、指标卡和代码块高度，修复单列布局下导航区域被拉伸导致的大空白 | 后端 `python -m unittest discover tests` 通过，65/65；前端 `npm.cmd run build` 通过；浏览器 390px 视口检查 `/admin`、`/admin/events`、`/admin/quality` 均无横向溢出 | W3/W4 已可提交；下一步可进入 Langfuse SDK 正式接入或继续数据质量运营 |
 | 2026-07-30 | 完成数据质量处理闭环 W8：新增 `data_quality_issue_actions` 台账表、`POST /admin/data-quality/issues/actions` 接口，质量页支持标记已处理、忽略和重新打开问题 | 后端 `python -m unittest discover tests` 通过，66/66；前端 `npm.cmd run build` 通过；schema 文件测试覆盖新表和状态约束 | 下一步可做导入批次运营报表，或进入 Langfuse SDK 正式接入 |
 | 2026-07-30 | 完成导入批次运营报表 W9：新增 `GET /admin/import-batches/{batch_id}/report`，批次详情页展示入库事件、待处理质量问题、处理率、质量分解、地区/年份/来源可靠度分布和优先处理项 | 后端 `python -m unittest discover tests` 通过，67/67；前端 `npm.cmd run build` 通过；专项管理测试 19/19 通过 | 下一步建议进入 Langfuse SDK 正式接入，或补知识库版本和重切分 |
+| 2026-07-30 | 完成知识库版本和重切分 W10：新增 `knowledge_document_versions` 版本快照表，文档 ingest/rechunk 会记录版本；新增版本列表和 rechunk API，知识详情页可查看版本并生成新 chunk 版本 | 后端 `python -m unittest discover tests` 通过，68/68；前端 `npm.cmd run build` 通过；知识库专项测试和 schema/OpenAPI 测试 10/10 通过 | 下一步建议做向量任务自动处理，或进入 Langfuse SDK 正式接入 |
+| 2026-07-30 | 完成向量任务自动处理 W11：新增 pending vector job 自动领取和批量处理接口，新增 `apps.worker.vector_worker` 常驻/单次处理器，向量页支持创建并自动处理以及批量处理 pending jobs | 后端 `python -m unittest discover tests` 通过，71/71；前端 `npm.cmd run build` 通过；知识库/向量专项和 schema/OpenAPI 测试 13/13 通过 | 下一步建议进入 Langfuse SDK 正式接入，或做 LangGraph 工作流迁移预研 |
 
 ## 12 周开发周期
 
@@ -66,7 +68,7 @@
 
 ## 当前任务队列
 
-当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、真实数据导入演练扩展、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版、管理后台体验修复 W3、数据质量处理闭环 W8、导入批次运营报表 W9 已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步提交 W3/W8/W9 改动，或进入 Langfuse SDK 正式接入。
+当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、真实数据导入演练扩展、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版、管理后台体验修复 W3、数据质量处理闭环 W8、导入批次运营报表 W9、知识库版本和重切分 W10、向量任务自动处理 W11 已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步提交 W10/W11 改动，或进入 Langfuse SDK 正式接入。
 
 | 优先级 | 任务 | 负责人 | 状态 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
@@ -142,7 +144,7 @@
 | F3 | 7 | 事件详情编辑 | 编辑事件字段、查看来源/关系/审计 | 事件字段已改为表单编辑，可保存编辑并看到审计日志 | 已完成 |
 | F3 | 8 | 来源和关系维护 | 管理来源、核验来源、维护关系证据 | 支持来源新增/编辑/删除/核验，关系新增/编辑/删除 | 已完成 |
 | F4 | 9 | 数据质量修复台 | 问题 summary 和问题列表 | 可从问题跳转到修复目标 | 已完成 |
-| F4 | 10 | 知识库管理 | 文档列表、chunk、更新、reembed | 可查看文档和 chunk，更新元数据，停用/归档，触发 reembed | 已完成 |
+| F4 | 10 | 知识库管理 | 文档列表、chunk、更新、版本记录、rechunk、reembed | 可查看文档和 chunk，更新元数据，停用/归档，查看版本，生成新 chunk 版本，触发 reembed | 已完成 |
 | F4 | 11 | 向量管理 | 覆盖率、重建任务、任务处理 | 可创建并处理 vector rebuild job | 已完成 |
 | F5 | 12 | 前端拆分和视觉 QA | 拆分 pages/components，补移动端和构建验证 | `npm run build` 通过；更细移动端视觉 QA 后续继续 | 已完成第一版 |
 
@@ -157,5 +159,5 @@
 | B2 | 5 | 批量操作第一版 | 提升运营效率 | 支持事件批量更新、staging 批量重校验、来源批量核验 | 已完成 |
 | B3 | 6 | 导入合并策略 | 重复预览后可处理冲突 | 支持 keep_existing、replace_existing、merge_sources、merge_categories、merge_sources_and_categories | 已完成 |
 | B3 | 7 | 导入文件解析轻量版 | 提升导入体验 | 支持 JSON/CSV 解析为标准 events payload | 已完成 |
-| B4 | 8 | 知识库版本和重切分 | 支撑文档更新可追溯 | 文档更新保留版本，chunk 变化可查看 | 暂缓 |
-| B4 | 9 | 向量任务自动处理 | 避免手动处理向量任务 | 向量 job 可异步完成，失败可查看和重试 | 暂缓 |
+| B4 | 8 | 知识库版本和重切分 | 支撑文档更新可追溯 | 文档更新保留版本，chunk 变化可查看 | 已完成 |
+| B4 | 9 | 向量任务自动处理 | 避免手动处理向量任务 | 向量 job 可自动领取 pending 任务并处理，失败可查看和重试 | 已完成 |

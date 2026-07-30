@@ -6,8 +6,10 @@ from apps.api.dependencies import knowledge_service
 from apps.api.payloads import payload_to_dict
 from apps.api.schemas.knowledge import (
     KnowledgeDocumentIngestRequest,
+    KnowledgeDocumentRechunkRequest,
     KnowledgeDocumentUpdateRequest,
     KnowledgeMutationResponse,
+    VectorProcessPendingRequest,
     VectorRebuildRequest,
 )
 
@@ -52,6 +54,11 @@ def get_knowledge_document_chunks(
     return knowledge_service.get_document_chunks(document_id, limit=limit, offset=offset)
 
 
+@router.get("/knowledge/documents/{document_id}/versions")
+def list_knowledge_document_versions(document_id: str) -> dict:
+    return knowledge_service.list_document_versions(document_id)
+
+
 @router.patch("/knowledge/documents/{document_id}", response_model=KnowledgeMutationResponse)
 def update_knowledge_document(document_id: str, payload: KnowledgeDocumentUpdateRequest) -> dict:
     payload = payload_to_dict(payload)
@@ -59,6 +66,19 @@ def update_knowledge_document(document_id: str, payload: KnowledgeDocumentUpdate
     if not isinstance(updates, dict):
         return {"success": False, "error": "updates must be an object"}
     return knowledge_service.update_document(document_id, updates)
+
+
+@router.post("/knowledge/documents/{document_id}/rechunk", response_model=KnowledgeMutationResponse)
+def rechunk_knowledge_document(document_id: str, payload: KnowledgeDocumentRechunkRequest) -> dict:
+    payload = payload_to_dict(payload)
+    return knowledge_service.rechunk_document(
+        document_id=document_id,
+        content=payload.get("content"),
+        max_chars=payload.get("max_chars"),
+        overlap_chars=payload.get("overlap_chars"),
+        changed_by=str(payload.get("changed_by", "")),
+        reason=str(payload.get("reason", "")),
+    )
 
 
 @router.post("/knowledge/documents/{document_id}/reembed", response_model=KnowledgeMutationResponse)
@@ -97,11 +117,15 @@ def create_vector_rebuild_job(payload: VectorRebuildRequest | None = None) -> di
         target = str(payload.get("target", target))
         limit = int(payload.get("limit", limit))
         created_by = str(payload.get("created_by", ""))
-    return knowledge_service.create_vector_rebuild_job(
+    created = knowledge_service.create_vector_rebuild_job(
         target=target,
         limit=limit,
         created_by=created_by,
     )
+    if payload.get("auto_process") is True and created.get("created") and created.get("job"):
+        processed = knowledge_service.process_vector_rebuild_job(str(created["job"]["id"]))
+        created["processed"] = processed
+    return created
 
 
 @router.get("/vectors/rebuild-jobs/{job_id}")
@@ -112,3 +136,10 @@ def get_vector_rebuild_job(job_id: str) -> dict:
 @router.post("/vectors/rebuild-jobs/{job_id}/process", response_model=KnowledgeMutationResponse)
 def process_vector_rebuild_job(job_id: str) -> dict:
     return knowledge_service.process_vector_rebuild_job(job_id)
+
+
+@router.post("/vectors/rebuild-jobs/process-pending", response_model=KnowledgeMutationResponse)
+def process_pending_vector_rebuild_jobs(payload: VectorProcessPendingRequest) -> dict:
+    payload = payload_to_dict(payload)
+    limit = int(payload.get("limit", 1))
+    return knowledge_service.process_pending_vector_rebuild_jobs(limit=limit)

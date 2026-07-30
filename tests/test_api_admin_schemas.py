@@ -34,7 +34,9 @@ class AdminApiSchemaTest(unittest.TestCase):
         components = schema["components"]["schemas"]
         self.assertIn("ImportBatchCreateRequest", components)
         self.assertIn("KnowledgeDocumentIngestRequest", components)
+        self.assertIn("KnowledgeDocumentRechunkRequest", components)
         self.assertIn("VectorRebuildRequest", components)
+        self.assertIn("VectorProcessPendingRequest", components)
 
         expected_refs = {
             ("post", "/imports/batches"): "ImportBatchCreateRequest",
@@ -44,6 +46,8 @@ class AdminApiSchemaTest(unittest.TestCase):
             ("post", "/imports/staging/bulk-revalidate"): "ImportBulkRevalidateRequest",
             ("post", "/knowledge/documents"): "KnowledgeDocumentIngestRequest",
             ("patch", "/knowledge/documents/{document_id}"): "KnowledgeDocumentUpdateRequest",
+            ("post", "/knowledge/documents/{document_id}/rechunk"): "KnowledgeDocumentRechunkRequest",
+            ("post", "/vectors/rebuild-jobs/process-pending"): "VectorProcessPendingRequest",
         }
         for (method, path), model_name in expected_refs.items():
             request_schema = schema["paths"][path][method]["requestBody"]["content"]["application/json"]["schema"]

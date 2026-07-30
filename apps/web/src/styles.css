@@ -853,6 +853,7 @@ textarea:focus {
 .source-mini-list,
 .issue-list,
 .chunk-list,
+.version-list,
 .duplicate-list,
 .field-diff-list {
   display: grid;
@@ -1346,6 +1347,24 @@ select {
 
 .document-form {
   grid-template-columns: minmax(220px, 1fr) 150px 130px;
+}
+
+.rechunk-form {
+  grid-template-columns: 1fr 1fr;
+}
+
+.version-list article {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: #101713;
+  padding: 12px;
+}
+
+.version-list span,
+.version-list small {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .issue-card {

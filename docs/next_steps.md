@@ -78,8 +78,8 @@
 | F3 | 7 | 后台事件详情编辑 | `/admin/events/:eventId` | 表单编辑事件字段，查看来源、关系、审计、导入批次、向量状态 | 已完成 |
 | F3 | 8 | 来源和关系维护 | `/admin/events/:eventId`、`/admin/relations` | 来源新增/编辑/删除/核验，关系新增/编辑/删除 | 已完成 |
 | F4 | 9 | 数据质量修复台 | `/admin/quality` | 数据质量 summary、问题列表、跳转修复 | 已完成 |
-| F4 | 10 | 知识库管理 | `/admin/knowledge`、`/admin/knowledge/:documentId` | 文档列表、chunk 查看、元数据更新、停用/归档、reembed | 已完成 |
-| F4 | 11 | 向量管理 | `/admin/vectors` | embedding 覆盖率、重建任务创建/处理、任务状态 | 已完成 |
+| F4 | 10 | 知识库管理 | `/admin/knowledge`、`/admin/knowledge/:documentId` | 文档列表、chunk 查看、元数据更新、停用/归档、版本记录、rechunk、reembed | 已完成 |
+| F4 | 11 | 向量管理 | `/admin/vectors` | embedding 覆盖率、重建任务创建、自动处理 pending jobs、任务状态 | 已完成 |
 | F5 | 12 | 前端结构化和视觉 QA | 全局 | 拆分 `AdminPages.tsx` 和 `adminApi.ts`，完成构建验证 | 已完成第一版 |
 
 ## 已导入的小批量种子数据
@@ -104,6 +104,8 @@
 | W7 | 7 | Langfuse 集成预留 | run_id 可对应到 Langfuse trace，本系统不自研 Trace 后台 | 已完成第一版 |
 | W8 | 8 | 数据质量处理闭环 | 新增 `data_quality_issue_actions` 台账和 `POST /admin/data-quality/issues/actions`；质量页可标记已处理、忽略或重新打开问题；summary/list 会带处理状态 | 已完成 |
 | W9 | 9 | 导入批次运营报表 | 新增 `GET /admin/import-batches/{batch_id}/report`；批次详情页展示入库事件、待处理质量问题、处理率、质量分解、地区/年份/来源可靠度分布和优先处理项 | 已完成 |
+| W10 | 10 | 知识库版本和重切分 | 新增 `knowledge_document_versions`、`GET /knowledge/documents/{document_id}/versions`、`POST /knowledge/documents/{document_id}/rechunk`；知识详情页可查看版本并生成新 chunk 版本 | 已完成 |
+| W11 | 11 | 向量任务自动处理 | 新增 `POST /vectors/rebuild-jobs/process-pending` 和 `apps.worker.vector_worker`；向量页创建任务时可自动处理，也可批量处理 pending jobs | 已完成 |
 
 ## 后端重构工作表
 

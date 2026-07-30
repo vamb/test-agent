@@ -164,7 +164,22 @@ export type KnowledgeDocument = {
   source_uri?: string;
   citation?: string;
   status?: string;
+  current_version?: number;
   chunk_count?: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type KnowledgeDocumentVersion = {
+  id: string;
+  document_id: string;
+  version_number: number;
+  title: string;
+  content_hash: string;
+  chunk_count: number;
+  chunking_config?: Record<string, unknown>;
+  changed_by?: string;
+  change_reason?: string;
   created_at?: string;
 };
 
@@ -353,18 +368,30 @@ export const adminApi = {
     request<{ documents: KnowledgeDocument[]; total: number }>(`/knowledge/documents${buildQuery(params)}`),
   getDocumentChunks: (documentId: string) =>
     request<{ document?: KnowledgeDocument; chunks: Array<Record<string, unknown>> }>(`/knowledge/documents/${documentId}/chunks`),
+  listDocumentVersions: (documentId: string) =>
+    request<{ found?: boolean; versions: KnowledgeDocumentVersion[] }>(`/knowledge/documents/${documentId}/versions`),
   updateDocument: (documentId: string, updates: Record<string, unknown>) =>
     request<Record<string, unknown>>(`/knowledge/documents/${documentId}`, {
       method: "PATCH",
       body: JSON.stringify({ updates }),
     }),
+  rechunkDocument: (documentId: string, payload: Record<string, unknown>) =>
+    request<Record<string, unknown>>(`/knowledge/documents/${documentId}/rechunk`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   reembedDocument: (documentId: string) =>
     request<Record<string, unknown>>(`/knowledge/documents/${documentId}/reembed`, { method: "POST" }),
-  createVectorJob: (target: string) =>
-    request<{ job: VectorJob } | VectorJob>("/vectors/rebuild-jobs", {
+  createVectorJob: (target: string, autoProcess = false) =>
+    request<{ job: VectorJob; processed?: Record<string, unknown> } | VectorJob>("/vectors/rebuild-jobs", {
       method: "POST",
-      body: JSON.stringify({ target, created_by: "web-admin" }),
+      body: JSON.stringify({ target, created_by: "web-admin", auto_process: autoProcess }),
     }),
   processVectorJob: (jobId: string) =>
     request<Record<string, unknown>>(`/vectors/rebuild-jobs/${jobId}/process`, { method: "POST" }),
+  processPendingVectorJobs: (limit = 1) =>
+    request<Record<string, unknown>>("/vectors/rebuild-jobs/process-pending", {
+      method: "POST",
+      body: JSON.stringify({ limit }),
+    }),
 };

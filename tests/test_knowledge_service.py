@@ -1,4 +1,5 @@
 import unittest
+from uuid import uuid4
 
 from apps.api.main import (
     get_knowledge_document_chunks,
@@ -6,14 +7,18 @@ from apps.api.main import (
     create_vector_rebuild_job,
     get_vector_rebuild_job,
     ingest_knowledge_document,
+    list_knowledge_document_versions,
     list_knowledge_documents,
     process_vector_rebuild_job,
+    process_pending_vector_rebuild_jobs,
+    rechunk_knowledge_document,
     rebuild_vectors,
     reembed_knowledge_document,
     search_knowledge,
     update_knowledge_document,
 )
 from apps.api.settings import AppSettings
+from apps.worker.vector_worker import VectorWorker
 from knowledge.service import KnowledgeService
 from tools.database.postgres import PostgresClient
 
@@ -91,6 +96,37 @@ class KnowledgeServiceTest(unittest.TestCase):
         self.assertIn("knowledge_chunks", status)
         self.assertTrue(rebuilt["success"])
 
+    def test_document_versions_and_rechunk(self) -> None:
+        marker = uuid4()
+        document = ingest_knowledge_document(
+            {
+                "title": f"知识库版本测试资料-{marker}",
+                "content": f"{marker}\n" + "甲" * 260 + "乙" * 260 + "丙" * 260,
+                "citation": "测试资料：知识库版本",
+                "created_by": "test",
+            }
+        )
+
+        rechunked = rechunk_knowledge_document(
+            document["document_id"],
+            {
+                "max_chars": 180,
+                "overlap_chars": 20,
+                "changed_by": "test-admin",
+                "reason": "unit-test rechunk",
+            },
+        )
+        versions = list_knowledge_document_versions(document["document_id"])
+        chunks = get_knowledge_document_chunks(document["document_id"])
+
+        self.assertTrue(rechunked["success"])
+        self.assertEqual(rechunked["version_number"], 2)
+        self.assertGreater(rechunked["chunk_count"], document["chunk_count"])
+        self.assertTrue(versions["found"])
+        self.assertEqual(versions["versions"][0]["version_number"], 2)
+        self.assertEqual(chunks["document"]["current_version"], 2)
+        self.assertTrue(all(chunk["metadata"]["document_version"] == 2 for chunk in chunks["chunks"]))
+
     def test_vector_rebuild_job_lifecycle(self) -> None:
         ingest_knowledge_document(
             {
@@ -112,6 +148,76 @@ class KnowledgeServiceTest(unittest.TestCase):
         self.assertTrue(fetched["found"])
         self.assertTrue(processed["processed"])
         self.assertEqual(processed["job"]["status"], "completed")
+
+    def test_vector_rebuild_processes_pending_jobs(self) -> None:
+        process_pending_vector_rebuild_jobs({"limit": 50})
+        ingest_knowledge_document(
+            {
+                "title": f"向量自动处理测试资料-{uuid4()}",
+                "content": "这是一段用于测试向量待处理任务自动消费的资料。",
+                "citation": "测试资料：向量自动处理",
+                "created_by": "test",
+            }
+        )
+        first = create_vector_rebuild_job(
+            {"target": "knowledge", "limit": 3, "created_by": "test"}
+        )
+        second = create_vector_rebuild_job(
+            {"target": "knowledge", "limit": 3, "created_by": "test"}
+        )
+
+        processed = process_pending_vector_rebuild_jobs({"limit": 2})
+        first_job = get_vector_rebuild_job(first["job"]["id"])
+        second_job = get_vector_rebuild_job(second["job"]["id"])
+
+        self.assertTrue(processed["processed"])
+        self.assertEqual(processed["processed_count"], 2)
+        self.assertEqual(first_job["job"]["status"], "completed")
+        self.assertEqual(second_job["job"]["status"], "completed")
+
+    def test_vector_rebuild_job_can_auto_process_on_create(self) -> None:
+        ingest_knowledge_document(
+            {
+                "title": f"向量创建即处理测试资料-{uuid4()}",
+                "content": "这是一段用于测试创建向量任务后立即处理的资料。",
+                "citation": "测试资料：创建即处理",
+                "created_by": "test",
+            }
+        )
+
+        created = create_vector_rebuild_job(
+            {
+                "target": "knowledge",
+                "limit": 3,
+                "created_by": "test",
+                "auto_process": True,
+            }
+        )
+
+        self.assertTrue(created["created"])
+        self.assertTrue(created["processed"]["processed"])
+        self.assertEqual(created["processed"]["job"]["status"], "completed")
+
+    def test_vector_worker_processes_one_pending_job(self) -> None:
+        process_pending_vector_rebuild_jobs({"limit": 50})
+        ingest_knowledge_document(
+            {
+                "title": f"向量 Worker 测试资料-{uuid4()}",
+                "content": "这是一段用于测试向量 worker 自动处理 pending job 的资料。",
+                "citation": "测试资料：向量 Worker",
+                "created_by": "test",
+            }
+        )
+        created = create_vector_rebuild_job(
+            {"target": "knowledge", "limit": 3, "created_by": "test"}
+        )
+
+        result = VectorWorker(AppSettings.from_env()).process_one()
+        job = get_vector_rebuild_job(created["job"]["id"])
+
+        self.assertTrue(result.processed)
+        self.assertEqual(result.job_id, created["job"]["id"])
+        self.assertEqual(job["job"]["status"], "completed")
 
 
 if __name__ == "__main__":

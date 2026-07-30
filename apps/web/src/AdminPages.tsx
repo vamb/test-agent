@@ -30,6 +30,7 @@ import {
   ImportBatchReport,
   ImportBatchReview,
   KnowledgeDocument,
+  KnowledgeDocumentVersion,
   StagingRow,
   VectorJob,
   adminApi,
@@ -117,6 +118,12 @@ type DocumentFormState = {
   source_uri: string;
   citation: string;
   status: string;
+};
+
+type RechunkFormState = {
+  max_chars: string;
+  overlap_chars: string;
+  reason: string;
 };
 
 export function AdminLayout() {
@@ -1037,21 +1044,28 @@ export function AdminKnowledgeDetailPage() {
     status: "active",
   });
   const [chunks, setChunks] = useState<Array<Record<string, unknown>>>([]);
+  const [versions, setVersions] = useState<KnowledgeDocumentVersion[]>([]);
+  const [rechunkForm, setRechunkForm] = useState<RechunkFormState>({
+    max_chars: "500",
+    overlap_chars: "80",
+    reason: "manual rechunk",
+  });
   const [message, setMessage] = useState("");
   const [state, setState] = useState<LoadState>("loading");
 
   function load() {
     setState("loading");
-    adminApi.getDocumentChunks(documentId).then((result) => {
-      setDocument(result.document || null);
+    Promise.all([adminApi.getDocumentChunks(documentId), adminApi.listDocumentVersions(documentId)]).then(([chunkResult, versionResult]) => {
+      setDocument(chunkResult.document || null);
       setForm({
-        title: result.document?.title || "",
-        source_type: result.document?.source_type || "note",
-        source_uri: result.document?.source_uri || "",
-        citation: result.document?.citation || "",
-        status: result.document?.status || "active",
+        title: chunkResult.document?.title || "",
+        source_type: chunkResult.document?.source_type || "note",
+        source_uri: chunkResult.document?.source_uri || "",
+        citation: chunkResult.document?.citation || "",
+        status: chunkResult.document?.status || "active",
       });
-      setChunks(result.chunks || []);
+      setChunks(chunkResult.chunks || []);
+      setVersions(versionResult.versions || []);
       setState("done");
     });
   }
@@ -1070,11 +1084,27 @@ export function AdminKnowledgeDetailPage() {
     load();
   }
 
+  async function rechunkDocument() {
+    await adminApi.rechunkDocument(documentId, {
+      max_chars: Number(rechunkForm.max_chars || 500),
+      overlap_chars: Number(rechunkForm.overlap_chars || 80),
+      changed_by: "web-admin",
+      reason: rechunkForm.reason,
+    });
+    setMessage("知识文档已重切分并生成新版本。");
+    load();
+  }
+
   return (
     <AdminPageShell eyebrow="Document chunks" title={document?.title || "知识文档详情"} description="查看 chunk，更新元数据，并触发文档 reembed。" state={state} action={<button className="primary-button" onClick={() => void adminApi.reembedDocument(documentId).then(load)}><RefreshCcw size={16} /> Reembed</button>}>
       {message && <div className="notice-line">{message}</div>}
       <section className="admin-panel">
         <PanelTitle icon={<FileText size={18} />} title="文档元数据" />
+        <div className="metric-grid compact">
+          <MetricCard title="当前版本" value={document?.current_version ?? "-"} />
+          <MetricCard title="Chunk 数" value={chunks.length} />
+          <MetricCard title="版本数" value={versions.length} />
+        </div>
         <div className="source-form document-form">
           <label>标题<input value={form.title} onChange={(input) => setForm({ ...form, title: input.target.value })} /></label>
           <label>类型<select value={form.source_type} onChange={(input) => setForm({ ...form, source_type: input.target.value })}>
@@ -1098,6 +1128,32 @@ export function AdminKnowledgeDetailPage() {
           <button className="danger-button" onClick={() => void saveDocument({ status: "archived" })}>归档</button>
         </div>
       </section>
+      <div className="admin-two-col">
+        <section className="admin-panel">
+          <PanelTitle icon={<RefreshCcw size={18} />} title="重切分" />
+          <div className="source-form rechunk-form">
+            <label>最大字符数<input type="number" min="100" max="5000" value={rechunkForm.max_chars} onChange={(input) => setRechunkForm({ ...rechunkForm, max_chars: input.target.value })} /></label>
+            <label>重叠字符数<input type="number" min="0" max="1000" value={rechunkForm.overlap_chars} onChange={(input) => setRechunkForm({ ...rechunkForm, overlap_chars: input.target.value })} /></label>
+            <label className="span-2">原因<input value={rechunkForm.reason} onChange={(input) => setRechunkForm({ ...rechunkForm, reason: input.target.value })} /></label>
+          </div>
+          <div className="button-row">
+            <button className="primary-button" onClick={() => void rechunkDocument()}><RefreshCcw size={16} /> 生成新版本</button>
+          </div>
+        </section>
+        <section className="admin-panel">
+          <PanelTitle icon={<FileSearch size={18} />} title="版本记录" />
+          <div className="version-list">
+            {versions.map((version) => (
+              <article key={version.id}>
+                <span>v{version.version_number} / {version.chunk_count} chunks</span>
+                <strong>{version.change_reason || "version snapshot"}</strong>
+                <small>{String(version.changed_by || "-")} / {String(version.created_at || "")}</small>
+              </article>
+            ))}
+          </div>
+          {!versions.length && <EmptyState text="暂无版本记录。" />}
+        </section>
+      </div>
       <div className="chunk-list">
         {chunks.map((chunk, index) => <article key={`${String(chunk.id)}-${index}`}><strong>Chunk {index + 1}</strong><p>{String(chunk.content || chunk.chunk_text || "")}</p></article>)}
       </div>
@@ -1109,6 +1165,7 @@ export function AdminVectorsPage() {
   const [status, setStatus] = useState<Record<string, unknown>>({});
   const [job, setJob] = useState<VectorJob | null>(null);
   const [target, setTarget] = useState("knowledge");
+  const [message, setMessage] = useState("");
   const [state, setState] = useState<LoadState>("loading");
 
   function load() {
@@ -1122,18 +1179,30 @@ export function AdminVectorsPage() {
   useEffect(load, []);
 
   async function createJob() {
-    const result = await adminApi.createVectorJob(target);
-    setJob(("job" in result ? result.job : result) as VectorJob);
+    const result = await adminApi.createVectorJob(target, true);
+    const createdJob = ("job" in result ? result.job : result) as VectorJob;
+    const processed = "processed" in result ? (result.processed as Record<string, unknown>) : null;
+    setJob((processed?.job || createdJob) as VectorJob);
+    setMessage(processed?.processed ? "向量任务已创建并自动处理。" : "向量任务已创建，等待后台处理。");
+    load();
   }
 
   async function processJob() {
     if (!job?.id) return;
     await adminApi.processVectorJob(job.id);
+    setMessage("当前向量任务已处理。");
+    load();
+  }
+
+  async function processPending() {
+    const result = await adminApi.processPendingVectorJobs(3);
+    setMessage(`已自动处理 ${String(result.processed_count || 0)} 个待处理任务。`);
     load();
   }
 
   return (
     <AdminPageShell eyebrow="Vector operations" title="向量管理" description="查看 embedding 覆盖率，创建和处理重建任务。" state={state}>
+      {message && <div className="notice-line">{message}</div>}
       <div className="admin-two-col">
         <section className="admin-panel"><PanelTitle icon={<Layers3 size={18} />} title="覆盖率" /><JsonBlock value={status} /></section>
         <section className="admin-panel">
@@ -1143,8 +1212,9 @@ export function AdminVectorsPage() {
             <option value="events">events</option>
           </select>
           <div className="button-row">
-            <button className="primary-button" onClick={createJob}>创建任务</button>
+            <button className="primary-button" onClick={createJob}>创建并自动处理</button>
             <button className="ghost-button" onClick={processJob} disabled={!job?.id}>处理当前任务</button>
+            <button className="ghost-button" onClick={processPending}>处理待处理任务</button>
           </div>
           {job && <JsonBlock value={job} compact />}
         </section>

@@ -118,7 +118,7 @@ ai-agent/
 | 事件库管理 | 开发 | 搜索、筛选、查看、编辑、归档、标记争议 | 管理结构化历史事件 |
 | 来源管理 | 开发 | 管理 citation、excerpt、URL、source type、reliability、核验状态 | 保证历史回答可追溯 |
 | 关系管理 | 开发 | 维护 cause、effect、contemporary、influence、uncertain 等事件关系 | 用于关联分析和横向对照解释 |
-| 知识库管理 | 开发 | 导入文档、查看 chunk、停用文档、测试召回 | 管理 RAG 文档资产 |
+| 知识库管理 | 开发 | 导入文档、查看 chunk、停用文档、版本记录、重切分、测试召回 | 管理 RAG 文档资产 |
 | 向量管理 | 开发 | 查看 embedding 覆盖率、重算向量、索引状态、语义检索测试 | 不展示原始 1536 维向量，只管理覆盖、质量和任务 |
 | 系统设置 | 部分开发 | admin token、embedding provider、向量维度、导入规则、状态枚举 | 不包含 Langfuse 的 Trace 详情页 |
 
@@ -181,8 +181,8 @@ ai-agent/
 | B3 | 9 | 导入文件解析轻量版 | `POST /imports/parse` | 提升导入体验 | 支持 JSON 文本/对象和 CSV 文本解析为标准 events payload | 已完成 |
 | B3 | 10 | 数据质量处理台账 | `POST /admin/data-quality/issues/actions`、`data_quality_issue_actions` | 让已修复或决定忽略的问题不再反复干扰运营列表 | 支持 open、resolved、ignored、snoozed；summary/list 合并处理状态；初始化脚本和 schema 测试覆盖 | 已完成 |
 | B3 | 11 | 导入批次运营报表 | `GET /admin/import-batches/{batch_id}/report` | 每批导入后可复盘处理进度和质量分布 | 返回 staging/入库总量、质量 open/handled、处理率、地区/年份/置信度/来源分布和优先处理项 | 已完成 |
-| B4 | 12 | 知识库版本和重切分 | 文档版本字段 / re-chunk 接口 | 支撑文档更新后的可追溯管理 | 文档更新保留版本，chunk 变化可查看 | 暂缓 |
-| B4 | 13 | 向量任务自动处理 | Worker 或队列消费 vector jobs | 数据量变大后避免手动 process | 创建任务后可异步完成，失败有错误信息和重试入口 | 暂缓 |
+| B4 | 12 | 知识库版本和重切分 | `knowledge_document_versions`、`GET /knowledge/documents/{document_id}/versions`、`POST /knowledge/documents/{document_id}/rechunk` | 支撑文档更新后的可追溯管理 | 文档更新保留版本，chunk 变化可查看 | 已完成 |
+| B4 | 13 | 向量任务自动处理 | `POST /vectors/rebuild-jobs/process-pending`、`apps.worker.vector_worker`、向量页自动处理入口 | 数据量变大后避免手动 process | 创建任务后可自动处理，pending job 可批量领取处理，失败有错误信息和重试入口 | 已完成 |
 
 ### 管理后台前端开发工作表
 
@@ -199,8 +199,8 @@ ai-agent/
 | F3 | 7 | 后台事件详情编辑 | `/admin/events/:eventId` | `GET /admin/events/{event_id}`、`PATCH /admin/events/{event_id}` | 事件核心字段已改为表单编辑，可保存并查看审计、来源、关系 | 已完成 |
 | F3 | 8 | 来源和关系维护 | `/admin/events/:eventId`、`/admin/relations` | 来源新增/编辑/删除/核验、关系列表/新增/编辑/删除 | 可维护来源 reliability、citation、excerpt、URL，也可维护事件关系说明和置信度 | 已完成 |
 | F4 | 9 | 数据质量修复台 | `/admin/quality` | `GET /admin/data-quality/summary`、`GET /admin/data-quality/issues`、`POST /admin/data-quality/issues/actions` | 可按问题类型进入事件或关系修复；可标记已处理、忽略和重新打开 | 已完成 |
-| F4 | 10 | 知识库管理 | `/admin/knowledge`、`/admin/knowledge/:documentId` | `GET /knowledge/documents`、`GET /knowledge/documents/{document_id}/chunks`、`PATCH /knowledge/documents/{document_id}`、`POST /knowledge/documents/{document_id}/reembed` | 可查看文档、chunk、更新元数据、停用/归档、触发 reembed | 已完成 |
-| F4 | 11 | 向量管理 | `/admin/vectors` | `GET /vectors/status`、`POST /vectors/rebuild-jobs`、`POST /vectors/rebuild-jobs/{job_id}/process` | 可看 embedding 覆盖率、创建/处理重建任务、查看任务状态 | 已完成 |
+| F4 | 10 | 知识库管理 | `/admin/knowledge`、`/admin/knowledge/:documentId` | `GET /knowledge/documents`、`GET /knowledge/documents/{document_id}/chunks`、`GET /knowledge/documents/{document_id}/versions`、`PATCH /knowledge/documents/{document_id}`、`POST /knowledge/documents/{document_id}/rechunk`、`POST /knowledge/documents/{document_id}/reembed` | 可查看文档、chunk、版本记录，更新元数据，停用/归档，触发 rechunk 和 reembed | 已完成 |
+| F4 | 11 | 向量管理 | `/admin/vectors` | `GET /vectors/status`、`POST /vectors/rebuild-jobs`、`POST /vectors/rebuild-jobs/{job_id}/process`、`POST /vectors/rebuild-jobs/process-pending` | 可看 embedding 覆盖率、创建并自动处理重建任务、批量处理 pending jobs、查看任务状态 | 已完成 |
 | F5 | 12 | 前端结构化整理和视觉 QA | 全局 | 无新增 | 已拆出 `AdminPages.tsx` 和 `adminApi.ts`，管理后台移动端表格/工具栏/导航已完成 390px 视口检查，`npm run build` 通过 | 已完成 |
 
 ### 不应自研的后端能力
@@ -237,7 +237,7 @@ ai-agent/
 | 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理、管理后台数据运营 |
 | 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；也可用管理后台完成导入解析、批次审核、staging 修正/合并、确认入库、事件编辑、来源维护、关系维护、数据质量查看、知识库文档维护和向量任务处理；当前已新增 12 条小批量种子事件入库 |
 | 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 58/58 通过，MVP 评测最近一次 4/4 通过 |
-| 下一步重点 | 真实数据导入演练、管理后台体验问题修复、Langfuse SDK 正式接入、LangGraph 工作流迁移预研 |
+| 下一步重点 | 提交 W10/W11 改动、Langfuse SDK 正式接入、LangGraph 工作流迁移预研 |
 | 暂不推进 | 多智能体、MCP、Playwright、复杂 RBAC、Kubernetes，等单 Agent 与数据管理链路稳定后再做 |
 
 | 模块 | 状态 | 已在线完成的功能 | 对应 PDF 功能/章节 |
@@ -306,6 +306,8 @@ ai-agent/
 | W7 | 7 | Langfuse 集成预留 | 后端接 trace/tool/token/error 上报；前端只保留跳转入口 | 可从 run_id 对应到 Langfuse trace；不开发自研 Trace 后台；后端全量测试和前端构建通过 | 已完成第一版 |
 | W8 | 8 | 数据质量处理闭环 | 新增数据质量问题处理台账、API 和前端操作 | 可把问题标记为已处理、忽略或重新打开；初始化表同步；后端全量测试和前端构建通过 | 已完成 |
 | W9 | 9 | 导入批次运营报表 | 新增批次 report API 和批次详情页复盘面板 | 展示入库事件、待处理质量问题、处理率、质量分解、地区/年份/来源可靠度分布和优先处理项；后端全量测试和前端构建通过 | 已完成 |
+| W10 | 10 | 知识库版本和重切分 | 新增文档版本表、版本列表 API、rechunk API 和知识详情页版本操作 | 文档 ingest/rechunk 均记录版本快照；可生成新 chunk 版本；后端全量测试和前端构建通过 | 已完成 |
+| W11 | 11 | 向量任务自动处理 | 新增 pending vector job 自动领取、批量处理 API、`apps.worker.vector_worker` 和前端自动处理入口 | 创建向量任务后可自动处理；可批量消费 pending jobs；后端全量测试和前端构建通过 | 已完成 |
 
 ## 后端重构工作表
 

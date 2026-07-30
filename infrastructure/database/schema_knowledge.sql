@@ -10,9 +10,26 @@ CREATE TABLE IF NOT EXISTS knowledge_documents (
   source_uri text NOT NULL DEFAULT '',
   citation text NOT NULL DEFAULT '',
   content_hash text NOT NULL UNIQUE,
+  current_version integer NOT NULL DEFAULT 1,
   status text NOT NULL DEFAULT 'active',
   created_by text NOT NULL DEFAULT '',
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS knowledge_document_versions (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  document_id uuid NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+  version_number integer NOT NULL,
+  title text NOT NULL,
+  content_hash text NOT NULL,
+  content_snapshot text NOT NULL,
+  chunk_count integer NOT NULL DEFAULT 0,
+  chunking_config jsonb NOT NULL DEFAULT '{}'::jsonb,
+  changed_by text NOT NULL DEFAULT '',
+  change_reason text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (document_id, version_number)
 );
 
 CREATE TABLE IF NOT EXISTS knowledge_chunks (
@@ -35,6 +52,9 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_documents_status
 
 CREATE INDEX IF NOT EXISTS idx_knowledge_documents_created_at
   ON knowledge_documents (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_document_versions_document_id
+  ON knowledge_document_versions (document_id, version_number DESC);
 
 CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_embedding
   ON knowledge_chunks USING ivfflat (embedding vector_cosine_ops)
