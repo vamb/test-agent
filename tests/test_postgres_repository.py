@@ -48,8 +48,9 @@ class PostgresRepositoryTest(unittest.TestCase):
             regions=["东亚", "中东", "中亚"],
         )
 
+        event_ids = {event["id"] for event in result["events"]}
         titles = {event["title"] for event in result["events"]}
-        self.assertNotIn("安史之乱爆发", titles)
+        self.assertNotIn(event_id, event_ids)
         self.assertIn("怛罗斯之战", titles)
 
     def test_related_events_returns_seeded_relations(self) -> None:

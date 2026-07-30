@@ -146,8 +146,10 @@ export type DataQualityIssue = {
   target_type: string;
   target_id: string;
   title: string;
-  description: string;
+  message?: string;
+  description?: string;
   event_id?: string;
+  metadata?: Record<string, unknown>;
 };
 
 export type KnowledgeDocument = {

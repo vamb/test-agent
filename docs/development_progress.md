@@ -18,6 +18,9 @@
 | 2026-07-30 | 完成 Agent 返回结构标准化：新增结构化 response normalizer，同步接口和 SSE `final_answer` 均输出 `answer`、`events`、`references`、`links`；前端聊天页改为按标准字段渲染事件卡片和引用来源 | 后端 `python -m unittest tests.test_agent_loop tests.test_api_agent` 通过，10/10；后端 `python -m unittest discover tests` 通过，61/61；前端 `npm.cmd run build` 通过 | 下一步推进 RAG 引用注入回答，让回答正文和引用来源更紧密 |
 | 2026-07-30 | 完成 RAG 引用注入回答第一版：Agent registry 新增 `search_knowledge` 工具，RuleBased Agent 在最终回答前检索知识库 chunk，回答正文追加参考资料，结构化 `references` 同时包含事件来源和知识文档 chunk | 后端 `python -m unittest tests.test_agent_loop tests.test_api_agent tests.test_agent_worker tests.test_knowledge_service` 通过，22/22；后端 `python -m unittest discover tests` 通过，62/62 | 下一步做 Langfuse 集成预留，或提交 W5-W6 改动 |
 | 2026-07-30 | 完成 Langfuse 集成预留第一版：新增 telemetry adapter 和环境变量配置，AgentLoop 在 run/stream/worker 路径预留 trace、tool、token、错误上报入口；同步接口、SSE final、运行详情和聊天页可承接 Langfuse 外部 trace 链接 | 后端 `python -m unittest tests.test_agent_loop tests.test_api_agent tests.test_agent_worker` 通过，19/19；后端 `python -m unittest discover tests` 通过，63/63；前端 `npm.cmd run build` 通过 | 下一步提交 W5-W7 改动，或进入真实数据导入演练和管理后台体验修复 |
+| 2026-07-30 | 完成真实数据导入演练扩展 W4：新增 22 条 `600-900` 年扩展种子数据，通过导入审核流创建并确认批次 `2d9ea246-3d79-4753-89c2-03f853406452`，入库后可按批次筛选和核验质量问题 | `python data/validate_events.py data/imports/curated_seed_600_900_extended.json` 通过；后端 `python -m unittest tests.test_import_review tests.test_seed_import_dataset tests.test_event_management` 通过，21/21；批次核验返回 22 条事件、8 条低置信、6 条弱来源、1 个重复候选、0 个结构缺口 | 下一步根据这批质量信号修复管理后台体验，优先优化弱来源/低置信处理入口和重复候选提示 |
+| 2026-07-30 | 完成管理后台体验修复 W3 第一批：数据质量页改为可点击摘要卡片，修复 issue message 展示，补 metadata 辅助信息和完整 issue_type 筛选；真实数据导致的同期事件测试假设也改为按目标 id 断言 | 后端 `python -m unittest discover tests` 通过，65/65；前端 `npm.cmd run build` 通过 | 下一步继续优化导入详情页重复候选提示和事件详情页弱来源处理效率 |
+| 2026-07-30 | 完成管理后台体验修复 W3 第二批：导入详情页重复候选改为可读候选卡片和字段差异列表，事件详情页弱来源高亮并增加“标为可靠来源”快捷操作 | 后端 `python -m unittest discover tests` 通过，65/65；前端 `npm.cmd run build` 通过 | 下一步做移动端视觉 QA，或提交 W3/W4 改动 |
 
 ## 12 周开发周期
 
@@ -60,7 +63,7 @@
 
 ## 当前任务队列
 
-当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版均已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步提交 W5-W7 改动，或进入真实数据导入演练和管理后台体验修复。
+当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、真实数据导入演练扩展、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版、管理后台体验修复 W3 第一/二批均已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步做移动端视觉 QA，或提交 W3/W4 改动。
 
 | 优先级 | 任务 | 负责人 | 状态 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
@@ -106,7 +109,7 @@
 | 40 | 管理后台前端计划 | 前端 | 已完成计划；拆为 F1-F5，先做管理壳子和导入审核闭环 | 平台化第一版；数据运营后台 |
 | 41 | 管理后台前端可运营版 | 前端 | 已完成；事件高级筛选、事件表单编辑、来源编辑/删除、关系编辑/删除、知识文档元数据维护均已接入 | 平台化第一版；数据运营后台 |
 | 42 | 小批量历史事件种子导入 | 数据/前端/后端 | 已完成；新增 `data/imports/curated_seed_600_900.json`，通过审核流导入 12 条 633-883 年事件，批次 `3ab3c564-d324-4b35-ac30-5b5fe82d0a11` | 第十阶段：人工确认机制；平台化第一版 |
-| 43 | 真实数据导入演练扩展 | 数据/前端/后端 | 待开始；先核验当前 12 条 reviewing 数据，再决定是否扩展到 20-50 条 | 第十阶段：人工确认机制；平台化第一版 |
+| 43 | 真实数据导入演练扩展 | 数据/前端/后端 | 已完成；新增 22 条扩展种子数据，通过导入审核流确认入库，批次 `2d9ea246-3d79-4753-89c2-03f853406452` 可用于后台质量修复 | 第十阶段：人工确认机制；平台化第一版 |
 | 44 | 种子数据核验支撑能力 | 后端/前端 | 已完成；`/admin/events` 支持 `import_batch_id` 筛选，数据质量新增 `duplicate_title` 同标题候选检测，新增 `GET /admin/import-batches/{batch_id}/review`，导入详情页可查看本批低置信、弱来源、重复候选和结构缺口 | 第十阶段：人工确认机制；平台化第一版 |
 | 45 | 数据库初始化脚本同步 | 后端/数据库 | 已完成；新增 `infrastructure/database/init.sql`，完整初始化当前后端依赖的基础表、事件审计、知识库、事件向量列、向量任务表和基础字典，并补 schema 文件测试 | 数据底座；平台化第一版 |
 | 46 | 后端重构计划 | 后端 | 已完成；R1 统一向量任务表 schema 兜底、R2 FastAPI 路由拆分、R3 管理服务拆分、R4 公共历史实体 upsert 抽取、R5 写接口 Pydantic 化、R6 轻微代码味道清理均已完成 | 平台化第一版；工程可维护性 |
@@ -115,8 +118,8 @@
 
 | 优先级 | 任务 | 目标 | 验收标准 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
-| 1 | 管理后台体验修复 | 根据刚导入的 12 条种子数据做实际核验，修复字段校验、错误提示、重复合并提示、表单细节、空状态和移动端问题 | 数据维护不再依赖 curl 或脚本，后台可稳定日常使用 | 平台化第一版 |
-| 2 | 真实数据导入演练扩展 | 如 12 条种子数据核验稳定，再扩展到 20-50 条历史事件，走导入解析、批次审核、staging 修正、重复合并、确认入库、质量修复全流程 | 用真实数据验证后台可运营性，并整理需要修复的问题清单 | 第十阶段：人工确认机制；平台化第一版 |
+| 1 | 管理后台体验修复 | 已完成 W3 第一/二批质量页、重复候选和弱来源处理修复；继续检查移动端布局 | 数据维护不再依赖 curl 或脚本，后台可稳定日常使用 | 平台化第一版 |
+| 2 | 真实数据导入演练扩展 | 已完成 22 条扩展批次；后续仅按专题需要继续扩展 | 用真实数据验证后台可运营性，并整理需要修复的问题清单 | 第十阶段：人工确认机制；平台化第一版 |
 | 3 | Agent 返回结构标准化 | 后端明确输出 `answer`、`references`、`links`、`events`，前端根据类型渲染事件、来源、对照卡片 | 前端不再依赖递归解析工具 observation；刷新和跳转后链接仍可用 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
 | 4 | RAG 引用注入回答 | 把知识库检索和事件来源稳定注入 Agent 回答 | 回答能展示引用来源和知识文档 chunk，降低无来源结论风险 | 第八阶段：RAG 知识库 |
 | 5 | Langfuse 集成预留 | 已完成第一版；后端预留 trace、tool call、token、成本和错误上报入口；本系统后台只提供跳转入口，不做 Agent run 搜索与分析页 | 可以从本系统 run_id 跳转到 Langfuse 查看完整运行详情 | 第十三阶段：评测体系；第十四阶段：可观测性 |

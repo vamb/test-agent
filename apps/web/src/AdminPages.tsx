@@ -438,7 +438,7 @@ export function AdminImportDetailPage() {
             </Link>
           </div>
           {Boolean(review.review?.duplicate_candidate_count) && (
-            <JsonBlock value={{ duplicate_candidates: review.issues?.duplicate_candidates }} compact />
+            <DuplicateCandidateList candidates={(review.issues?.duplicate_candidates || []) as Array<Record<string, unknown>>} />
           )}
         </section>
       )}
@@ -476,7 +476,12 @@ export function AdminImportDetailPage() {
               {(selected.validation_errors || []).length > 0 && (
                 <div className="error-list">{selected.validation_errors?.map((item) => <span key={item}>{item}</span>)}</div>
               )}
-              {selected.has_duplicate_candidates && <JsonBlock value={{ duplicate_candidates: selected.duplicate_candidates, field_differences: selected.field_differences }} compact />}
+              {selected.has_duplicate_candidates && (
+                <DuplicateResolutionPanel
+                  candidates={selected.duplicate_candidates || []}
+                  differences={selected.field_differences || {}}
+                />
+              )}
             </>
           ) : (
             <EmptyState text="选择一行 staging 数据后编辑。" />
@@ -707,6 +712,12 @@ export function AdminEventDetailPage() {
     load();
   }
 
+  async function verifySource(sourceId: string, reliability = 0.85) {
+    await adminApi.verifySource(sourceId, reliability);
+    setMessage(`来源已核验为 ${reliability.toFixed(2)}。`);
+    load();
+  }
+
   return (
     <AdminPageShell eyebrow="Event detail" title={event?.title || "事件详情"} description="编辑事件字段，维护来源、关系和审计记录。" state={state} error={error}>
       {message && <div className="notice-line">{message}</div>}
@@ -734,12 +745,16 @@ export function AdminEventDetailPage() {
           <PanelTitle icon={<FileText size={18} />} title="来源" />
           <div className="source-mini-list">
             {(detail?.sources || []).map((source) => (
-              <article key={source.id}>
-                <strong>{source.source_title}</strong>
-                <span>{source.source_type} / {Number(source.reliability || 0).toFixed(2)}</span>
+              <article className={Number(source.reliability || 0) < 0.7 ? "weak-source" : ""} key={source.id}>
+                <div className="source-mini-head">
+                  <strong>{source.source_title}</strong>
+                  {Number(source.reliability || 0) < 0.7 && <StatusPill value="weak" />}
+                </div>
+                <span>{source.source_type} / reliability {Number(source.reliability || 0).toFixed(2)}</span>
+                <small>{source.citation || source.excerpt || "暂无引用文本"}</small>
                 <div className="button-row tight">
                   <button className="ghost-button" onClick={() => editSource(source)}><Edit3 size={15} /> 编辑</button>
-                  <button className="ghost-button" onClick={() => void adminApi.verifySource(source.id, 0.85).then(load)}>核验 0.85</button>
+                  <button className="ghost-button" onClick={() => void verifySource(source.id, 0.85)}>标为可靠来源</button>
                   <button className="danger-button" onClick={() => void deleteSource(source.id)}><Trash2 size={15} /> 删除</button>
                 </div>
               </article>
@@ -897,6 +912,7 @@ export function AdminQualityPage() {
   const [issues, setIssues] = useState<Array<Record<string, unknown>>>([]);
   const [issueType, setIssueType] = useState("");
   const [state, setState] = useState<LoadState>("loading");
+  const summaryItems = qualitySummaryItems(summary);
 
   function load() {
     setState("loading");
@@ -917,14 +933,42 @@ export function AdminQualityPage() {
           <option value="">全部问题</option>
           <option value="missing_source">missing_source</option>
           <option value="low_confidence">low_confidence</option>
+          <option value="verified_weak_source">verified_weak_source</option>
           <option value="duplicate_event">duplicate_event</option>
           <option value="duplicate_title">duplicate_title</option>
+          <option value="empty_summary">empty_summary</option>
+          <option value="empty_causes">empty_causes</option>
+          <option value="empty_effects">empty_effects</option>
           <option value="relation_missing_evidence">relation_missing_evidence</option>
+          <option value="archived_visible">archived_visible</option>
         </select>
+        <button className="ghost-button" onClick={load}><RefreshCcw size={16} /> 刷新</button>
       </div>
       <div className="admin-two-col">
-        <section className="admin-panel"><PanelTitle icon={<ShieldAlert size={18} />} title="问题摘要" /><JsonBlock value={summary} compact /></section>
-        <section className="admin-panel"><PanelTitle icon={<FileSearch size={18} />} title="问题列表" /><div className="issue-list">{issues.map((issue, index) => <QualityIssue key={`${String(issue.target_id)}-${index}`} issue={issue} />)}</div></section>
+        <section className="admin-panel">
+          <PanelTitle icon={<ShieldAlert size={18} />} title={`问题摘要 ${String(summary.total_issues ?? 0)}`} />
+          <div className="quality-summary-grid">
+            {summaryItems.map((item) => (
+              <button
+                className={`quality-summary-card ${item.severity}`}
+                key={item.issueType}
+                onClick={() => setIssueType(item.issueType)}
+              >
+                <span>{item.issueType}</span>
+                <strong>{item.count}</strong>
+                <small>{item.severity}</small>
+              </button>
+            ))}
+          </div>
+          {!summaryItems.length && <EmptyState text="当前没有数据质量问题。" />}
+        </section>
+        <section className="admin-panel">
+          <PanelTitle icon={<FileSearch size={18} />} title={`问题列表 ${issues.length}`} />
+          <div className="issue-list">
+            {issues.map((issue, index) => <QualityIssue key={`${String(issue.target_id)}-${index}`} issue={issue} />)}
+          </div>
+          {!issues.length && <EmptyState text="当前筛选下没有问题。" />}
+        </section>
       </div>
     </AdminPageShell>
   );
@@ -1135,6 +1179,60 @@ function EmptyState({ text }: { text: string }) {
   return <div className="empty-state">{text}</div>;
 }
 
+function DuplicateCandidateList({ candidates }: { candidates: Array<Record<string, unknown>> }) {
+  return (
+    <div className="duplicate-list">
+      {candidates.slice(0, 6).map((candidate, index) => (
+        <article key={`${String(candidate.candidate_event_id || candidate.id || index)}`}>
+          <span>{String(candidate.title || "重复候选")} / {String(candidate.start_year || "")}</span>
+          <strong>{String(candidate.candidate_polity || candidate.polity || "-")}</strong>
+          <small>{String(candidate.candidate_region || candidate.region || "-")}</small>
+          {Boolean(candidate.candidate_event_id) && (
+            <Link to={`/admin/events/${String(candidate.candidate_event_id)}`}>查看候选事件</Link>
+          )}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function DuplicateResolutionPanel({
+  candidates,
+  differences,
+}: {
+  candidates: AdminEventListItem[];
+  differences: Record<string, unknown>;
+}) {
+  const firstCandidate = candidates[0];
+  return (
+    <div className="duplicate-resolution">
+      <div className="duplicate-summary">
+        <strong>{candidates.length} 个重复候选</strong>
+        {firstCandidate && (
+          <span>
+            默认合并目标：{firstCandidate.title} / {firstCandidate.start_year}
+          </span>
+        )}
+      </div>
+      <DuplicateCandidateList candidates={candidates as unknown as Array<Record<string, unknown>>} />
+      {Object.keys(differences).length > 0 && (
+        <div className="field-diff-list">
+          {Object.entries(differences).map(([field, value]) => {
+            const diff = value as Record<string, unknown>;
+            return (
+              <article key={field}>
+                <span>{field}</span>
+                <small>incoming: {String(diff.incoming ?? "")}</small>
+                <small>existing: {String(diff.existing ?? "")}</small>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function JsonBlock({ value, compact = false }: { value: unknown; compact?: boolean }) {
   return <pre className={`json-block ${compact ? "compact" : ""}`}>{JSON.stringify(value, null, 2)}</pre>;
 }
@@ -1142,13 +1240,34 @@ function JsonBlock({ value, compact = false }: { value: unknown; compact?: boole
 function QualityIssue({ issue }: { issue: Record<string, unknown> }) {
   const target = String(issue.event_id || issue.target_id || "");
   const link = issue.target_type === "relation" ? "/admin/relations" : `/admin/events/${target}`;
+  const metadata = (issue.metadata || {}) as Record<string, unknown>;
   return (
     <Link className="issue-card" to={link}>
       <span>{String(issue.issue_type)} / {String(issue.severity)}</span>
       <strong>{String(issue.title || issue.target_id)}</strong>
-      <p>{String(issue.description || "")}</p>
+      <p>{String(issue.message || issue.description || "")}</p>
+      <small>
+        {String(metadata.region || metadata.relation_type || issue.target_type || "")}
+        {metadata.start_year ? ` / ${String(metadata.start_year)}` : ""}
+        {metadata.confidence !== undefined ? ` / confidence ${Number(metadata.confidence).toFixed(2)}` : ""}
+      </small>
     </Link>
   );
+}
+
+function qualitySummaryItems(summary: Record<string, unknown>) {
+  const issues = (summary.issues || {}) as Record<string, unknown>;
+  return Object.entries(issues)
+    .map(([issueType, value]) => {
+      const item = value as Record<string, unknown>;
+      return {
+        issueType,
+        count: Number(item.count || 0),
+        severity: String(item.severity || "low"),
+      };
+    })
+    .filter((item) => item.count > 0)
+    .sort((left, right) => right.count - left.count || left.issueType.localeCompare(right.issueType));
 }
 
 function splitList(value: string) {

@@ -1,0 +1,601 @@
+[
+  {
+    "title": "玄武门之变",
+    "start_year": 626,
+    "end_year": 626,
+    "start_date_text": "626年",
+    "end_date_text": "626年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "唐朝",
+    "modern_country": "中国",
+    "category": ["政治", "宫廷政变", "王朝"],
+    "summary": "李世民在玄武门发动政变，随后成为唐太宗，唐朝政治格局由此重组。",
+    "causes": ["唐初皇位继承竞争", "李建成与李世民集团矛盾激化"],
+    "effects": ["李世民即位", "唐朝进入贞观时期"],
+    "actors": ["李世民", "李建成", "李元吉"],
+    "source_status": "reviewing",
+    "confidence": 0.76,
+    "sources": [
+      {
+        "source_title": "资治通鉴",
+        "source_type": "primary_source",
+        "citation": "司马光《资治通鉴》唐纪",
+        "excerpt": "用于核对玄武门之变的时间和政治背景。",
+        "reliability": 0.82
+      }
+    ]
+  },
+  {
+    "title": "贞观之治",
+    "start_year": 627,
+    "end_year": 649,
+    "start_date_text": "627年至649年",
+    "end_date_text": "649年",
+    "time_precision": "range",
+    "region": "东亚",
+    "polity": "唐朝",
+    "modern_country": "中国",
+    "category": ["政治", "制度", "经济"],
+    "summary": "唐太宗统治时期形成相对稳定的政治秩序，后世称为贞观之治。",
+    "causes": ["唐初统一后需要恢复秩序", "统治集团吸取隋亡教训"],
+    "effects": ["唐朝国力增强", "边疆和制度建设推进"],
+    "actors": ["唐太宗", "魏征", "房玄龄"],
+    "source_status": "reviewing",
+    "confidence": 0.74,
+    "sources": [
+      {
+        "source_title": "旧唐书",
+        "source_type": "primary_source",
+        "citation": "《旧唐书》太宗本纪",
+        "excerpt": "用于核对贞观时期政治治理的基础叙述。",
+        "reliability": 0.8
+      }
+    ]
+  },
+  {
+    "title": "十七条宪法颁布",
+    "start_year": 604,
+    "end_year": 604,
+    "start_date_text": "604年",
+    "end_date_text": "604年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "飞鸟时代日本",
+    "modern_country": "日本",
+    "category": ["政治", "制度", "思想"],
+    "summary": "日本传统叙述中圣德太子制定十七条宪法，体现飞鸟时代统治理念和大陆制度影响。",
+    "causes": ["倭国统治集团推进中央集权", "佛教和东亚政治理念传播"],
+    "effects": ["强化宫廷政治规范", "为后续律令化改革提供思想资源"],
+    "actors": ["圣德太子"],
+    "source_status": "reviewing",
+    "confidence": 0.66,
+    "sources": [
+      {
+        "source_title": "日本书纪",
+        "source_type": "primary_source",
+        "citation": "《日本书纪》推古天皇条",
+        "excerpt": "用于核对十七条宪法的传统纪年和政治叙述。",
+        "reliability": 0.7
+      }
+    ]
+  },
+  {
+    "title": "白江口之战",
+    "start_year": 663,
+    "end_year": 663,
+    "start_date_text": "663年",
+    "end_date_text": "663年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "唐朝、新罗、倭国、百济复兴势力",
+    "modern_country": "韩国、日本、中国",
+    "category": ["战争", "外交", "区域秩序"],
+    "summary": "唐朝和新罗联军在白江口击败倭国与百济复兴势力，影响朝鲜半岛和日本列岛的政治走向。",
+    "causes": ["百济复兴运动", "倭国支援百济复兴势力", "唐朝和新罗推进半岛军事行动"],
+    "effects": ["百济复兴失败", "新罗统一进程推进", "倭国加强本土防御"],
+    "actors": ["唐朝", "新罗", "倭国", "百济复兴势力"],
+    "source_status": "reviewing",
+    "confidence": 0.75,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Battle of Baekgang",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Baekgang",
+        "citation": "Wikipedia, Battle of Baekgang",
+        "excerpt": "Used as a starting reference for participants and date.",
+        "reliability": 0.6
+      }
+    ]
+  },
+  {
+    "title": "壬申之乱",
+    "start_year": 672,
+    "end_year": 672,
+    "start_date_text": "672年",
+    "end_date_text": "672年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "飞鸟时代日本",
+    "modern_country": "日本",
+    "category": ["政治", "内战", "王位继承"],
+    "summary": "日本飞鸟时代围绕皇位继承爆发内战，大海人皇子获胜后即位为天武天皇。",
+    "causes": ["天智天皇死后继承争议", "皇族和豪族政治联盟重组"],
+    "effects": ["天武天皇即位", "日本律令国家建设继续推进"],
+    "actors": ["大海人皇子", "大友皇子"],
+    "source_status": "reviewing",
+    "confidence": 0.7,
+    "sources": [
+      {
+        "source_title": "日本书纪",
+        "source_type": "primary_source",
+        "citation": "《日本书纪》天武天皇条",
+        "excerpt": "用于核对壬申之乱的传统叙述和人物。",
+        "reliability": 0.72
+      }
+    ]
+  },
+  {
+    "title": "武周建立",
+    "start_year": 690,
+    "end_year": 690,
+    "start_date_text": "690年",
+    "end_date_text": "690年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "武周",
+    "modern_country": "中国",
+    "category": ["政治", "王朝更替", "宫廷"],
+    "summary": "武则天称帝，改唐为周，形成唐代政治史中的武周时期。",
+    "causes": ["武则天长期掌握朝政", "唐高宗以后宫廷权力结构变化"],
+    "effects": ["唐朝国号暂时改为周", "官僚和科举制度继续发展"],
+    "actors": ["武则天"],
+    "source_status": "reviewing",
+    "confidence": 0.76,
+    "sources": [
+      {
+        "source_title": "新唐书",
+        "source_type": "primary_source",
+        "citation": "《新唐书》则天皇后本纪",
+        "excerpt": "用于核对武周建立的时间和政治背景。",
+        "reliability": 0.78
+      }
+    ]
+  },
+  {
+    "title": "大宝律令制定",
+    "start_year": 701,
+    "end_year": 701,
+    "start_date_text": "701年",
+    "end_date_text": "701年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "日本律令国家",
+    "modern_country": "日本",
+    "category": ["政治", "法律", "制度改革"],
+    "summary": "日本制定大宝律令，标志律令制国家框架进一步成型。",
+    "causes": ["大化改新后持续吸收唐制", "中央政府需要统一法律和行政制度"],
+    "effects": ["律令官僚体系强化", "中央集权国家制度更清晰"],
+    "actors": ["文武天皇", "藤原不比等"],
+    "source_status": "reviewing",
+    "confidence": 0.7,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Taiho Code",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Taih%C5%8D_Code",
+        "citation": "Wikipedia, Taiho Code",
+        "excerpt": "Used as a starting reference for date and institutional significance.",
+        "reliability": 0.58
+      }
+    ]
+  },
+  {
+    "title": "阿拔斯革命",
+    "start_year": 747,
+    "end_year": 750,
+    "start_date_text": "747年至750年",
+    "end_date_text": "750年",
+    "time_precision": "range",
+    "region": "中东",
+    "polity": "阿拔斯家族与倭马亚哈里发国",
+    "modern_country": "伊朗、伊拉克、叙利亚",
+    "category": ["政治", "革命", "王朝更替"],
+    "summary": "阿拔斯支持者在呼罗珊等地发动反倭马亚运动，最终推翻倭马亚哈里发国核心统治。",
+    "causes": ["倭马亚统治下族群和政治不满", "呼罗珊地区反对力量集结"],
+    "effects": ["阿拔斯王朝建立", "伊斯兰政治中心逐步转向伊拉克"],
+    "actors": ["阿布·穆斯林", "阿拔斯家族", "倭马亚哈里发国"],
+    "source_status": "reviewing",
+    "confidence": 0.74,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica: Abbasid dynasty",
+        "source_type": "encyclopedia",
+        "citation": "Encyclopaedia Britannica, Abbasid dynasty",
+        "excerpt": "Used as a starting reference for Abbasid revolution and dynastic transition.",
+        "reliability": 0.76
+      }
+    ]
+  },
+  {
+    "title": "怛罗斯之战",
+    "start_year": 751,
+    "end_year": 751,
+    "start_date_text": "751年",
+    "end_date_text": "751年",
+    "time_precision": "year",
+    "region": "中亚",
+    "polity": "唐朝与阿拔斯王朝",
+    "modern_country": "吉尔吉斯斯坦、哈萨克斯坦",
+    "category": ["战争", "边疆", "区域秩序"],
+    "summary": "唐朝与阿拔斯军队在怛罗斯附近交战，常被用来观察唐朝、中亚和伊斯兰世界关系。",
+    "causes": ["唐朝在中亚扩张影响力", "阿拔斯王朝进入河中地区政治竞争"],
+    "effects": ["唐朝中亚影响受挫", "中亚政治格局继续变化"],
+    "actors": ["高仙芝", "阿拔斯王朝", "葛逻禄"],
+    "source_status": "reviewing",
+    "confidence": 0.78,
+    "sources": [
+      {
+        "source_title": "资治通鉴",
+        "source_type": "primary_source",
+        "citation": "司马光《资治通鉴》唐纪",
+        "excerpt": "用于核对怛罗斯之战的时间和相关势力。",
+        "reliability": 0.82
+      }
+    ]
+  },
+  {
+    "title": "安史之乱",
+    "start_year": 755,
+    "end_year": 763,
+    "start_date_text": "755年至763年",
+    "end_date_text": "763年",
+    "time_precision": "range",
+    "region": "东亚",
+    "polity": "唐朝",
+    "modern_country": "中国",
+    "category": ["战争", "叛乱", "政治"],
+    "summary": "安禄山和史思明等发动叛乱，严重削弱唐朝中央权威。",
+    "causes": ["节度使权力扩张", "唐玄宗后期政治和军事结构失衡"],
+    "effects": ["唐朝由盛转衰", "藩镇割据问题加重"],
+    "actors": ["安禄山", "史思明", "唐玄宗"],
+    "source_status": "reviewing",
+    "confidence": 0.8,
+    "sources": [
+      {
+        "source_title": "旧唐书",
+        "source_type": "primary_source",
+        "citation": "《旧唐书》安禄山传",
+        "excerpt": "用于核对安史之乱的发端、人物和影响。",
+        "reliability": 0.82
+      }
+    ]
+  },
+  {
+    "title": "查理曼成为法兰克国王",
+    "start_year": 768,
+    "end_year": 768,
+    "start_date_text": "768年",
+    "end_date_text": "768年",
+    "time_precision": "year",
+    "region": "西欧",
+    "polity": "法兰克王国",
+    "modern_country": "法国、德国",
+    "category": ["政治", "王朝", "西欧"],
+    "summary": "矮子丕平去世后，查理曼与其弟继承法兰克王国，随后查理曼逐步成为西欧最重要的统治者之一。",
+    "causes": ["加洛林王朝继承安排", "法兰克王国继续扩张"],
+    "effects": ["查理曼统治期开启", "法兰克政治中心继续强化"],
+    "actors": ["查理曼", "卡洛曼一世"],
+    "source_status": "reviewing",
+    "confidence": 0.72,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica: Charlemagne",
+        "source_type": "encyclopedia",
+        "citation": "Encyclopaedia Britannica, Charlemagne",
+        "excerpt": "Used as a starting reference for Charlemagne's accession and reign.",
+        "reliability": 0.76
+      }
+    ]
+  },
+  {
+    "title": "查理曼征服伦巴第王国",
+    "start_year": 774,
+    "end_year": 774,
+    "start_date_text": "774年",
+    "end_date_text": "774年",
+    "time_precision": "year",
+    "region": "西欧",
+    "polity": "法兰克王国与伦巴第王国",
+    "modern_country": "意大利、法国",
+    "category": ["战争", "王朝", "帝国扩张"],
+    "summary": "查理曼击败伦巴第王国，将意大利北部纳入法兰克势力范围。",
+    "causes": ["法兰克王国与教皇关系加强", "伦巴第王国与罗马教廷冲突"],
+    "effects": ["法兰克在意大利影响扩大", "查理曼的帝国地位进一步加强"],
+    "actors": ["查理曼", "德西德里乌斯"],
+    "source_status": "reviewing",
+    "confidence": 0.72,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica: Charlemagne",
+        "source_type": "encyclopedia",
+        "citation": "Encyclopaedia Britannica, Charlemagne",
+        "excerpt": "Used as a starting reference for the Lombard campaign and its result.",
+        "reliability": 0.74
+      }
+    ]
+  },
+  {
+    "title": "吐蕃占领长安",
+    "start_year": 763,
+    "end_year": 763,
+    "start_date_text": "763年",
+    "end_date_text": "763年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "吐蕃与唐朝",
+    "modern_country": "中国",
+    "category": ["战争", "边疆", "外交"],
+    "summary": "吐蕃军队短暂进入长安，显示安史之乱后唐朝边防和中央控制力受到削弱。",
+    "causes": ["唐朝因安史之乱削弱", "吐蕃向东扩张"],
+    "effects": ["唐朝边疆压力加重", "唐蕃关系继续紧张"],
+    "actors": ["吐蕃", "唐代宗"],
+    "source_status": "reviewing",
+    "confidence": 0.72,
+    "sources": [
+      {
+        "source_title": "资治通鉴",
+        "source_type": "primary_source",
+        "citation": "司马光《资治通鉴》唐纪",
+        "excerpt": "用于核对吐蕃进入长安的年份和政治背景。",
+        "reliability": 0.8
+      }
+    ]
+  },
+  {
+    "title": "阿格拉布王朝建立",
+    "start_year": 800,
+    "end_year": 800,
+    "start_date_text": "800年",
+    "end_date_text": "800年",
+    "time_precision": "year",
+    "region": "北非",
+    "polity": "阿格拉布王朝",
+    "modern_country": "突尼斯、阿尔及利亚",
+    "category": ["政治", "王朝建立", "伊斯兰世界"],
+    "summary": "易卜拉欣一世在伊夫里基亚建立阿格拉布王朝，名义上承认阿拔斯哈里发权威。",
+    "causes": ["阿拔斯王朝需要稳定北非治理", "地方军事和财政权力增强"],
+    "effects": ["北非地方王朝形成", "地中海中部政治军事活动增强"],
+    "actors": ["易卜拉欣一世", "阿拔斯王朝"],
+    "source_status": "reviewing",
+    "confidence": 0.68,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica: Aghlabid dynasty",
+        "source_type": "encyclopedia",
+        "citation": "Encyclopaedia Britannica, Aghlabid dynasty",
+        "excerpt": "Used as a starting reference for the dynasty's founding and context.",
+        "reliability": 0.72
+      }
+    ]
+  },
+  {
+    "title": "查理曼加冕为皇帝",
+    "start_year": 800,
+    "end_year": 800,
+    "start_date_text": "800年",
+    "end_date_text": "800年",
+    "time_precision": "year",
+    "region": "西欧",
+    "polity": "加洛林帝国",
+    "modern_country": "意大利、法国、德国",
+    "category": ["政治", "宗教", "帝国"],
+    "summary": "教皇利奥三世在罗马为查理曼加冕，象征西欧帝国观念和教廷政治关系的新阶段。",
+    "causes": ["法兰克王权保护罗马教廷", "西欧政治整合增强"],
+    "effects": ["加洛林帝国声望提升", "西欧皇帝称号重新出现"],
+    "actors": ["查理曼", "利奥三世"],
+    "source_status": "reviewing",
+    "confidence": 0.82,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica: Charlemagne",
+        "source_type": "encyclopedia",
+        "citation": "Encyclopaedia Britannica, Charlemagne",
+        "excerpt": "Used as a starting reference for the coronation and its political meaning.",
+        "reliability": 0.78
+      }
+    ]
+  },
+  {
+    "title": "克鲁姆击败尼基弗鲁斯一世",
+    "start_year": 811,
+    "end_year": 811,
+    "start_date_text": "811年",
+    "end_date_text": "811年",
+    "time_precision": "year",
+    "region": "东欧",
+    "polity": "第一保加利亚帝国与拜占庭帝国",
+    "modern_country": "保加利亚、土耳其",
+    "category": ["战争", "帝国竞争", "东欧"],
+    "summary": "保加利亚统治者克鲁姆击败拜占庭皇帝尼基弗鲁斯一世，强化保加利亚在巴尔干的地位。",
+    "causes": ["拜占庭与保加利亚争夺巴尔干影响力", "拜占庭对保加利亚发动军事行动"],
+    "effects": ["拜占庭皇帝阵亡", "保加利亚声势增强"],
+    "actors": ["克鲁姆", "尼基弗鲁斯一世"],
+    "source_status": "reviewing",
+    "confidence": 0.68,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Battle of Pliska",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Pliska",
+        "citation": "Wikipedia, Battle of Pliska",
+        "excerpt": "Used as a starting reference for date, participants, and battle outcome.",
+        "reliability": 0.58
+      }
+    ]
+  },
+  {
+    "title": "阿摩利王朝建立",
+    "start_year": 820,
+    "end_year": 820,
+    "start_date_text": "820年",
+    "end_date_text": "820年",
+    "time_precision": "year",
+    "region": "东地中海",
+    "polity": "拜占庭帝国",
+    "modern_country": "土耳其、希腊",
+    "category": ["政治", "王朝更替", "拜占庭"],
+    "summary": "米海尔二世即位，开启拜占庭阿摩利王朝时期。",
+    "causes": ["拜占庭宫廷政治斗争", "利奥五世遇刺"],
+    "effects": ["阿摩利王朝建立", "拜占庭继续面对内外军事压力"],
+    "actors": ["米海尔二世", "利奥五世"],
+    "source_status": "reviewing",
+    "confidence": 0.66,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Amorian dynasty",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Amorian_dynasty",
+        "citation": "Wikipedia, Amorian dynasty",
+        "excerpt": "Used as a starting reference for dynastic chronology.",
+        "reliability": 0.56
+      }
+    ]
+  },
+  {
+    "title": "萨曼王朝兴起",
+    "start_year": 819,
+    "end_year": 819,
+    "start_date_text": "819年",
+    "end_date_text": "819年",
+    "time_precision": "approximate",
+    "region": "中亚",
+    "polity": "萨曼王朝",
+    "modern_country": "乌兹别克斯坦、塔吉克斯坦",
+    "category": ["政治", "王朝建立", "中亚"],
+    "summary": "萨曼家族在阿拔斯体系下逐步获得河中和呼罗珊地区权力，后发展为中亚重要王朝。",
+    "causes": ["阿拔斯地方治理依赖地方精英", "中亚伊朗语地区政治力量重组"],
+    "effects": ["中亚地方王朝成长", "波斯语文化复兴获得政治支撑"],
+    "actors": ["萨曼家族", "阿拔斯王朝"],
+    "source_status": "reviewing",
+    "confidence": 0.62,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica: Samanid dynasty",
+        "source_type": "encyclopedia",
+        "citation": "Encyclopaedia Britannica, Samanid dynasty",
+        "excerpt": "Used as a starting reference for early Samanid chronology and region.",
+        "reliability": 0.7
+      }
+    ]
+  },
+  {
+    "title": "黄巢起义",
+    "start_year": 875,
+    "end_year": 884,
+    "start_date_text": "875年至884年",
+    "end_date_text": "884年",
+    "time_precision": "range",
+    "region": "东亚",
+    "polity": "唐朝",
+    "modern_country": "中国",
+    "category": ["叛乱", "社会", "政治"],
+    "summary": "黄巢领导大规模起义，攻入长安，进一步削弱晚唐统治。",
+    "causes": ["晚唐财政和地方治理危机", "灾荒与社会矛盾积累"],
+    "effects": ["唐朝中央权威进一步崩溃", "地方军阀势力增强"],
+    "actors": ["黄巢", "唐僖宗"],
+    "source_status": "reviewing",
+    "confidence": 0.78,
+    "sources": [
+      {
+        "source_title": "旧唐书",
+        "source_type": "primary_source",
+        "citation": "《旧唐书》黄巢传",
+        "excerpt": "用于核对黄巢起义的年份、人物和影响。",
+        "reliability": 0.82
+      }
+    ]
+  },
+  {
+    "title": "罗斯人围攻君士坦丁堡",
+    "start_year": 860,
+    "end_year": 860,
+    "start_date_text": "860年",
+    "end_date_text": "860年",
+    "time_precision": "year",
+    "region": "东地中海",
+    "polity": "拜占庭帝国与罗斯人",
+    "modern_country": "土耳其、乌克兰、俄罗斯",
+    "category": ["战争", "贸易", "外交"],
+    "summary": "罗斯人袭击并围攻君士坦丁堡，显示黑海和东欧贸易军事网络对拜占庭的影响。",
+    "causes": ["黑海贸易网络扩张", "罗斯武装集团进入拜占庭外交和军事视野"],
+    "effects": ["拜占庭加强与罗斯关系处理", "东欧与拜占庭联系加深"],
+    "actors": ["罗斯人", "拜占庭帝国"],
+    "source_status": "reviewing",
+    "confidence": 0.64,
+    "sources": [
+      {
+        "source_title": "Wikipedia: Rus' attack on Constantinople (860)",
+        "source_type": "website",
+        "url": "https://en.wikipedia.org/wiki/Rus%27_attack_on_Constantinople_(860)",
+        "citation": "Wikipedia, Rus' attack on Constantinople (860)",
+        "excerpt": "Used as a starting reference for date and broad historical framing.",
+        "reliability": 0.55
+      }
+    ]
+  },
+  {
+    "title": "兴建吴哥前政治中心哈里哈拉拉亚",
+    "start_year": 802,
+    "end_year": 802,
+    "start_date_text": "约802年",
+    "end_date_text": "约802年",
+    "time_precision": "approximate",
+    "region": "东南亚",
+    "polity": "高棉帝国",
+    "modern_country": "柬埔寨",
+    "category": ["政治", "王朝建立", "城市"],
+    "summary": "阇耶跋摩二世传统上被认为在 802 年前后奠定高棉帝国基础，哈里哈拉拉亚成为早期政治中心之一。",
+    "causes": ["湄公河和洞里萨地区地方政权整合", "区域统治者强化王权合法性"],
+    "effects": ["高棉帝国早期国家建设推进", "吴哥区域后来成为重要政治宗教中心"],
+    "actors": ["阇耶跋摩二世"],
+    "source_status": "reviewing",
+    "confidence": 0.6,
+    "sources": [
+      {
+        "source_title": "Encyclopaedia Britannica: Khmer empire",
+        "source_type": "encyclopedia",
+        "citation": "Encyclopaedia Britannica, Khmer empire",
+        "excerpt": "Used as a starting reference for Jayavarman II and early Khmer state formation.",
+        "reliability": 0.68
+      }
+    ]
+  },
+  {
+    "title": "南诏攻陷成都",
+    "start_year": 829,
+    "end_year": 829,
+    "start_date_text": "829年",
+    "end_date_text": "829年",
+    "time_precision": "year",
+    "region": "东亚",
+    "polity": "南诏与唐朝",
+    "modern_country": "中国",
+    "category": ["战争", "边疆", "区域秩序"],
+    "summary": "南诏军队一度攻陷成都，体现晚唐西南边疆压力和区域势力变化。",
+    "causes": ["唐朝西南边疆治理紧张", "南诏势力扩张"],
+    "effects": ["唐朝西南防务压力加重", "南诏区域影响力增强"],
+    "actors": ["南诏", "唐朝"],
+    "source_status": "reviewing",
+    "confidence": 0.66,
+    "sources": [
+      {
+        "source_title": "资治通鉴",
+        "source_type": "primary_source",
+        "citation": "司马光《资治通鉴》唐纪",
+        "excerpt": "用于核对南诏攻陷成都的年份和边疆背景。",
+        "reliability": 0.78
+      }
+    ]
+  }
+]
