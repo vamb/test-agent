@@ -55,9 +55,10 @@ def build_agent_workflow(
 class LangGraphAgentWorkflow:
     """Experimental LangGraph entry point that preserves the current API contract.
 
-    This first adapter runs the proven AgentLoop inside one LangGraph node. It lets API,
-    worker, telemetry, and tests switch engines before we split the loop into decision,
-    tool execution, confirmation, and finish nodes.
+    This adapter keeps the proven AgentLoop as the execution core, but runs it through a
+    LangGraph state pipeline. The node boundaries are intentionally coarse for now so API,
+    worker, telemetry, and checkpoint behavior can switch engines before decision/tool
+    execution are split into smaller graph nodes.
     """
 
     def __init__(
@@ -105,12 +106,26 @@ class LangGraphAgentWorkflow:
             ) from exc
 
         graph = StateGraph(dict)
-        graph.add_node("agent_loop", self._run_loop_node)
-        graph.set_entry_point("agent_loop")
-        graph.add_edge("agent_loop", END)
+        graph.add_node("prepare_state", self._prepare_state_node)
+        graph.add_node("execute_agent_loop", self._execute_agent_loop_node)
+        graph.add_node("finalize_response", self._finalize_response_node)
+        graph.set_entry_point("prepare_state")
+        graph.add_edge("prepare_state", "execute_agent_loop")
+        graph.add_edge("execute_agent_loop", "finalize_response")
+        graph.add_edge("finalize_response", END)
         return graph.compile()
 
-    def _run_loop_node(self, state: dict[str, Any]) -> dict[str, Any]:
+    def _prepare_state_node(self, state: dict[str, Any]) -> dict[str, Any]:
+        mode = str(state.get("mode", "run"))
+        return {
+            **state,
+            "mode": mode,
+            "user_input": str(state.get("user_input", "")),
+            "run_id": str(state.get("run_id", "")),
+            "workflow_stage": "prepared",
+        }
+
+    def _execute_agent_loop_node(self, state: dict[str, Any]) -> dict[str, Any]:
         mode = str(state.get("mode", "run"))
         if mode == "run_existing":
             response = self.loop.run_existing(
@@ -121,7 +136,13 @@ class LangGraphAgentWorkflow:
             response = self.loop.resume_existing(str(state.get("run_id", "")))
         else:
             response = self.loop.run(str(state.get("user_input", "")))
-        return {**state, "response": response}
+        return {**state, "response": response, "workflow_stage": "executed"}
+
+    def _finalize_response_node(self, state: dict[str, Any]) -> dict[str, Any]:
+        response = state.get("response")
+        if not isinstance(response, AgentResponse):
+            raise RuntimeError("LangGraph workflow did not return an AgentResponse.")
+        return {**state, "workflow_stage": "finalized"}
 
 
 def _response_from_graph_result(result: dict[str, Any]) -> AgentResponse:

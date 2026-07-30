@@ -28,6 +28,7 @@
 | 2026-07-30 | 完成向量任务自动处理 W11：新增 pending vector job 自动领取和批量处理接口，新增 `apps.worker.vector_worker` 常驻/单次处理器，向量页支持创建并自动处理以及批量处理 pending jobs | 后端 `python -m unittest discover tests` 通过，71/71；前端 `npm.cmd run build` 通过；知识库/向量专项和 schema/OpenAPI 测试 13/13 通过 | 下一步建议进入 Langfuse SDK 正式接入，或做 LangGraph 工作流迁移预研 |
 | 2026-07-30 | 完成 Langfuse SDK 正式接入 W12：`AgentTelemetry` 可选加载 Langfuse SDK，创建 deterministic trace、agent observation、model generation、tool observation，并上报 token、成本、完成/失败/取消状态；未配置或 SDK 不可用时不影响 Agent 主链路 | 后端 `python -m unittest tests.test_agent_loop` 通过，9/9；后端 `python -m unittest discover tests` 通过，72/72 | 下一步建议做 LangGraph 工作流迁移预研，或把本地评测结果接入 Langfuse datasets/evals |
 | 2026-07-30 | 完成 LangGraph 迁移前置 W13：新增 `AGENT_WORKFLOW_ENGINE`、`agent.runtime.workflow` 工厂和 LangGraph 可选单节点适配器；API 同步/SSE 与 worker 不再直接依赖具体 Loop，为后续拆 decision/tool/confirm/finish 节点做切换边界 | 后端 `python -m unittest tests.test_agent_workflow tests.test_agent_loop tests.test_api_agent tests.test_agent_worker` 通过，24/24；后端 `python -m unittest discover tests` 通过，76/76 | 下一步建议把 LangGraph 适配器从单节点拆成多节点工作流，或接 Langfuse datasets/evals |
+| 2026-07-30 | 完成 LangGraph 多节点适配第一版 W14：`LangGraphAgentWorkflow` 从单节点改为 `prepare_state -> execute_agent_loop -> finalize_response` 三节点 pipeline，并新增 fake LangGraph 组装测试；默认 loop 引擎行为不变 | 后端 `python -m unittest tests.test_agent_workflow tests.test_agent_loop tests.test_api_agent tests.test_agent_worker` 通过，25/25；后端 `python -m unittest discover tests` 通过，77/77 | 下一步建议把 `execute_agent_loop` 继续拆成 decide、execute_tool、check_continue、finish 细粒度节点 |
 
 ## 12 周开发周期
 
@@ -70,7 +71,7 @@
 
 ## 当前任务队列
 
-当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、真实数据导入演练扩展、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版、Langfuse SDK 正式接入 W12、LangGraph 迁移前置 W13、管理后台体验修复 W3、数据质量处理闭环 W8、导入批次运营报表 W9、知识库版本和重切分 W10、向量任务自动处理 W11 已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析使用 Langfuse，不自研重复后台。下一步提交 W13 改动，或拆 LangGraph 多节点工作流。
+当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、真实数据导入演练扩展、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版、Langfuse SDK 正式接入 W12、LangGraph 迁移前置 W13、LangGraph 多节点适配 W14、管理后台体验修复 W3、数据质量处理闭环 W8、导入批次运营报表 W9、知识库版本和重切分 W10、向量任务自动处理 W11 已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析使用 Langfuse，不自研重复后台。下一步提交 W14 改动，或继续拆 LangGraph 细粒度节点。
 
 | 优先级 | 任务 | 负责人 | 状态 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|

@@ -108,6 +108,7 @@
 | W11 | 11 | 向量任务自动处理 | 新增 `POST /vectors/rebuild-jobs/process-pending` 和 `apps.worker.vector_worker`；向量页创建任务时可自动处理，也可批量处理 pending jobs | 已完成 |
 | W12 | 12 | Langfuse SDK 正式接入 | `AgentTelemetry` 可选加载 Langfuse SDK，创建 deterministic trace、agent observation、model generation 和 tool observation，并上报 token、成本、完成/失败/取消状态 | 已完成第一版 |
 | W13 | 13 | LangGraph 迁移前置 | 新增 `AGENT_WORKFLOW_ENGINE`、workflow factory 和 LangGraph 可选单节点适配器；API/worker 通过统一工作流接口执行 | 已完成第一版 |
+| W14 | 14 | LangGraph 多节点适配第一版 | `LangGraphAgentWorkflow` 拆成 `prepare_state -> execute_agent_loop -> finalize_response` 三节点 pipeline，补 fake LangGraph 组装测试 | 已完成第一版 |
 
 ## 后端重构工作表
 
