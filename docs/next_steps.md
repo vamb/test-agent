@@ -28,10 +28,10 @@
    - 已完成第一版；把事件来源注入回答
    - 已完成第一版；把知识文档 chunk 注入回答
    - 已完成第一版；前端展示引用来源
-5. Langfuse 集成预留：
+5. Langfuse SDK 接入：
    - 已完成第一版；新增 Langfuse telemetry adapter，默认关闭
    - 已完成第一版；同步接口、SSE final 和运行详情可返回 Langfuse trace 链接
-   - 已预留工具调用、token、耗时、成本和错误上报入口，后续替换为 Langfuse SDK
+   - 已接入可选 Langfuse SDK，上报 Agent run、model generation、tool observation、token、耗时、成本和错误/取消状态
    - 评测结果后续接入 Langfuse datasets/evals
 6. 已完成的管理后端增强：
    - 数据质量检查
@@ -106,6 +106,7 @@
 | W9 | 9 | 导入批次运营报表 | 新增 `GET /admin/import-batches/{batch_id}/report`；批次详情页展示入库事件、待处理质量问题、处理率、质量分解、地区/年份/来源可靠度分布和优先处理项 | 已完成 |
 | W10 | 10 | 知识库版本和重切分 | 新增 `knowledge_document_versions`、`GET /knowledge/documents/{document_id}/versions`、`POST /knowledge/documents/{document_id}/rechunk`；知识详情页可查看版本并生成新 chunk 版本 | 已完成 |
 | W11 | 11 | 向量任务自动处理 | 新增 `POST /vectors/rebuild-jobs/process-pending` 和 `apps.worker.vector_worker`；向量页创建任务时可自动处理，也可批量处理 pending jobs | 已完成 |
+| W12 | 12 | Langfuse SDK 正式接入 | `AgentTelemetry` 可选加载 Langfuse SDK，创建 deterministic trace、agent observation、model generation 和 tool observation，并上报 token、成本、完成/失败/取消状态 | 已完成第一版 |
 
 ## 后端重构工作表
 

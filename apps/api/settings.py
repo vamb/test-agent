@@ -90,6 +90,7 @@ class QueueSettings:
 class ObservabilitySettings:
     langfuse_enabled: bool = False
     langfuse_host: str = ""
+    langfuse_base_url: str = ""
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_trace_url_template: str = ""
@@ -102,9 +103,12 @@ class ObservabilitySettings:
             "yes",
             "on",
         }
+        base_url = os.getenv("LANGFUSE_BASE_URL", "").rstrip("/")
+        host = os.getenv("LANGFUSE_HOST", "").rstrip("/")
         return cls(
             langfuse_enabled=enabled,
-            langfuse_host=os.getenv("LANGFUSE_HOST", "").rstrip("/"),
+            langfuse_host=host,
+            langfuse_base_url=base_url or host,
             langfuse_public_key=os.getenv("LANGFUSE_PUBLIC_KEY", ""),
             langfuse_secret_key=os.getenv("LANGFUSE_SECRET_KEY", ""),
             langfuse_trace_url_template=os.getenv("LANGFUSE_TRACE_URL_TEMPLATE", ""),

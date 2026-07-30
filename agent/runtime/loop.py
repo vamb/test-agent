@@ -174,6 +174,17 @@ class AgentLoop:
             for _ in range(self.config.max_steps):
                 self._raise_if_cancelled(run_id)
                 decision = self._decide_with_timing(messages)
+                step_index = len(steps)
+                model_input_summary = self._summarize_model_input(messages)
+                model_output_summary = self._summarize_model_output(decision)
+                self.telemetry.record_model_decision(
+                    trace_context,
+                    step_index=step_index,
+                    model_name=self.model_adapter.model_name,
+                    input_summary=model_input_summary,
+                    output_summary=model_output_summary,
+                    usage=self._usage_payload(decision.usage),
+                )
 
                 if decision.action == "finish":
                     self._raise_if_cancelled(run_id)
@@ -206,7 +217,6 @@ class AgentLoop:
                 if not decision.tool_call:
                     raise RuntimeError("Model requested a tool call without tool details.")
 
-                step_index = len(steps)
                 tool_call_id = f"call_{step_index}"
                 yield {
                     "event": "step_started",
@@ -243,8 +253,8 @@ class AgentLoop:
                     step,
                     status=execution.status,
                     error_message=execution.error_message,
-                    model_input_summary=self._summarize_model_input(messages),
-                    model_output_summary=self._summarize_model_output(decision),
+                    model_input_summary=model_input_summary,
+                    model_output_summary=model_output_summary,
                     token_input=decision.usage.token_input,
                     token_output=decision.usage.token_output,
                     trace_context=trace_context,
@@ -316,6 +326,17 @@ class AgentLoop:
         for _ in range(len(steps), self.config.max_steps):
             self._raise_if_cancelled(run_id)
             decision = self._decide_with_timing(messages)
+            step_index = len(steps)
+            model_input_summary = self._summarize_model_input(messages)
+            model_output_summary = self._summarize_model_output(decision)
+            self.telemetry.record_model_decision(
+                trace_context,
+                step_index=step_index,
+                model_name=self.model_adapter.model_name,
+                input_summary=model_input_summary,
+                output_summary=model_output_summary,
+                usage=self._usage_payload(decision.usage),
+            )
 
             if decision.action == "finish":
                 self._raise_if_cancelled(run_id)
@@ -341,13 +362,13 @@ class AgentLoop:
             self._record_step(
                 run_id,
                 len(steps),
-                step,
-                status=execution.status,
-                error_message=execution.error_message,
-                model_input_summary=self._summarize_model_input(messages),
-                model_output_summary=self._summarize_model_output(decision),
-                token_input=decision.usage.token_input,
-                token_output=decision.usage.token_output,
+                    step,
+                    status=execution.status,
+                    error_message=execution.error_message,
+                    model_input_summary=model_input_summary,
+                    model_output_summary=model_output_summary,
+                    token_input=decision.usage.token_input,
+                    token_output=decision.usage.token_output,
                 trace_context=trace_context,
                 usage=self._usage_payload(decision.usage),
             )

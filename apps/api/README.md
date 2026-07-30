@@ -28,6 +28,19 @@ python -m uvicorn apps.api.main:app --reload
 
 本地前端开发地址 `http://127.0.0.1:5173` 已加入 CORS 允许列表。
 
+## Langfuse 可观测性
+
+默认关闭。开启后，Agent 同步查询、SSE 查询和 worker 执行会通过 `AgentTelemetry` 上报 Langfuse trace、agent observation、model generation、tool observation、token、成本以及完成/失败/取消状态。本系统后台只保留 Langfuse trace 跳转入口，不自研运行分析页。
+
+```bash
+set LANGFUSE_ENABLED=true
+set LANGFUSE_PUBLIC_KEY=pk-lf-...
+set LANGFUSE_SECRET_KEY=sk-lf-...
+set LANGFUSE_BASE_URL=https://cloud.langfuse.com
+```
+
+如果是自建 Langfuse，把 `LANGFUSE_BASE_URL` 改成自建地址。旧配置 `LANGFUSE_HOST` 仍兼容。
+
 ## 首批接口
 
 ```text

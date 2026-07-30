@@ -26,6 +26,7 @@
 | 2026-07-30 | 完成导入批次运营报表 W9：新增 `GET /admin/import-batches/{batch_id}/report`，批次详情页展示入库事件、待处理质量问题、处理率、质量分解、地区/年份/来源可靠度分布和优先处理项 | 后端 `python -m unittest discover tests` 通过，67/67；前端 `npm.cmd run build` 通过；专项管理测试 19/19 通过 | 下一步建议进入 Langfuse SDK 正式接入，或补知识库版本和重切分 |
 | 2026-07-30 | 完成知识库版本和重切分 W10：新增 `knowledge_document_versions` 版本快照表，文档 ingest/rechunk 会记录版本；新增版本列表和 rechunk API，知识详情页可查看版本并生成新 chunk 版本 | 后端 `python -m unittest discover tests` 通过，68/68；前端 `npm.cmd run build` 通过；知识库专项测试和 schema/OpenAPI 测试 10/10 通过 | 下一步建议做向量任务自动处理，或进入 Langfuse SDK 正式接入 |
 | 2026-07-30 | 完成向量任务自动处理 W11：新增 pending vector job 自动领取和批量处理接口，新增 `apps.worker.vector_worker` 常驻/单次处理器，向量页支持创建并自动处理以及批量处理 pending jobs | 后端 `python -m unittest discover tests` 通过，71/71；前端 `npm.cmd run build` 通过；知识库/向量专项和 schema/OpenAPI 测试 13/13 通过 | 下一步建议进入 Langfuse SDK 正式接入，或做 LangGraph 工作流迁移预研 |
+| 2026-07-30 | 完成 Langfuse SDK 正式接入 W12：`AgentTelemetry` 可选加载 Langfuse SDK，创建 deterministic trace、agent observation、model generation、tool observation，并上报 token、成本、完成/失败/取消状态；未配置或 SDK 不可用时不影响 Agent 主链路 | 后端 `python -m unittest tests.test_agent_loop` 通过，9/9；后端 `python -m unittest discover tests` 通过，72/72 | 下一步建议做 LangGraph 工作流迁移预研，或把本地评测结果接入 Langfuse datasets/evals |
 
 ## 12 周开发周期
 
@@ -68,7 +69,7 @@
 
 ## 当前任务队列
 
-当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、真实数据导入演练扩展、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版、管理后台体验修复 W3、数据质量处理闭环 W8、导入批次运营报表 W9、知识库版本和重切分 W10、向量任务自动处理 W11 已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步提交 W10/W11 改动，或进入 Langfuse SDK 正式接入。
+当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、真实数据导入演练扩展、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版、Langfuse SDK 正式接入 W12、管理后台体验修复 W3、数据质量处理闭环 W8、导入批次运营报表 W9、知识库版本和重切分 W10、向量任务自动处理 W11 已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析使用 Langfuse，不自研重复后台。下一步提交 W12 改动，或进入 LangGraph 工作流迁移预研。
 
 | 优先级 | 任务 | 负责人 | 状态 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
@@ -104,7 +105,7 @@
 | 30 | 横向对照结果详情页 | 前端/后端 | 待开始 | 第四阶段：工具系统；业务可视化前端 |
 | 31 | 数据导入审核后台 | 前端/后端 | 已完成；支持导入解析、批次列表、staging 审核、修正、合并、确认/拒绝 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
 | 32 | 事件库、来源、关系、知识库和向量管理后台 | 前端/后端 | 已完成；支持事件筛选/编辑、来源 CRUD/核验、关系 CRUD、知识文档维护和向量任务 | 第八阶段：RAG 知识库；平台化第一版 |
-| 33 | Langfuse 集成 | 后端/平台 | 已完成预留第一版；Agent 运行详情、工具调用链、token/cost 和评测分析交给 Langfuse，不自研对应后台 | 第十三阶段：评测体系；第十四阶段：可观测性 |
+| 33 | Langfuse 集成 | 后端/平台 | 已完成 SDK 接入第一版；Agent 运行、工具调用、token/cost、失败/取消状态可上报 Langfuse；不自研对应后台 | 第十三阶段：评测体系；第十四阶段：可观测性 |
 | 34 | 导入审核后台后端增强 | 后端 | 已完成；已补批次列表、staging 修正、重新校验、导入预览 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
 | 35 | 管理总览和事件列表后端 | 后端 | 已完成；已补后台首页统计、事件分页搜索筛选、事件审计日志、后台事件扩展字段更新 | 平台化第一版；第十二阶段：安全体系 |
 | 36 | 来源、关系、知识库、向量管理后端 | 后端 | 已完成；已补来源 CRUD、关系 CRUD、文档列表/chunk/reembed、向量覆盖率/重建和向量任务 | 第八阶段：RAG 知识库；平台化第一版 |
@@ -129,7 +130,7 @@
 | 2 | 真实数据导入演练扩展 | 已完成 22 条扩展批次；后续仅按专题需要继续扩展 | 用真实数据验证后台可运营性，并整理需要修复的问题清单 | 第十阶段：人工确认机制；平台化第一版 |
 | 3 | Agent 返回结构标准化 | 后端明确输出 `answer`、`references`、`links`、`events`，前端根据类型渲染事件、来源、对照卡片 | 前端不再依赖递归解析工具 observation；刷新和跳转后链接仍可用 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
 | 4 | RAG 引用注入回答 | 把知识库检索和事件来源稳定注入 Agent 回答 | 回答能展示引用来源和知识文档 chunk，降低无来源结论风险 | 第八阶段：RAG 知识库 |
-| 5 | Langfuse 集成预留 | 已完成第一版；后端预留 trace、tool call、token、成本和错误上报入口；本系统后台只提供跳转入口，不做 Agent run 搜索与分析页 | 可以从本系统 run_id 跳转到 Langfuse 查看完整运行详情 | 第十三阶段：评测体系；第十四阶段：可观测性 |
+| 5 | Langfuse SDK 接入 | 已完成第一版；后端可选加载 Langfuse SDK，上报 agent/tool observation、token、成本和错误状态；本系统后台只提供跳转入口，不做 Agent run 搜索与分析页 | 可以从本系统 run_id 跳转到 Langfuse 查看完整运行详情 | 第十三阶段：评测体系；第十四阶段：可观测性 |
 
 ## 管理后台前端开发工作表
 

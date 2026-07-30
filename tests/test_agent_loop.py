@@ -131,6 +131,67 @@ class AgentLoopTest(unittest.TestCase):
         self.assertEqual(langfuse_links[0]["target_id"], response.run_id)
         self.assertIn(str(response.run_id), langfuse_links[0]["href"])
 
+    def test_langfuse_sdk_client_records_run_and_tool_observations(self) -> None:
+        client = FakeLangfuseClient()
+        telemetry = AgentTelemetry(
+            ObservabilitySettings(
+                langfuse_enabled=True,
+                langfuse_base_url="https://langfuse.example",
+                langfuse_public_key="pk-test",
+                langfuse_secret_key="sk-test",
+            ),
+            langfuse_client=client,
+        )
+
+        context = telemetry.start_run(
+            "run-123",
+            user_input="测试问题",
+            model_name="test-model",
+            prompt_version="prompt-v1",
+        )
+        telemetry.record_tool_step(
+            context,
+            step_index=0,
+            tool_name="search_events_by_year",
+            tool_arguments={"year": 755},
+            tool_result={"events": [{"title": "安史之乱爆发"}]},
+            status="completed",
+            usage={
+                "token_input": 12,
+                "token_output": 7,
+                "estimated_cost_usd": 0.00001,
+            },
+        )
+        telemetry.record_model_decision(
+            context,
+            step_index=1,
+            model_name="test-model",
+            input_summary="{\"message_count\":1}",
+            output_summary="{\"action\":\"finish\"}",
+            usage={
+                "token_input": 4,
+                "token_output": 9,
+                "estimated_cost_usd": 0.00002,
+            },
+        )
+        telemetry.finish_run(context, "最终回答")
+
+        self.assertIsNotNone(context)
+        assert context is not None
+        self.assertEqual(context.trace_id, "trace-run-123")
+        self.assertEqual(client.created[0]["as_type"], "agent")
+        self.assertEqual(client.created[0]["trace_context"], {"trace_id": "trace-run-123"})
+        self.assertEqual(client.created[0]["input"], "测试问题")
+        self.assertEqual(client.created[1]["name"], "tool:search_events_by_year")
+        self.assertEqual(client.created[1]["usage_details"], {"input": 12, "output": 7})
+        self.assertEqual(client.created[2]["as_type"], "generation")
+        self.assertEqual(client.created[2]["metadata"]["model_name"], "test-model")
+        self.assertEqual(client.created[2]["usage_details"], {"input": 4, "output": 9})
+        self.assertEqual(client.observations[1].ended_with["output"], {"events": [{"title": "安史之乱爆发"}]})
+        self.assertEqual(client.observations[2].ended_with["output"], "{\"action\":\"finish\"}")
+        self.assertEqual(client.observations[0].ended_with["output"], "最终回答")
+        self.assertEqual(client.flush_count, 1)
+
     def test_stream_emits_cancelled_when_run_is_cancelled(self) -> None:
         settings = AppSettings.from_env().postgres
         service = HistoricalQueryService(PostgresHistoricalEventRepository(settings))
@@ -211,6 +272,38 @@ class AlwaysCallToolAdapter:
                 arguments={"year": 755},
             ),
         )
+
+
+class FakeLangfuseObservation:
+    def __init__(self, client: "FakeLangfuseClient", payload: dict[str, Any]) -> None:
+        self.client = client
+        self.payload = payload
+        self.ended_with: dict[str, Any] = {}
+
+    def start_observation(self, **kwargs: Any) -> "FakeLangfuseObservation":
+        return self.client.start_observation(**kwargs)
+
+    def end(self, **kwargs: Any) -> None:
+        self.ended_with = kwargs
+
+
+class FakeLangfuseClient:
+    def __init__(self) -> None:
+        self.created: list[dict[str, Any]] = []
+        self.observations: list[FakeLangfuseObservation] = []
+        self.flush_count = 0
+
+    def create_trace_id(self, seed: str) -> str:
+        return f"trace-{seed}"
+
+    def start_observation(self, **kwargs: Any) -> FakeLangfuseObservation:
+        self.created.append(kwargs)
+        observation = FakeLangfuseObservation(self, kwargs)
+        self.observations.append(observation)
+        return observation
+
+    def flush(self) -> None:
+        self.flush_count += 1
 
 
 if __name__ == "__main__":
