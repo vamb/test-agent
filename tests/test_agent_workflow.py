@@ -101,6 +101,28 @@ class AgentWorkflowTest(unittest.TestCase):
         self.assertIn("安史之乱爆发", response.answer)
         self.assertEqual([step.tool_name for step in response.steps], ["search_events_by_year"])
 
+    def test_langgraph_adapter_stream_emits_sse_compatible_events(self) -> None:
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=RuleBasedModelAdapter(),
+                tool_registry=self._tool_registry(),
+            )
+
+        events = list(workflow.stream("755年中国发生安史之乱时，中东和中亚发生了什么？"))
+        event_names = [event["event"] for event in events]
+        final_event = [event for event in events if event["event"] == "final_answer"][0]
+
+        self.assertEqual(event_names[0], "run_started")
+        self.assertIn("step_started", event_names)
+        self.assertIn("tool_called", event_names)
+        self.assertIn("tool_result", event_names)
+        self.assertIn("final_answer", event_names)
+        self.assertEqual(event_names[-1], "run_completed")
+        self.assertIn("安史之乱爆发", final_event["answer"])
+        self.assertTrue(any(event["title"] == "安史之乱爆发" for event in final_event["events"]))
+        self.assertIn("references", final_event)
+        self.assertIn("links", final_event)
+
     def _tool_registry(self):
         settings = AppSettings.from_env().postgres
         service = HistoricalQueryService(PostgresHistoricalEventRepository(settings))

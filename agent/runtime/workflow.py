@@ -178,7 +178,122 @@ class LangGraphAgentWorkflow:
         return self.loop._with_observability_links(response, trace_context)
 
     def stream(self, user_input: str) -> Iterator[dict[str, Any]]:
-        yield from self.loop.stream(user_input)
+        recorded_run = (
+            self.loop.recorder.start_run(
+                user_input,
+                model_name=self.loop.model_adapter.model_name,
+                prompt_version="historical-agent-loop-v1",
+            )
+            if self.loop.recorder
+            else None
+        )
+        run_id = recorded_run.run_id if recorded_run else None
+        trace_context = self.loop.telemetry.start_run(
+            run_id,
+            user_input=user_input,
+            model_name=self.loop.model_adapter.model_name,
+            prompt_version="historical-agent-loop-v1",
+        )
+        yield {
+            "event": "run_started",
+            "run_id": run_id,
+            "trace_id": trace_context.trace_id if trace_context else None,
+            "trace_url": trace_context.trace_url if trace_context else "",
+        }
+
+        state = self._prepare_state_node(
+            {
+                "user_input": user_input,
+                "run_id": run_id or "",
+                "trace_context": trace_context,
+            }
+        )
+        try:
+            for _ in range(self.loop.config.max_steps):
+                state = self._decide_node(state)
+                decision = state.get("decision")
+                usage = self.loop._usage_payload(decision.usage)
+                if getattr(decision, "action", "") == "finish":
+                    state = self._finalize_response_node(state)
+                    response = self.loop._with_observability_links(
+                        _response_from_graph_result(state),
+                        trace_context,
+                    )
+                    if self.loop.recorder and run_id:
+                        self.loop.recorder.finish_run(run_id, response.answer)
+                    self.loop.telemetry.finish_run(
+                        trace_context,
+                        response.answer,
+                        usage=usage,
+                    )
+                    payload = response.as_payload()
+                    yield {
+                        "event": "final_answer",
+                        "run_id": run_id,
+                        "answer": response.answer,
+                        "events": payload["events"],
+                        "references": payload["references"],
+                        "links": payload["links"],
+                        "step_count": len(response.steps),
+                        "usage": usage,
+                    }
+                    yield {"event": "run_completed", "run_id": run_id}
+                    return
+
+                if not getattr(decision, "tool_call", None):
+                    raise RuntimeError("Model requested a tool call without tool details.")
+
+                step_index = len(list(state.get("steps", [])))
+                tool_call_id = f"call_{step_index}"
+                yield {
+                    "event": "step_started",
+                    "run_id": run_id,
+                    "step_index": step_index,
+                    "tool_name": decision.tool_call.name,
+                }
+                yield {
+                    "event": "tool_called",
+                    "run_id": run_id,
+                    "step_index": step_index,
+                    "tool_call_id": tool_call_id,
+                    "tool_name": decision.tool_call.name,
+                    "tool_arguments": decision.tool_call.arguments,
+                    "usage": usage,
+                }
+                state = self._execute_tool_node(state)
+                execution = dict(state.get("last_execution") or {})
+                yield {
+                    "event": "tool_result",
+                    "run_id": run_id,
+                    "step_index": step_index,
+                    "tool_name": str(execution.get("tool_name", "")),
+                    "status": str(execution.get("status", "")),
+                    "elapsed_ms": int(execution.get("elapsed_ms", 0) or 0),
+                    "observation": dict(execution.get("observation") or {}),
+                    "error_message": execution.get("error_message"),
+                }
+                if self._route_after_tool(state) == "max_steps_exceeded":
+                    break
+
+            self._max_steps_exceeded_node(state)
+        except AgentRunCancelled as exc:
+            if self.loop.recorder and run_id:
+                self.loop.recorder.cancel_run(run_id, str(exc))
+            self.loop.telemetry.cancel_run(trace_context, str(exc))
+            yield {
+                "event": "run_cancelled",
+                "run_id": run_id,
+                "error_message": str(exc),
+            }
+        except Exception as exc:
+            if self.loop.recorder and run_id:
+                self.loop.recorder.fail_run(run_id, str(exc))
+            self.loop.telemetry.fail_run(trace_context, str(exc))
+            yield {
+                "event": "run_failed",
+                "run_id": run_id,
+                "error_message": str(exc),
+            }
 
     def _compile_graph(self) -> Any:
         try:
@@ -319,6 +434,13 @@ class LangGraphAgentWorkflow:
             "messages": messages,
             "steps": steps,
             "iteration": len(steps),
+            "last_execution": {
+                "tool_name": execution.tool_name,
+                "status": execution.status,
+                "elapsed_ms": execution.elapsed_ms,
+                "observation": observation,
+                "error_message": execution.error_message,
+            },
             "workflow_stage": "tool_executed",
         }
 
