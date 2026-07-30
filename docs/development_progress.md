@@ -23,6 +23,7 @@
 | 2026-07-30 | 完成管理后台体验修复 W3 第二批：导入详情页重复候选改为可读候选卡片和字段差异列表，事件详情页弱来源高亮并增加“标为可靠来源”快捷操作 | 后端 `python -m unittest discover tests` 通过，65/65；前端 `npm.cmd run build` 通过 | 下一步做移动端视觉 QA，或提交 W3/W4 改动 |
 | 2026-07-30 | 完成管理后台体验修复 W3 第三批：移动端后台表格卡片化，压缩工具栏、指标卡和代码块高度，修复单列布局下导航区域被拉伸导致的大空白 | 后端 `python -m unittest discover tests` 通过，65/65；前端 `npm.cmd run build` 通过；浏览器 390px 视口检查 `/admin`、`/admin/events`、`/admin/quality` 均无横向溢出 | W3/W4 已可提交；下一步可进入 Langfuse SDK 正式接入或继续数据质量运营 |
 | 2026-07-30 | 完成数据质量处理闭环 W8：新增 `data_quality_issue_actions` 台账表、`POST /admin/data-quality/issues/actions` 接口，质量页支持标记已处理、忽略和重新打开问题 | 后端 `python -m unittest discover tests` 通过，66/66；前端 `npm.cmd run build` 通过；schema 文件测试覆盖新表和状态约束 | 下一步可做导入批次运营报表，或进入 Langfuse SDK 正式接入 |
+| 2026-07-30 | 完成导入批次运营报表 W9：新增 `GET /admin/import-batches/{batch_id}/report`，批次详情页展示入库事件、待处理质量问题、处理率、质量分解、地区/年份/来源可靠度分布和优先处理项 | 后端 `python -m unittest discover tests` 通过，67/67；前端 `npm.cmd run build` 通过；专项管理测试 19/19 通过 | 下一步建议进入 Langfuse SDK 正式接入，或补知识库版本和重切分 |
 
 ## 12 周开发周期
 
@@ -65,7 +66,7 @@
 
 ## 当前任务队列
 
-当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、真实数据导入演练扩展、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版、管理后台体验修复 W3、数据质量处理闭环 W8 已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步提交 W3/W8 改动，或进入 Langfuse SDK 正式接入。
+当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、真实数据导入演练扩展、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版、管理后台体验修复 W3、数据质量处理闭环 W8、导入批次运营报表 W9 已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步提交 W3/W8/W9 改动，或进入 Langfuse SDK 正式接入。
 
 | 优先级 | 任务 | 负责人 | 状态 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
@@ -116,6 +117,7 @@
 | 45 | 数据库初始化脚本同步 | 后端/数据库 | 已完成；新增 `infrastructure/database/init.sql`，完整初始化当前后端依赖的基础表、事件审计、知识库、事件向量列、向量任务表和基础字典，并补 schema 文件测试 | 数据底座；平台化第一版 |
 | 46 | 后端重构计划 | 后端 | 已完成；R1 统一向量任务表 schema 兜底、R2 FastAPI 路由拆分、R3 管理服务拆分、R4 公共历史实体 upsert 抽取、R5 写接口 Pydantic 化、R6 轻微代码味道清理均已完成 | 平台化第一版；工程可维护性 |
 | 47 | 数据质量处理闭环 | 前端/后端 | 已完成；新增质量问题处理台账、API 和前端操作，支持已处理、忽略和重新打开 | 平台化第一版；数据质量运营 |
+| 48 | 导入批次运营报表 | 前端/后端 | 已完成；批次详情页可复盘质量处理进度、质量分解、地区/年份/来源分布和优先处理项 | 平台化第一版；数据导入运营 |
 
 ## 下一阶段执行计划
 

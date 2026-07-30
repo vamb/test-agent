@@ -27,6 +27,7 @@ import {
   AdminSource,
   DataQualityIssue,
   ImportBatch,
+  ImportBatchReport,
   ImportBatchReview,
   KnowledgeDocument,
   StagingRow,
@@ -349,6 +350,7 @@ export function AdminImportDetailPage() {
   const { batchId = "" } = useParams();
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [review, setReview] = useState<ImportBatchReview | null>(null);
+  const [report, setReport] = useState<ImportBatchReport | null>(null);
   const [rows, setRows] = useState<StagingRow[]>([]);
   const [selected, setSelected] = useState<StagingRow | null>(null);
   const [editor, setEditor] = useState("");
@@ -358,10 +360,16 @@ export function AdminImportDetailPage() {
 
   function load() {
     setState("loading");
-    Promise.all([adminApi.getBatch(batchId), adminApi.previewBatch(batchId), adminApi.getBatchReview(batchId)])
-      .then(([batchResult, preview, reviewResult]) => {
+    Promise.all([
+      adminApi.getBatch(batchId),
+      adminApi.previewBatch(batchId),
+      adminApi.getBatchReview(batchId),
+      adminApi.getBatchReport(batchId),
+    ])
+      .then(([batchResult, preview, reviewResult, reportResult]) => {
         setBatch(batchResult);
         setReview(reviewResult);
+        setReport(reportResult);
         setRows(preview.rows || []);
         setSelected((current) => current ? (preview.rows || []).find((row) => row.id === current.id) || null : (preview.rows || [])[0] || null);
         setState("done");
@@ -420,6 +428,7 @@ export function AdminImportDetailPage() {
       </div>}
     >
       {message && <div className="notice-line">{message}</div>}
+      {report?.found && <ImportBatchReportPanel report={report} batchId={batchId} />}
       {review?.found && (
         <section className="admin-panel batch-review-panel">
           <PanelTitle icon={<ShieldAlert size={18} />} title="入库批次核验" />
@@ -1194,6 +1203,94 @@ function EmptyState({ text }: { text: string }) {
   return <div className="empty-state">{text}</div>;
 }
 
+function ImportBatchReportPanel({ report, batchId }: { report: ImportBatchReport; batchId: string }) {
+  const totals = report.totals;
+  const quality = report.quality || {};
+  const distributions = report.distributions || {};
+  const openItems = report.top_open_items || [];
+  const handledRate = percentNumber(totals?.quality_handled_rate);
+
+  return (
+    <section className="admin-panel batch-report-panel">
+      <PanelTitle icon={<FileSearch size={18} />} title="导入批次运营报表" />
+      <div className="metric-grid compact">
+        <MetricCard title="入库事件" value={totals?.imported_events ?? 0} />
+        <MetricCard title="待处理质量问题" value={totals?.quality_open_count ?? 0} tone={totals?.quality_open_count ? "warn" : ""} />
+        <MetricCard title="已处理问题" value={totals?.quality_handled_count ?? 0} />
+        <MetricCard title="处理率" value={handledRate} />
+      </div>
+      <div className="report-progress">
+        <div>
+          <span>质量处理进度</span>
+          <strong>{handledRate}</strong>
+        </div>
+        <div className="progress-track">
+          <span style={{ width: handledRate }} />
+        </div>
+      </div>
+      <div className="report-grid">
+        <section>
+          <h3>质量分解</h3>
+          <div className="quality-breakdown-list">
+            {Object.entries(quality).map(([issueType, item]) => (
+              <article key={issueType}>
+                <span>{issueType}</span>
+                <strong>{item.open_count}/{item.count}</strong>
+                <small>handled {percentNumber(item.handled_rate)}</small>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section>
+          <h3>地区分布</h3>
+          <BarList items={distributions.regions || []} />
+        </section>
+        <section>
+          <h3>年份分布</h3>
+          <BarList items={distributions.year_buckets || []} />
+        </section>
+        <section>
+          <h3>来源可靠度</h3>
+          <BarList items={distributions.source_reliability_bands || []} />
+        </section>
+      </div>
+      <div className="report-open-list">
+        <div className="report-section-head">
+          <h3>优先处理项</h3>
+          <Link to={`/admin/events?import_batch_id=${encodeURIComponent(batchId)}`}>查看本批事件</Link>
+        </div>
+        {openItems.length ? (
+          openItems.map((item, index) => (
+            <Link className="report-open-item" to={`/admin/events/${String(item.target_id)}`} key={`${String(item.target_id)}-${index}`}>
+              <span>{String(item.issue_type)} / {String(item.start_year || "")} / {String(item.region || "-")}</span>
+              <strong>{String(item.title || item.target_id)}</strong>
+              <small>{String(item.message || "")}</small>
+            </Link>
+          ))
+        ) : (
+          <EmptyState text="这批数据暂无待处理质量问题。" />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function BarList({ items }: { items: Array<{ label: string; count: number }> }) {
+  const max = Math.max(...items.map((item) => item.count), 1);
+  return (
+    <div className="bar-list">
+      {items.map((item) => (
+        <div className="bar-row" key={item.label}>
+          <span>{item.label}</span>
+          <div><i style={{ width: `${Math.max((item.count / max) * 100, 5)}%` }} /></div>
+          <strong>{item.count}</strong>
+        </div>
+      ))}
+      {!items.length && <EmptyState text="暂无分布数据。" />}
+    </div>
+  );
+}
+
 function DuplicateCandidateList({ candidates }: { candidates: Array<Record<string, unknown>> }) {
   return (
     <div className="duplicate-list">
@@ -1345,6 +1442,11 @@ function percentFrom(record: Record<string, unknown>, key: string) {
   const value = record[key];
   if (typeof value === "number") return `${Math.round(value * 100)}%`;
   return "-";
+}
+
+function percentNumber(value: number | undefined) {
+  if (typeof value !== "number") return "-";
+  return `${Math.round(value * 100)}%`;
 }
 
 function readError(err: unknown) {

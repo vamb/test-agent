@@ -193,6 +193,34 @@ export type ImportBatchReview = {
   issues?: Record<string, unknown[]>;
 };
 
+export type BatchReportItem = {
+  label: string;
+  count: number;
+};
+
+export type ImportBatchReport = {
+  found: boolean;
+  batch?: ImportBatch;
+  totals?: {
+    staging_rows: number;
+    valid_rows: number;
+    error_rows: number;
+    imported_events: number;
+    quality_issue_count: number;
+    quality_open_count: number;
+    quality_handled_count: number;
+    quality_handled_rate: number;
+  };
+  quality?: Record<string, {
+    count: number;
+    open_count: number;
+    handled_count: number;
+    handled_rate: number;
+  }>;
+  distributions?: Record<string, BatchReportItem[]>;
+  top_open_items?: Array<Record<string, unknown>>;
+};
+
 export const adminApi = {
   getOverview: () => request<AdminOverview>("/admin/overview"),
   getVectorStatus: () => request<Record<string, unknown>>("/vectors/status"),
@@ -221,6 +249,8 @@ export const adminApi = {
     request<ImportBatch & { found?: boolean }>(`/imports/batches/${batchId}`),
   getBatchReview: (batchId: string) =>
     request<ImportBatchReview>(`/admin/import-batches/${batchId}/review`),
+  getBatchReport: (batchId: string) =>
+    request<ImportBatchReport>(`/admin/import-batches/${batchId}/report`),
   getStagingRows: (batchId: string) =>
     request<{ rows: StagingRow[]; count: number }>(`/imports/batches/${batchId}/staging`),
   previewBatch: (batchId: string) =>

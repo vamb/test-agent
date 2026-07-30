@@ -14,6 +14,7 @@ from apps.api.main import (
     admin_get_event_detail,
     admin_get_event_changes,
     admin_import_batch_review,
+    admin_import_batch_report,
     admin_list_data_quality_issues,
     admin_list_events,
     admin_list_relations,
@@ -345,6 +346,47 @@ class EventManagementTest(unittest.TestCase):
         self.assertEqual(review["review"]["weak_source_count"], 1)
         self.assertGreaterEqual(review["review"]["duplicate_candidate_count"], 2)
         self.assertTrue(review["review"]["ready_for_manual_review"])
+
+    def test_import_batch_report_tracks_quality_progress(self) -> None:
+        first = valid_import_event("测试批次运营报表事件")
+        first["start_year"] = 908
+        first["end_year"] = 908
+        first["confidence"] = 0.64
+        second = valid_import_event("测试批次运营报表事件")
+        second["start_year"] = 908
+        second["end_year"] = 908
+        second["polity"] = "测试报表政权乙"
+        batch = ImportReviewService(self.settings.postgres).create_batch(
+            filename="batch-operations-report.json",
+            source_note="unit-test",
+            created_by="test",
+            events=[first, second],
+        )
+        imported = ImportReviewService(self.settings.postgres).confirm_import(
+            batch["id"],
+            confirmed_by="test",
+        )
+        admin_set_data_quality_issue_action(
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "issue_type": "low_confidence",
+                "target_type": "event",
+                "target_id": imported["event_ids"][0],
+                "status": "resolved",
+                "handled_by": "test-admin",
+            }
+        )
+
+        report = admin_import_batch_report(batch["id"])
+
+        self.assertTrue(report["found"])
+        self.assertEqual(report["totals"]["imported_events"], 2)
+        self.assertEqual(report["quality"]["low_confidence"]["count"], 1)
+        self.assertEqual(report["quality"]["low_confidence"]["handled_count"], 1)
+        self.assertGreaterEqual(report["quality"]["duplicate_title"]["count"], 2)
+        self.assertGreaterEqual(report["totals"]["quality_issue_count"], 2)
+        self.assertIn("regions", report["distributions"])
 
     def test_dictionaries_and_admin_event_detail(self) -> None:
         source_event_id = self._create_managed_event("测试详情源事件")

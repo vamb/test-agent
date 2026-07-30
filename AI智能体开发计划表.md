@@ -162,6 +162,7 @@ ai-agent/
 | 10 | 文档向量重算 | `POST /knowledge/documents/{document_id}/reembed` | 文档内容或 embedding 配置变化后重算 chunk embedding | 已完成 |
 | 11 | 向量状态 | `GET /vectors/status` | 返回事件和知识库 embedding 覆盖率、维度、provider、索引状态 | 已完成 |
 | 12 | 批量向量重建 | `POST /vectors/rebuild`、`POST /vectors/rebuild-jobs` | 触发历史事件或知识文档的批量 embedding 重算任务，支持任务创建、查看和处理 | 已完成 |
+| 13 | 导入批次运营报表 | `GET /admin/import-batches/{batch_id}/report` | 查看单批次入库、质量处理进度、地区/年份/来源可靠度分布和优先处理项 | 已完成 |
 
 ### 后端继续加强工作表（暂不考虑权限）
 
@@ -179,8 +180,9 @@ ai-agent/
 | B3 | 8 | 导入合并策略 | `POST /imports/staging/{row_id}/merge` | 让重复预览后可以真正处理冲突 | 支持 keep_existing、replace_existing、merge_sources、merge_categories、merge_sources_and_categories | 已完成 |
 | B3 | 9 | 导入文件解析轻量版 | `POST /imports/parse` | 提升导入体验 | 支持 JSON 文本/对象和 CSV 文本解析为标准 events payload | 已完成 |
 | B3 | 10 | 数据质量处理台账 | `POST /admin/data-quality/issues/actions`、`data_quality_issue_actions` | 让已修复或决定忽略的问题不再反复干扰运营列表 | 支持 open、resolved、ignored、snoozed；summary/list 合并处理状态；初始化脚本和 schema 测试覆盖 | 已完成 |
-| B4 | 11 | 知识库版本和重切分 | 文档版本字段 / re-chunk 接口 | 支撑文档更新后的可追溯管理 | 文档更新保留版本，chunk 变化可查看 | 暂缓 |
-| B4 | 12 | 向量任务自动处理 | Worker 或队列消费 vector jobs | 数据量变大后避免手动 process | 创建任务后可异步完成，失败有错误信息和重试入口 | 暂缓 |
+| B3 | 11 | 导入批次运营报表 | `GET /admin/import-batches/{batch_id}/report` | 每批导入后可复盘处理进度和质量分布 | 返回 staging/入库总量、质量 open/handled、处理率、地区/年份/置信度/来源分布和优先处理项 | 已完成 |
+| B4 | 12 | 知识库版本和重切分 | 文档版本字段 / re-chunk 接口 | 支撑文档更新后的可追溯管理 | 文档更新保留版本，chunk 变化可查看 | 暂缓 |
+| B4 | 13 | 向量任务自动处理 | Worker 或队列消费 vector jobs | 数据量变大后避免手动 process | 创建任务后可异步完成，失败有错误信息和重试入口 | 暂缓 |
 
 ### 管理后台前端开发工作表
 
@@ -191,7 +193,7 @@ ai-agent/
 | F1 | 1 | 管理后台壳子和导航 | `/admin` | `GET /admin/overview`、`GET /vectors/status` | 有后台侧边导航、顶部状态、概览指标、数据质量入口；和聊天页路由互通 | 已完成 |
 | F1 | 2 | 管理 API client 和类型拆分 | `apps/web/src/adminApi.ts` | 已有管理后端接口 | 管理接口集中封装，页面不直接拼 URL；失败、加载、空状态统一 | 已完成 |
 | F2 | 3 | 数据导入工作台 | `/admin/imports/new` | `POST /imports/parse`、`POST /imports/batches` | 支持粘贴 JSON/CSV、解析预览、错误提示、创建导入批次 | 已完成 |
-| F2 | 4 | 导入批次列表和审核详情 | `/admin/imports`、`/admin/imports/:batchId` | `GET /imports/batches`、`GET /imports/batches/{batch_id}/staging`、`GET /imports/batches/{batch_id}/preview` | 可查看批次、staging 行、校验错误、重复候选和差异 | 已完成 |
+| F2 | 4 | 导入批次列表和审核详情 | `/admin/imports`、`/admin/imports/:batchId` | `GET /imports/batches`、`GET /imports/batches/{batch_id}/staging`、`GET /imports/batches/{batch_id}/preview`、`GET /admin/import-batches/{batch_id}/report` | 可查看批次、staging 行、校验错误、重复候选、差异和运营报表 | 已完成 |
 | F2 | 5 | staging 修正、合并和确认入库 | `/admin/imports/:batchId` | `PATCH /imports/staging/{row_id}`、`POST /imports/staging/{row_id}/merge`、`POST /imports/batches/{batch_id}/confirm`、`POST /imports/batches/{batch_id}/reject` | 可修正错误行、批量重校验、处理重复、确认或拒绝批次 | 已完成 |
 | F3 | 6 | 事件库列表和筛选 | `/admin/events` | `GET /admin/events`、`POST /admin/events/bulk-update` | 支持关键词、年份、地区、状态、最低置信度、有无来源筛选和批量归档 | 已完成 |
 | F3 | 7 | 后台事件详情编辑 | `/admin/events/:eventId` | `GET /admin/events/{event_id}`、`PATCH /admin/events/{event_id}` | 事件核心字段已改为表单编辑，可保存并查看审计、来源、关系 | 已完成 |
@@ -303,6 +305,7 @@ ai-agent/
 | W6 | 6 | RAG 引用注入回答 | 把事件来源和知识文档 chunk 注入回答上下文和前端展示 | Agent 会调用 `search_knowledge`，回答正文追加参考资料；结构化 `references` 含事件来源和知识 chunk；后端全量测试通过 | 已完成 |
 | W7 | 7 | Langfuse 集成预留 | 后端接 trace/tool/token/error 上报；前端只保留跳转入口 | 可从 run_id 对应到 Langfuse trace；不开发自研 Trace 后台；后端全量测试和前端构建通过 | 已完成第一版 |
 | W8 | 8 | 数据质量处理闭环 | 新增数据质量问题处理台账、API 和前端操作 | 可把问题标记为已处理、忽略或重新打开；初始化表同步；后端全量测试和前端构建通过 | 已完成 |
+| W9 | 9 | 导入批次运营报表 | 新增批次 report API 和批次详情页复盘面板 | 展示入库事件、待处理质量问题、处理率、质量分解、地区/年份/来源可靠度分布和优先处理项；后端全量测试和前端构建通过 | 已完成 |
 
 ## 后端重构工作表
 

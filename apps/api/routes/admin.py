@@ -65,6 +65,11 @@ def admin_import_batch_review(batch_id: str) -> dict:
     return event_management_service.import_batch_review(batch_id)
 
 
+@router.get("/admin/import-batches/{batch_id}/report")
+def admin_import_batch_report(batch_id: str) -> dict:
+    return event_management_service.import_batch_report(batch_id)
+
+
 @router.get("/admin/events")
 def admin_list_events(
     query: str = "",

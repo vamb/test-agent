@@ -63,6 +63,7 @@ from apps.api.routes.admin import (
     admin_get_event_changes,
     admin_get_event_detail,
     admin_import_batch_review,
+    admin_import_batch_report,
     admin_list_data_quality_issues,
     admin_list_events,
     admin_list_relations,

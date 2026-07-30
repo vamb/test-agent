@@ -9,7 +9,7 @@
    - 已扩展到 22 条历史事件演练数据：`data/imports/curated_seed_600_900_extended.json`
    - 已通过导入审核流创建并确认批次 `2d9ea246-3d79-4753-89c2-03f853406452`
    - 入库后核验：22 条事件、8 条低置信、6 条弱来源、1 个重复候选、0 个结构缺口
-   - 下一步进入数据质量和事件详情页修复问题
+   - 已补导入批次运营报表，可查看处理率、质量分解、地区/年份/来源可靠度分布和优先处理项
 2. Agent 返回结构标准化：
    - 已完成；稳定输出 `answer`
    - 已完成；稳定输出 `references`
@@ -103,6 +103,7 @@
 | W6 | 6 | RAG 引用注入回答 | 回答能展示事件来源和知识文档 chunk 引用 | 已完成 |
 | W7 | 7 | Langfuse 集成预留 | run_id 可对应到 Langfuse trace，本系统不自研 Trace 后台 | 已完成第一版 |
 | W8 | 8 | 数据质量处理闭环 | 新增 `data_quality_issue_actions` 台账和 `POST /admin/data-quality/issues/actions`；质量页可标记已处理、忽略或重新打开问题；summary/list 会带处理状态 | 已完成 |
+| W9 | 9 | 导入批次运营报表 | 新增 `GET /admin/import-batches/{batch_id}/report`；批次详情页展示入库事件、待处理质量问题、处理率、质量分解、地区/年份/来源可靠度分布和优先处理项 | 已完成 |
 
 ## 后端重构工作表
 
@@ -129,6 +130,7 @@
 | 7 | `POST /admin/sources/bulk-verify` | 已完成；批量核验来源可靠度 |
 | 8 | `POST /imports/staging/{row_id}/merge` | 已完成；对重复导入行执行保留、替换或合并策略 |
 | 9 | `POST /imports/parse` | 已完成；将 JSON/CSV 输入解析为标准 events payload |
+| 10 | `GET /admin/import-batches/{batch_id}/report` | 已完成；提供单个导入批次的运营复盘指标和质量处理进度 |
 
 ## 交给 Langfuse，不需要我们开发
 

@@ -319,6 +319,9 @@ class EventManagementService:
     def import_batch_review(self, batch_id: str) -> dict[str, Any]:
         return self.import_batch_review_service.review(batch_id)
 
+    def import_batch_report(self, batch_id: str) -> dict[str, Any]:
+        return self.import_batch_review_service.report(batch_id)
+
     def create_event(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.event_admin_service.create_event(payload)
 
