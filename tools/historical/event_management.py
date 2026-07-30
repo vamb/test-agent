@@ -56,6 +56,8 @@ class EventManagementService:
         has_sources: bool | None = None,
         limit: int = 50,
         offset: int = 0,
+        page: int | None = None,
+        page_size: int | None = None,
     ) -> dict[str, Any]:
         where: list[str] = []
         params: list[Any] = []
@@ -87,7 +89,13 @@ class EventManagementService:
             where.append("NOT EXISTS (SELECT 1 FROM event_sources s WHERE s.event_id = e.id)")
 
         where_sql = f"WHERE {' AND '.join(where)}" if where else ""
-        limit, offset = normalize_pagination(limit, offset)
+        if page is not None or page_size is not None:
+            current_page = max(1, int(page or 1))
+            limit, _ = normalize_pagination(int(page_size or limit), 0)
+            offset = (current_page - 1) * limit
+        else:
+            limit, offset = normalize_pagination(limit, offset)
+            current_page = offset // limit + 1
 
         with psycopg.connect(self.postgres_settings.dsn, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
@@ -131,7 +139,15 @@ class EventManagementService:
                 )
                 rows = [dict(row) for row in cur.fetchall()]
 
-        return {"count": len(rows), "total": total, "limit": limit, "offset": offset, "events": rows}
+        return {
+            "count": len(rows),
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "page": current_page,
+            "page_size": limit,
+            "events": rows,
+        }
 
     def get_event_changes(
         self,

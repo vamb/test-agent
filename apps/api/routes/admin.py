@@ -82,6 +82,8 @@ def admin_list_events(
     has_sources: bool | None = None,
     limit: int = 50,
     offset: int = 0,
+    page: int | None = None,
+    page_size: int | None = None,
 ) -> dict:
     return event_management_service.list_events(
         query=query,
@@ -94,6 +96,8 @@ def admin_list_events(
         has_sources=has_sources,
         limit=limit,
         offset=offset,
+        page=page,
+        page_size=page_size,
     )
 
 

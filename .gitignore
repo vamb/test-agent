@@ -1,7 +1,10 @@
 .idea
 __pycache__/
 *.py[cod]
+.venv/
 .tmp/
 node_modules/
 dist/
 *.tsbuildinfo
+.env
+*.log

@@ -1,5 +1,7 @@
 import { MouseEvent, ReactNode, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Button, Input, InputNumber, Select, Table, Tag } from "antd";
+import type { TableColumnsType } from "antd";
 import {
   Archive,
   ArrowLeft,
@@ -8,6 +10,7 @@ import {
   Edit3,
   FileSearch,
   FileText,
+  Filter,
   GitBranch,
   Home,
   Layers3,
@@ -522,25 +525,56 @@ export function AdminEventsPage() {
   const [regions, setRegions] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [events, setEvents] = useState<AdminEventListItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [selected, setSelected] = useState<string[]>([]);
   const [state, setState] = useState<LoadState>("loading");
   const [error, setError] = useState("");
 
-  function load() {
+  function load(overrides: Partial<{
+    query: string;
+    region: string;
+    statusFilter: string;
+    importBatchId: string;
+    startYear: string;
+    endYear: string;
+    minConfidence: string;
+    hasSources: string;
+    page: number;
+    pageSize: number;
+  }> = {}) {
+    const filters = {
+      query,
+      region,
+      statusFilter,
+      importBatchId,
+      startYear,
+      endYear,
+      minConfidence,
+      hasSources,
+      page,
+      pageSize,
+      ...overrides,
+    };
     setState("loading");
     adminApi.listEvents({
-      query,
-      regions: region ? [region] : undefined,
-      statuses: statusFilter ? [statusFilter] : undefined,
-      import_batch_id: importBatchId || undefined,
-      start_year: startYear || undefined,
-      end_year: endYear || undefined,
-      min_confidence: minConfidence || undefined,
-      has_sources: hasSources || undefined,
-      limit: 50,
+      query: filters.query,
+      regions: filters.region ? [filters.region] : undefined,
+      statuses: filters.statusFilter ? [filters.statusFilter] : undefined,
+      import_batch_id: filters.importBatchId || undefined,
+      start_year: filters.startYear || undefined,
+      end_year: filters.endYear || undefined,
+      min_confidence: filters.minConfidence || undefined,
+      has_sources: filters.hasSources || undefined,
+      page: filters.page,
+      page_size: filters.pageSize,
     })
       .then((result) => {
         setEvents(result.events || []);
+        setTotal(result.total || 0);
+        setPage(result.page || filters.page);
+        setPageSize(result.page_size || filters.pageSize);
         setState("done");
       })
       .catch((err) => {
@@ -551,7 +585,7 @@ export function AdminEventsPage() {
 
   useEffect(() => {
     adminApi.getDictionaries().then((result) => {
-      setRegions(result.regions || []);
+      setRegions((result.regions || []).map(dictionaryLabel).filter(Boolean));
       setStatuses(result.event_statuses || []);
     });
     load();
@@ -571,50 +605,193 @@ export function AdminEventsPage() {
       nextParams.delete("import_batch_id");
     }
     setSearchParams(nextParams, { replace: true });
-    load();
+    setSelected([]);
+    load({ page: 1 });
   }
+
+  function resetFilters() {
+    const emptyFilters = {
+      query: "",
+      region: "",
+      statusFilter: "",
+      importBatchId: "",
+      startYear: "",
+      endYear: "",
+      minConfidence: "",
+      hasSources: "",
+      page: 1,
+      pageSize,
+    };
+    setQuery("");
+    setRegion("");
+    setStatusFilter("");
+    setImportBatchId("");
+    setStartYear("");
+    setEndYear("");
+    setMinConfidence("");
+    setHasSources("");
+    setSelected([]);
+    setSearchParams(new URLSearchParams(), { replace: true });
+    load(emptyFilters);
+  }
+
+  function changePage(nextPage: number, nextPageSize: number) {
+    setSelected([]);
+    load({ page: nextPage, pageSize: nextPageSize });
+  }
+
+  const eventColumns: TableColumnsType<AdminEventListItem> = [
+    {
+      title: "事件",
+      dataIndex: "title",
+      key: "title",
+      fixed: "left",
+      width: 360,
+      render: (_, event) => (
+        <Link className="event-title-cell" to={`/admin/events/${event.id}`}>
+          <strong>{event.title}</strong>
+          <small>{event.summary || "暂无摘要"}</small>
+        </Link>
+      ),
+    },
+    {
+      title: "时间",
+      key: "time",
+      width: 120,
+      render: (_, event) => `${event.start_year}-${event.end_year || event.start_year}`,
+    },
+    {
+      title: "地区",
+      dataIndex: "region",
+      key: "region",
+      width: 130,
+      render: (value) => value || "-",
+    },
+    {
+      title: "状态",
+      key: "status",
+      width: 130,
+      render: (_, event) => {
+        const value = event.source_status || event.status || "draft";
+        return <Tag color={eventStatusColor(value)}>{value}</Tag>;
+      },
+    },
+    {
+      title: "来源",
+      dataIndex: "source_count",
+      key: "source_count",
+      width: 90,
+      align: "center",
+      render: (value) => value ?? "-",
+    },
+  ];
 
   return (
     <AdminPageShell eyebrow="Event library" title="事件库" description="搜索、筛选和批量维护历史事件。" state={state} error={error}>
-      <div className="admin-toolbar">
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、摘要、地区或政权" />
-        <input value={importBatchId} onChange={(event) => setImportBatchId(event.target.value)} placeholder="导入批次 ID" />
-        <input value={startYear} onChange={(event) => setStartYear(event.target.value)} placeholder="开始年份" type="number" />
-        <input value={endYear} onChange={(event) => setEndYear(event.target.value)} placeholder="结束年份" type="number" />
-        <select value={region} onChange={(event) => setRegion(event.target.value)}>
-          <option value="">全部地区</option>
-          {regions.map((item) => <option value={item} key={item}>{item}</option>)}
-        </select>
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-          <option value="">全部状态</option>
-          {statuses.map((item) => <option value={item} key={item}>{item}</option>)}
-        </select>
-        <input value={minConfidence} onChange={(event) => setMinConfidence(event.target.value)} placeholder="最低置信度" type="number" min="0" max="1" step="0.1" />
-        <select value={hasSources} onChange={(event) => setHasSources(event.target.value)}>
-          <option value="">来源不限</option>
-          <option value="true">有来源</option>
-          <option value="false">无来源</option>
-        </select>
-        <button className="primary-button" onClick={search}><Search size={16} /> 搜索</button>
-        <button className="ghost-button" onClick={bulkArchive} disabled={!selected.length}><Archive size={16} /> 批量归档</button>
-      </div>
-      <div className="admin-table">
-        <div className="admin-table-head events-grid"><span></span><span>事件</span><span>时间</span><span>地区</span><span>状态</span><span>来源</span></div>
-        {events.map((event) => (
-          <div className="admin-table-row events-grid" key={event.id}>
-            <input
-              type="checkbox"
-              checked={selected.includes(event.id)}
-              onChange={(inputEvent) => setSelected((current) => inputEvent.target.checked ? [...current, event.id] : current.filter((id) => id !== event.id))}
+      <section className="event-filter-panel">
+        <div className="event-filter-primary">
+          <label className="filter-search-field">
+            <span>关键词</span>
+            <Input
+              allowClear
+              prefix={<Search size={16} />}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onPressEnter={search}
+              placeholder="搜索标题、摘要、地区或政权"
             />
-            <Link to={`/admin/events/${event.id}`}><strong>{event.title}</strong><small>{event.summary || ""}</small></Link>
-            <span>{event.start_year}-{event.end_year || event.start_year}</span>
-            <span>{event.region || "-"}</span>
-            <StatusPill value={event.source_status || event.status || "draft"} />
-            <span>{event.source_count ?? "-"}</span>
+          </label>
+          <div className="event-filter-actions">
+            <Button type="primary" icon={<Search size={16} />} onClick={search}>搜索</Button>
+            <Button onClick={resetFilters}>清空</Button>
+            <Button icon={<Archive size={16} />} onClick={bulkArchive} disabled={!selected.length}>批量归档</Button>
           </div>
-        ))}
-      </div>
+        </div>
+        <div className="event-filter-grid">
+          <label>
+            <span>导入批次</span>
+            <Input allowClear value={importBatchId} onChange={(event) => setImportBatchId(event.target.value)} placeholder="import_batch_id" />
+          </label>
+          <label>
+            <span>开始年份</span>
+            <InputNumber value={startYear ? Number(startYear) : null} onChange={(value) => setStartYear(value === null ? "" : String(value))} />
+          </label>
+          <label>
+            <span>结束年份</span>
+            <InputNumber value={endYear ? Number(endYear) : null} onChange={(value) => setEndYear(value === null ? "" : String(value))} />
+          </label>
+          <label>
+            <span>地区</span>
+            <Select
+              allowClear
+              value={region || undefined}
+              onChange={(value) => setRegion(value || "")}
+              placeholder="全部地区"
+              options={regions.map((item) => ({ value: item, label: item }))}
+            />
+          </label>
+          <label>
+            <span>状态</span>
+            <Select
+              allowClear
+              value={statusFilter || undefined}
+              onChange={(value) => setStatusFilter(value || "")}
+              placeholder="全部状态"
+              options={statuses.map((item) => ({ value: item, label: item }))}
+            />
+          </label>
+          <label>
+            <span>最低置信度</span>
+            <InputNumber
+              min={0}
+              max={1}
+              step={0.1}
+              value={minConfidence ? Number(minConfidence) : null}
+              onChange={(value) => setMinConfidence(value === null ? "" : String(value))}
+            />
+          </label>
+          <label>
+            <span>来源</span>
+            <Select
+              allowClear
+              value={hasSources || undefined}
+              onChange={(value) => setHasSources(value || "")}
+              placeholder="来源不限"
+              options={[
+                { value: "true", label: "有来源" },
+                { value: "false", label: "无来源" },
+              ]}
+            />
+          </label>
+        </div>
+        <div className="event-filter-summary">
+          <span><Filter size={15} /> 共 {total} 条，第 {page} 页显示 {events.length} 条</span>
+          <span>已选 {selected.length} 条</span>
+        </div>
+      </section>
+      <section className="event-table-panel">
+        <Table<AdminEventListItem>
+          rowKey="id"
+          columns={eventColumns}
+          dataSource={events}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: [10, 20, 50, 100],
+            showTotal: (count, range) => `${range[0]}-${range[1]} / 共 ${count} 条`,
+            onChange: changePage,
+            onShowSizeChange: changePage,
+          }}
+          scroll={{ x: 860 }}
+          rowSelection={{
+            selectedRowKeys: selected,
+            onChange: (keys) => setSelected(keys.map(String)),
+          }}
+          locale={{ emptyText: "暂无事件" }}
+        />
+      </section>
     </AdminPageShell>
   );
 }
@@ -1224,17 +1401,14 @@ export function AdminVectorsPage() {
 }
 
 function AdminPageShell({
-  eyebrow,
-  title,
-  description,
   children,
   state = "done",
   error = "",
   action,
 }: {
-  eyebrow: string;
-  title: string;
-  description: string;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
   children: ReactNode;
   state?: LoadState;
   error?: string;
@@ -1242,14 +1416,7 @@ function AdminPageShell({
 }) {
   return (
     <section className="admin-page">
-      <header className="admin-page-header">
-        <div>
-          <p className="eyebrow">{eyebrow}</p>
-          <h1>{title}</h1>
-          <span>{description}</span>
-        </div>
-        {action}
-      </header>
+      {action && <div className="admin-page-actions">{action}</div>}
       {state === "loading" && <div className="admin-loading"><Loader2 className="spin" size={19} /> 正在读取数据...</div>}
       {state === "error" && <div className="error-banner">{error || "请求失败"}</div>}
       {state !== "loading" && state !== "error" && children}
@@ -1517,6 +1684,21 @@ function percentFrom(record: Record<string, unknown>, key: string) {
 function percentNumber(value: number | undefined) {
   if (typeof value !== "number") return "-";
   return `${Math.round(value * 100)}%`;
+}
+
+function dictionaryLabel(item: unknown) {
+  if (typeof item === "string") return item;
+  if (item && typeof item === "object" && "name" in item) {
+    return String((item as { name?: unknown }).name || "");
+  }
+  return String(item || "");
+}
+
+function eventStatusColor(value: string) {
+  if (["verified", "active", "imported", "validated"].includes(value)) return "green";
+  if (["archived", "disputed", "rejected", "failed"].includes(value)) return "red";
+  if (["reviewing", "pending", "running"].includes(value)) return "gold";
+  return "default";
 }
 
 function readError(err: unknown) {

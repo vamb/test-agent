@@ -46,14 +46,23 @@ export type AdminOverview = {
 };
 
 export type AdminDictionary = {
-  regions?: string[];
-  polities?: string[];
-  categories?: string[];
+  regions?: DictionaryItem[];
+  polities?: DictionaryItem[];
+  categories?: DictionaryItem[];
   event_statuses?: string[];
   source_types?: string[];
   relation_types?: string[];
   time_precisions?: string[];
 };
+
+export type DictionaryItem =
+  | string
+  | {
+      id?: string;
+      name?: string;
+      description?: string;
+      [key: string]: unknown;
+    };
 
 export type ImportBatch = {
   id: string;
@@ -296,7 +305,15 @@ export const adminApi = {
       body: JSON.stringify({ reason }),
     }),
   listEvents: (params: Record<string, QueryValue> = {}) =>
-    request<{ events: AdminEventListItem[]; total: number }>(`/admin/events${buildQuery(params)}`),
+    request<{
+      events: AdminEventListItem[];
+      total: number;
+      count: number;
+      page?: number;
+      page_size?: number;
+      limit?: number;
+      offset?: number;
+    }>(`/admin/events${buildQuery(params)}`),
   getEventDetail: (eventId: string) =>
     request<AdminEventDetail>(`/admin/events/${eventId}`),
   updateEvent: (eventId: string, updates: Record<string, unknown>) =>

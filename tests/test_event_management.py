@@ -191,6 +191,25 @@ class EventManagementTest(unittest.TestCase):
         self.assertGreaterEqual(events["total"], 1)
         self.assertGreaterEqual(changes["total"], 1)
 
+    def test_admin_events_support_page_pagination(self) -> None:
+        first_id = self._create_managed_event("测试分页事件一")
+        second_id = self._create_managed_event("测试分页事件二")
+
+        first_page = admin_list_events(query="测试分页事件", page=1, page_size=1)
+        second_page = admin_list_events(query="测试分页事件", page=2, page_size=1)
+
+        self.assertGreaterEqual(first_page["total"], 2)
+        self.assertEqual(first_page["page"], 1)
+        self.assertEqual(first_page["page_size"], 1)
+        self.assertEqual(first_page["offset"], 0)
+        self.assertEqual(first_page["count"], 1)
+        self.assertEqual(second_page["page"], 2)
+        self.assertEqual(second_page["offset"], 1)
+        self.assertEqual(second_page["count"], 1)
+        self.assertNotEqual(first_page["events"][0]["id"], second_page["events"][0]["id"])
+        self.assertIn(first_page["events"][0]["id"], {first_id, second_id})
+        self.assertIn(second_page["events"][0]["id"], {first_id, second_id})
+
     def test_data_quality_summary_and_issues(self) -> None:
         event = valid_import_event("测试质量问题事件")
         event["sources"] = []
