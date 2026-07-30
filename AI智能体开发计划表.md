@@ -237,7 +237,7 @@ ai-agent/
 | 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理、管理后台数据运营 |
 | 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；也可用管理后台完成导入解析、批次审核、staging 修正/合并、确认入库、事件编辑、来源维护、关系维护、数据质量查看、知识库文档维护和向量任务处理；当前已新增 12 条小批量种子事件入库 |
 | 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 58/58 通过，MVP 评测最近一次 4/4 通过 |
-| 下一步重点 | 提交 W17 改动、补确认后恢复执行入口、Langfuse datasets/evals 对接 |
+| 下一步重点 | 提交 W18 改动、做确认恢复的前端交互、Langfuse datasets/evals 对接 |
 | 暂不推进 | 多智能体、MCP、Playwright、复杂 RBAC、Kubernetes，等单 Agent 与数据管理链路稳定后再做 |
 
 | 模块 | 状态 | 已在线完成的功能 | 对应 PDF 功能/章节 |
@@ -314,6 +314,7 @@ ai-agent/
 | W15 | 15 | LangGraph 细粒度节点第一版 | `LangGraphAgentWorkflow` 推理循环拆成 `prepare_state -> decide -> execute_tool -> decide/finalize_response/max_steps_exceeded`，复用 recorder、telemetry、checkpoint 和工具执行 helper | fake LangGraph 可实际跑通决策/工具 pipeline；默认 loop 行为不变；后端全量测试通过 | 已完成第一版 |
 | W16 | 16 | LangGraph SSE streaming | `LangGraphAgentWorkflow.stream()` 复用细粒度节点并输出 `run_started/step_started/tool_called/tool_result/final_answer/run_completed` 等兼容前端的 SSE 事件 | `AGENT_WORKFLOW_ENGINE=langgraph` 时 streaming 不回退旧 Loop；后端全量测试通过 | 已完成第一版 |
 | W17 | 17 | LangGraph 人工确认中断节点 | 新增 `confirmation_required` 节点；高风险或需确认工具未带 `confirmed: true` 时暂停执行，run 标记 `waiting_for_user`，streaming 输出 `confirmation_required` | 高风险工具不会被误执行；同步和 streaming 均可返回确认提示；后端全量测试通过 | 已完成第一版 |
+| W18 | 18 | 确认后恢复执行入口 | 新增 `AgentRunRecorder.claim_waiting_run`、`LangGraphAgentWorkflow.confirm_existing` 和 `POST /agent/runs/{run_id}/confirm` | waiting run 可确认后恢复执行；待确认 step 覆盖为 completed；后端全量测试通过 | 已完成第一版 |
 
 ## 后端重构工作表
 
@@ -336,7 +337,7 @@ ai-agent/
 | 2 | Agent 返回结构标准化 | 稳定返回 `answer`、`references`、`links`、`events`，支撑前端引用和跳转 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
 | 3 | RAG 引用注入 | 已完成第一版；事件来源和知识文档 chunk 已作为引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
 | 4 | Langfuse 集成 | 已完成 SDK 第一版；后续可继续把本地评测结果接入 Langfuse datasets/evals；不开发自研运行分析后台 | 第十四阶段：可观测性 |
-| 5 | LangGraph 工作流 | 已完成迁移前置、细粒度 decision/tool/finalize 节点、LangGraph SSE streaming 和人工确认中断节点；后续补确认后恢复执行入口 | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
+| 5 | LangGraph 工作流 | 已完成迁移前置、细粒度 decision/tool/finalize 节点、LangGraph SSE streaming、人工确认中断和确认后恢复执行入口；后续补前端确认交互 | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
 | 6 | MCP 接入 | 等本地工具边界稳定后，把核心工具服务标准化给外部智能体复用 | 第九阶段：MCP 能力标准化 |
 
 详细缺口见 [backend_gap_review.md](docs/backend_gap_review.md)。

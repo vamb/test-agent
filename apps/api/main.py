@@ -11,6 +11,7 @@ from apps.api.routes.agent import (
     _sse_events,
     agent_queue_health,
     cancel_agent_run,
+    confirm_agent_run,
     enqueue_agent_query,
     get_agent_run,
     process_one_queued_agent_run,

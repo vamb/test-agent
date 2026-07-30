@@ -122,6 +122,29 @@ class AgentRunRecorder:
             conn.commit()
         return dict(row) if row else None
 
+    def claim_waiting_run(self, run_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE agent_runs
+                    SET status = 'running',
+                        error_message = NULL
+                    WHERE id = %s
+                      AND status = 'waiting_for_user'
+                    RETURNING
+                      id::text,
+                      user_input,
+                      user_id,
+                      model_name,
+                      prompt_version
+                    """,
+                    [run_id],
+                )
+                row = cur.fetchone()
+            conn.commit()
+        return dict(row) if row else None
+
     def record_tool_step(
         self,
         run_id: str,

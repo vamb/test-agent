@@ -7,8 +7,10 @@ from unittest.mock import patch
 from agent.models.base import ModelDecision, ToolCall
 from agent.models.rule_based_adapter import RuleBasedModelAdapter
 from agent.runtime.loop import AgentLoop
+from agent.runtime.recorder import AgentRunRecorder
 from agent.runtime.workflow import LangGraphAgentWorkflow, build_agent_workflow
 from apps.api.settings import AppSettings, AgentRuntimeSettings
+from tools.database.postgres import PostgresClient
 from tools.historical.postgres_repository import PostgresHistoricalEventRepository
 from tools.historical.service import HistoricalQueryService
 from tools.historical.tool_registry import build_historical_tool_registry
@@ -16,6 +18,11 @@ from tools.registry.base import ToolDefinition, ToolRegistry
 
 
 class AgentWorkflowTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.settings = AppSettings.from_env()
+        cls.db_available = PostgresClient(cls.settings.postgres).health_check().ok
+
     def test_runtime_settings_default_to_manual_loop(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
             settings = AgentRuntimeSettings.from_env()
@@ -160,6 +167,34 @@ class AgentWorkflowTest(unittest.TestCase):
         self.assertEqual(confirmation["tool_name"], "dangerous_write")
         self.assertIn("需要人工确认", confirmation["answer"])
 
+    def test_langgraph_confirm_existing_resumes_waiting_run(self) -> None:
+        if not self.db_available:
+            self.skipTest("PostgreSQL is not available")
+        calls: list[dict] = []
+        recorder = AgentRunRecorder(self.settings.postgres)
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=ConfirmableDangerousToolAdapter(),
+                tool_registry=self._dangerous_tool_registry(calls),
+                recorder=recorder,
+            )
+
+        pending = workflow.run("删除一条数据")
+        waiting_run = recorder.get_run(pending.run_id)
+        confirmed = workflow.confirm_existing(str(pending.run_id))
+        completed_run = recorder.get_run(str(pending.run_id))
+
+        self.assertIsNotNone(waiting_run)
+        assert waiting_run is not None
+        self.assertEqual(waiting_run["status"], "waiting_for_user")
+        self.assertEqual(calls, [{"target_id": "event-1", "confirmed": True}])
+        self.assertIn("危险操作已执行", confirmed.answer)
+        self.assertIsNotNone(completed_run)
+        assert completed_run is not None
+        self.assertEqual(completed_run["status"], "completed")
+        self.assertEqual(completed_run["steps"][0]["status"], "completed")
+        self.assertTrue(completed_run["steps"][0]["tool_arguments"]["confirmed"])
+
     def _tool_registry(self):
         settings = AppSettings.from_env().postgres
         service = HistoricalQueryService(PostgresHistoricalEventRepository(settings))
@@ -256,6 +291,26 @@ class DangerousToolAdapter:
         return ModelDecision(
             action="call_tool",
             reason="test confirmation gate",
+            tool_call=ToolCall(
+                name="dangerous_write",
+                arguments={"target_id": "event-1"},
+            ),
+        )
+
+
+class ConfirmableDangerousToolAdapter:
+    model_name = "confirmable-dangerous-tool-test"
+
+    def decide(self, messages: list[dict], tools: list[dict]) -> ModelDecision:
+        if any(message.get("role") == "tool" for message in messages):
+            return ModelDecision(
+                action="finish",
+                reason="tool completed",
+                answer="危险操作已执行。",
+            )
+        return ModelDecision(
+            action="call_tool",
+            reason="test confirmation resume",
             tool_call=ToolCall(
                 name="dangerous_write",
                 arguments={"target_id": "event-1"},

@@ -144,6 +144,11 @@ class AgentLoop:
         response = self._with_observability_links(response, trace_context)
         return response
 
+    def confirm_existing(self, run_id: str) -> AgentResponse:
+        raise RuntimeError(
+            "confirm_existing requires AGENT_WORKFLOW_ENGINE=langgraph."
+        )
+
     def stream(self, user_input: str) -> Iterator[dict[str, Any]]:
         recorded_run = (
             self.recorder.start_run(

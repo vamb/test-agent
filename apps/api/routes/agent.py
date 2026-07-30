@@ -102,6 +102,31 @@ def cancel_agent_run(run_id: str, payload: dict | None = None) -> dict:
     }
 
 
+@router.post("/agent/runs/{run_id}/confirm")
+def confirm_agent_run(run_id: str) -> dict:
+    agent = build_agent_workflow(
+        workflow_engine=settings.agent_runtime.workflow_engine,
+        model_adapter=build_model_adapter(settings.model),
+        tool_registry=tool_registry,
+        recorder=recorder,
+        telemetry=telemetry,
+    )
+    response = agent.confirm_existing(run_id)
+    payload = response.as_payload()
+    return {
+        **payload,
+        "confirmed": True,
+        "steps": [
+            {
+                "tool_name": step.tool_name,
+                "tool_arguments": step.tool_arguments,
+                "observation": step.observation,
+            }
+            for step in response.steps
+        ],
+    }
+
+
 @router.post("/agent/queue/process-one")
 def process_one_queued_agent_run() -> dict:
     result = AgentWorker(settings).process_one()

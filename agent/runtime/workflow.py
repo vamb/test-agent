@@ -20,6 +20,9 @@ class AgentWorkflow(Protocol):
     def resume_existing(self, run_id: str) -> AgentResponse:
         ...
 
+    def confirm_existing(self, run_id: str) -> AgentResponse:
+        ...
+
     def stream(self, user_input: str) -> Iterator[dict[str, Any]]:
         ...
 
@@ -167,6 +170,49 @@ class LangGraphAgentWorkflow:
                 run_id=run_id,
                 existing_steps=self.loop._completed_steps_from_run(run),
                 trace_context=trace_context,
+            )
+        except AgentRunCancelled as exc:
+            self.loop.recorder.cancel_run(run_id, str(exc))
+            self.loop.telemetry.cancel_run(trace_context, str(exc))
+            raise
+        except Exception as exc:
+            self.loop.recorder.fail_run(run_id, str(exc))
+            self.loop.telemetry.fail_run(trace_context, str(exc))
+            raise
+
+        if not self._response_requires_confirmation(response):
+            self.loop.recorder.finish_run(run_id, response.answer)
+            self.loop.telemetry.finish_run(trace_context, response.answer)
+        return self.loop._with_observability_links(response, trace_context)
+
+    def confirm_existing(self, run_id: str) -> AgentResponse:
+        if not self.loop.recorder:
+            raise RuntimeError("confirm_existing requires an AgentRunRecorder.")
+        claimed = self.loop.recorder.claim_waiting_run(run_id)
+        if not claimed:
+            raise RuntimeError(f"Agent run is not waiting for user confirmation: {run_id}")
+        run = self.loop.recorder.get_run(run_id)
+        if not run:
+            raise RuntimeError(f"Agent run not found: {run_id}")
+        confirmation = self._pending_confirmation_from_run(run)
+        if not confirmation:
+            raise RuntimeError(f"Agent run has no pending confirmation step: {run_id}")
+        user_input = str(run["user_input"])
+        trace_context = self.loop.telemetry.start_run(
+            run_id,
+            user_input=user_input,
+            model_name=self.loop.model_adapter.model_name,
+            prompt_version=str(run.get("prompt_version") or "historical-agent-loop-v1"),
+        )
+        try:
+            response = self._run_graph_without_recording(
+                user_input=user_input,
+                run_id=run_id,
+                existing_steps=self.loop._completed_steps_from_run(run),
+                trace_context=trace_context,
+                confirmation_overrides={
+                    str(confirmation["tool_name"]): dict(confirmation["tool_arguments"]),
+                },
             )
         except AgentRunCancelled as exc:
             self.loop.recorder.cancel_run(run_id, str(exc))
@@ -390,6 +436,10 @@ class LangGraphAgentWorkflow:
         self.loop._raise_if_cancelled(run_id)
         messages = list(state.get("messages", []))
         decision = self.loop._decide_with_timing(messages)
+        decision = self._apply_confirmation_override(
+            decision,
+            dict(state.get("confirmation_overrides") or {}),
+        )
         steps = list(state.get("steps", []))
         step_index = len(steps)
         model_input_summary = self.loop._summarize_model_input(messages)
@@ -493,6 +543,21 @@ class LangGraphAgentWorkflow:
         )
         run_id = str(state.get("run_id", "")) or None
         if self.loop.recorder and run_id:
+            self.loop.recorder.record_tool_step(
+                run_id=run_id,
+                step_index=len(list(state.get("steps", []))),
+                tool_name=tool_name,
+                tool_arguments=tool_arguments,
+                tool_result={
+                    "confirmation_required": True,
+                    "tool_name": tool_name,
+                    "tool_arguments": tool_arguments,
+                },
+                status="skipped",
+                error_message=message,
+                model_input_summary=str(state.get("model_input_summary", "")),
+                model_output_summary=str(state.get("model_output_summary", "")),
+            )
             self.loop.recorder.wait_for_user(run_id, message)
         response = AgentResponse(
             answer=message,
@@ -542,6 +607,7 @@ class LangGraphAgentWorkflow:
         run_id: str | None = None,
         existing_steps: list[AgentStep] | None = None,
         trace_context: TraceContext | None = None,
+        confirmation_overrides: dict[str, dict[str, Any]] | None = None,
     ) -> AgentResponse:
         result = self._graph.invoke(
             {
@@ -549,6 +615,7 @@ class LangGraphAgentWorkflow:
                 "run_id": run_id or "",
                 "existing_steps": existing_steps or [],
                 "trace_context": trace_context,
+                "confirmation_overrides": confirmation_overrides or {},
             }
         )
         return _response_from_graph_result(result)
@@ -569,6 +636,41 @@ class LangGraphAgentWorkflow:
     def _response_requires_confirmation(self, response: AgentResponse) -> bool:
         links = response.links or []
         return any(link.get("type") == "confirmation_required" for link in links)
+
+    def _pending_confirmation_from_run(self, run: dict[str, Any]) -> dict[str, Any] | None:
+        for step in reversed(run.get("steps", [])):
+            if step.get("status") != "skipped":
+                continue
+            result = dict(step.get("tool_result") or {})
+            if result.get("confirmation_required") is True:
+                return {
+                    "tool_name": str(step.get("tool_name", "")),
+                    "tool_arguments": dict(step.get("tool_arguments") or {}),
+                }
+        return None
+
+    def _apply_confirmation_override(
+        self,
+        decision: Any,
+        overrides: dict[str, dict[str, Any]],
+    ) -> Any:
+        tool_call = getattr(decision, "tool_call", None)
+        if not tool_call:
+            return decision
+        if str(tool_call.name) not in overrides:
+            return decision
+        try:
+            from dataclasses import replace
+
+            from agent.models.base import ToolCall
+
+            arguments = {**dict(tool_call.arguments), "confirmed": True}
+            return replace(
+                decision,
+                tool_call=ToolCall(name=tool_call.name, arguments=arguments),
+            )
+        except Exception:
+            return decision
 
 
 def _response_from_graph_result(result: dict[str, Any]) -> AgentResponse:

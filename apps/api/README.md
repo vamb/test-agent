@@ -55,7 +55,7 @@ set AGENT_WORKFLOW_ENGINE=loop
 set AGENT_WORKFLOW_ENGINE=langgraph
 ```
 
-当前 LangGraph 第一版已经拆出 `prepare_state`、`decide`、`confirmation_required`、`execute_tool`、`finalize_response` 和 `max_steps_exceeded` 节点，并复用现有 recorder、checkpoint 恢复、telemetry、工具执行 helper 和 SSE streaming 事件格式。高风险或需确认工具未带 `confirmed: true` 时会暂停执行，run 标记为 `waiting_for_user`；后续再补确认后恢复执行入口。
+当前 LangGraph 第一版已经拆出 `prepare_state`、`decide`、`confirmation_required`、`execute_tool`、`finalize_response` 和 `max_steps_exceeded` 节点，并复用现有 recorder、checkpoint 恢复、telemetry、工具执行 helper 和 SSE streaming 事件格式。高风险或需确认工具未带 `confirmed: true` 时会暂停执行，run 标记为 `waiting_for_user`；可通过 `POST /agent/runs/{run_id}/confirm` 确认后恢复执行。
 
 ## 首批接口
 
@@ -75,6 +75,7 @@ GET /agent/queue/health
 POST /agent/queue/process-one
 POST /agent/queue/recover-stale
 POST /agent/runs/{run_id}/cancel
+POST /agent/runs/{run_id}/confirm
 POST /imports/batches
 GET /imports/batches/{batch_id}
 GET /imports/batches/{batch_id}/staging
@@ -159,6 +160,12 @@ python -m apps.worker.agent_worker --recover-stale
 curl -X POST http://127.0.0.1:8000/agent/runs/{run_id}/cancel ^
   -H "Content-Type: application/json" ^
   -d "{\"reason\":\"用户取消\"}"
+```
+
+确认等待中的高风险工具调用：
+
+```bash
+curl -X POST http://127.0.0.1:8000/agent/runs/{run_id}/confirm
 ```
 
 ## 数据导入审核
