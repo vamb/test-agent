@@ -1042,6 +1042,14 @@ select {
   display: block;
 }
 
+.admin-table-row strong,
+.admin-table-row span,
+.admin-table-row small,
+.admin-table-row a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .import-grid {
   grid-template-columns: minmax(220px, 1.2fr) 120px 220px 130px 80px;
 }
@@ -1215,12 +1223,33 @@ select {
 }
 
 .issue-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  background: #101713;
+  padding: 13px;
   color: var(--ink);
   text-decoration: none;
 }
 
 .issue-card:hover {
   border-color: var(--accent);
+}
+
+.issue-card-main {
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.issue-card-main span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.issue-card-main strong {
+  line-height: 1.35;
 }
 
 .issue-card small {
@@ -1233,6 +1262,11 @@ select {
   margin-bottom: 0;
   color: #dfe5da;
   line-height: 1.6;
+}
+
+.issue-actions {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
 }
 
 .quality-summary-grid {
@@ -1279,21 +1313,27 @@ select {
 
   .admin-layout {
     grid-template-columns: 1fr;
+    align-content: start;
+    min-height: auto;
   }
 
   .admin-sidebar {
     position: static;
     height: auto;
+    align-self: start;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+    padding: 14px;
   }
 
   .admin-nav {
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    gap: 6px;
   }
 
   .admin-page {
     width: calc(100vw - 28px);
+    padding-top: 18px;
   }
 
   .metric-grid,
@@ -1338,6 +1378,116 @@ select {
 
   .composer {
     left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-title {
+    margin-bottom: 10px;
+    padding: 12px;
+  }
+
+  .admin-title strong {
+    font-size: 21px;
+  }
+
+  .admin-brand {
+    margin-bottom: 12px;
+  }
+
+  .admin-page-header {
+    min-height: 0;
+    display: grid;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+  }
+
+  .admin-page-header h1 {
+    font-size: 30px;
+  }
+
+  .admin-page-header > .button-row,
+  .admin-page-header > .button-row.tight {
+    width: 100%;
+    margin-top: 0;
+  }
+
+  .admin-toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  .admin-toolbar input,
+  .admin-toolbar select,
+  .admin-toolbar button {
+    width: 100%;
+    max-width: none;
+  }
+
+  .metric-grid,
+  .metric-grid.compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .metric-card {
+    min-height: 86px;
+    padding: 12px;
+  }
+
+  .metric-card strong {
+    font-size: 27px;
+  }
+
+  .admin-panel {
+    padding: 13px;
+  }
+
+  .admin-table {
+    border: 0;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .admin-table-head {
+    display: none;
+  }
+
+  .admin-table-row {
+    min-width: 0;
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+    align-items: stretch;
+    border: 1px solid var(--line);
+    background: rgba(18, 24, 21, 0.92);
+    margin-bottom: 10px;
+    padding: 12px;
+  }
+
+  .admin-table-row input[type="checkbox"] {
+    width: 20px;
+  }
+
+  .admin-table-row a {
+    width: fit-content;
+  }
+
+  .row-list {
+    max-height: 420px;
+  }
+
+  .code-input {
+    min-height: 300px;
+  }
+
+  .code-input.short {
+    min-height: 230px;
+  }
+
+  .json-block {
+    max-height: 360px;
   }
 }
 
@@ -1505,10 +1655,25 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .metric-grid.compact,
+  .quality-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .event-edit-grid,
   .source-form,
   .document-form {
     grid-template-columns: 1fr;
+  }
+
+  .admin-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-nav a {
+    min-height: 38px;
+    padding: 0 8px;
+    font-size: 13px;
   }
 
   .admin-toolbar input {
@@ -1519,5 +1684,44 @@ select {
   .ghost-button,
   .danger-button {
     width: 100%;
+  }
+
+  .button-row.tight {
+    gap: 7px;
+  }
+}
+
+@media (max-width: 430px) {
+  .admin-page {
+    width: calc(100vw - 16px);
+  }
+
+  .admin-sidebar {
+    padding: 10px;
+  }
+
+  .admin-page-header h1 {
+    font-size: 26px;
+  }
+
+  .admin-toolbar,
+  .metric-grid.compact,
+  .quality-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-card,
+  .quality-summary-card {
+    min-height: 74px;
+  }
+
+  .source-mini-head {
+    display: grid;
+    justify-content: stretch;
+  }
+
+  .json-block,
+  .code-input {
+    font-size: 11px;
   }
 }

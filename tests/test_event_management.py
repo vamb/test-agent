@@ -18,6 +18,7 @@ from apps.api.main import (
     admin_list_events,
     admin_list_relations,
     admin_overview,
+    admin_set_data_quality_issue_action,
     admin_update_relation,
     admin_update_source,
     admin_update_event,
@@ -242,6 +243,41 @@ class EventManagementTest(unittest.TestCase):
         self.assertGreaterEqual(summary["issues"]["low_confidence"]["count"], 1)
         self.assertTrue(any(issue["target_id"] == event_id for issue in missing_source_issues["issues"]))
         self.assertTrue(any(issue["target_id"] == event_id for issue in low_confidence_issues["issues"]))
+
+    def test_data_quality_issue_action_hides_resolved_issue(self) -> None:
+        event_id = self._create_managed_event("测试质量问题处理台账事件")
+        detail = HistoricalQueryService(
+            PostgresHistoricalEventRepository(self.settings.postgres)
+        ).get_event_detail(event_id)
+        source_id = detail["event"]["sources"][0]["id"]
+        admin_delete_source(
+            source_id,
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "confirmed_by": "test-admin",
+            },
+        )
+
+        before = admin_list_data_quality_issues(issue_type="missing_source", limit=200)
+        issue = next(item for item in before["issues"] if item["target_id"] == event_id)
+        resolved = admin_set_data_quality_issue_action(
+            {
+                "admin_token": self.settings.security.admin_api_token,
+                "confirmed": True,
+                "issue_type": issue["issue_type"],
+                "target_type": issue["target_type"],
+                "target_id": issue["target_id"],
+                "status": "resolved",
+                "handled_by": "test-admin",
+                "reason": "unit-test resolved",
+            }
+        )
+        after = admin_list_data_quality_issues(issue_type="missing_source", limit=200)
+
+        self.assertTrue(resolved["success"])
+        self.assertEqual(resolved["action"]["status"], "resolved")
+        self.assertFalse(any(item["target_id"] == event_id for item in after["issues"]))
 
     def test_list_events_by_import_batch_and_duplicate_title_quality(self) -> None:
         first = valid_import_event("测试重复标题质量事件")

@@ -12,6 +12,7 @@ from apps.api.schemas.admin import (
     AdminCreateEventRequest,
     AdminMutationResponse,
     AdminPayload,
+    AdminQualityIssueActionRequest,
     AdminRelationRequest,
     AdminSourceRequest,
     AdminUpdateEventRequest,
@@ -47,6 +48,11 @@ def admin_list_data_quality_issues(
         limit=limit,
         offset=offset,
     )
+
+
+@router.post("/admin/data-quality/issues/actions", response_model=AdminMutationResponse)
+def admin_set_data_quality_issue_action(payload: AdminQualityIssueActionRequest) -> dict:
+    return event_management_service.set_data_quality_issue_action(payload_to_dict(payload))
 
 
 @router.get("/admin/dictionaries")

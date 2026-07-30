@@ -145,6 +145,11 @@ export type DataQualityIssue = {
   severity: string;
   target_type: string;
   target_id: string;
+  issue_key?: string;
+  handling_status?: string;
+  handled_by?: string;
+  handling_reason?: string;
+  handled_at?: string;
   title: string;
   message?: string;
   description?: string;
@@ -299,6 +304,21 @@ export const adminApi = {
   qualitySummary: () => request<Record<string, unknown>>("/admin/data-quality/summary"),
   qualityIssues: (params: Record<string, QueryValue> = {}) =>
     request<{ issues: DataQualityIssue[]; total: number }>(`/admin/data-quality/issues${buildQuery(params)}`),
+  setQualityIssueAction: (issue: DataQualityIssue, status: "open" | "resolved" | "ignored" | "snoozed", reason = "") =>
+    request<Record<string, unknown>>("/admin/data-quality/issues/actions", {
+      method: "POST",
+      body: JSON.stringify({
+        admin_token: ADMIN_API_TOKEN,
+        confirmed: true,
+        issue_type: issue.issue_type,
+        target_type: issue.target_type,
+        target_id: issue.target_id,
+        status,
+        handled_by: "web-admin",
+        reason,
+        metadata: issue.metadata || {},
+      }),
+    }),
   listDocuments: (params: Record<string, QueryValue> = {}) =>
     request<{ documents: KnowledgeDocument[]; total: number }>(`/knowledge/documents${buildQuery(params)}`),
   getDocumentChunks: (documentId: string) =>

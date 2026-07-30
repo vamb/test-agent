@@ -67,6 +67,7 @@ from apps.api.routes.admin import (
     admin_list_events,
     admin_list_relations,
     admin_overview,
+    admin_set_data_quality_issue_action,
     admin_update_event,
     admin_update_relation,
     admin_update_source,

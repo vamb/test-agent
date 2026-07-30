@@ -11,6 +11,7 @@ class AdminApiSchemaTest(unittest.TestCase):
         self.assertIn("AdminUpdateEventRequest", components)
         self.assertIn("AdminSourceRequest", components)
         self.assertIn("AdminRelationRequest", components)
+        self.assertIn("AdminQualityIssueActionRequest", components)
 
         expected_refs = {
             ("post", "/admin/events"): "AdminCreateEventRequest",
@@ -18,6 +19,7 @@ class AdminApiSchemaTest(unittest.TestCase):
             ("post", "/admin/events/bulk-update"): "AdminBulkUpdateEventsRequest",
             ("post", "/admin/events/{event_id}/sources"): "AdminSourceRequest",
             ("patch", "/admin/sources/{source_id}"): "AdminUpdateSourceRequest",
+            ("post", "/admin/data-quality/issues/actions"): "AdminQualityIssueActionRequest",
             ("post", "/admin/relations"): "AdminRelationRequest",
             ("patch", "/admin/relations/{relation_id}"): "AdminUpdateRelationRequest",
         }

@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { MouseEvent, ReactNode, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Archive,
@@ -25,6 +25,7 @@ import {
   AdminOverview,
   AdminRelation,
   AdminSource,
+  DataQualityIssue,
   ImportBatch,
   ImportBatchReview,
   KnowledgeDocument,
@@ -909,9 +910,10 @@ export function AdminRelationsPage() {
 
 export function AdminQualityPage() {
   const [summary, setSummary] = useState<Record<string, unknown>>({});
-  const [issues, setIssues] = useState<Array<Record<string, unknown>>>([]);
+  const [issues, setIssues] = useState<DataQualityIssue[]>([]);
   const [issueType, setIssueType] = useState("");
   const [state, setState] = useState<LoadState>("loading");
+  const [message, setMessage] = useState("");
   const summaryItems = qualitySummaryItems(summary);
 
   function load() {
@@ -919,15 +921,22 @@ export function AdminQualityPage() {
     Promise.all([adminApi.qualitySummary(), adminApi.qualityIssues({ issue_type: issueType, limit: 50 })])
       .then(([summaryResult, issueResult]) => {
         setSummary(summaryResult);
-        setIssues(issueResult.issues as unknown as Array<Record<string, unknown>>);
+        setIssues(issueResult.issues || []);
         setState("done");
       });
   }
 
   useEffect(load, [issueType]);
 
+  async function setIssueAction(issue: DataQualityIssue, status: "open" | "resolved" | "ignored" | "snoozed") {
+    await adminApi.setQualityIssueAction(issue, status, `Marked ${status} in data quality workbench`);
+    setMessage(`质量问题已标记为 ${status}。`);
+    load();
+  }
+
   return (
     <AdminPageShell eyebrow="Data quality" title="数据质量修复台" description="从质量问题进入事件或关系修复。" state={state}>
+      {message && <div className="notice-line">{message}</div>}
       <div className="admin-toolbar">
         <select value={issueType} onChange={(event) => setIssueType(event.target.value)}>
           <option value="">全部问题</option>
@@ -965,7 +974,13 @@ export function AdminQualityPage() {
         <section className="admin-panel">
           <PanelTitle icon={<FileSearch size={18} />} title={`问题列表 ${issues.length}`} />
           <div className="issue-list">
-            {issues.map((issue, index) => <QualityIssue key={`${String(issue.target_id)}-${index}`} issue={issue} />)}
+            {issues.map((issue, index) => (
+              <QualityIssue
+                key={`${String(issue.issue_key || issue.target_id)}-${index}`}
+                issue={issue}
+                onAction={setIssueAction}
+              />
+            ))}
           </div>
           {!issues.length && <EmptyState text="当前筛选下没有问题。" />}
         </section>
@@ -1237,21 +1252,44 @@ function JsonBlock({ value, compact = false }: { value: unknown; compact?: boole
   return <pre className={`json-block ${compact ? "compact" : ""}`}>{JSON.stringify(value, null, 2)}</pre>;
 }
 
-function QualityIssue({ issue }: { issue: Record<string, unknown> }) {
+function QualityIssue({
+  issue,
+  onAction,
+}: {
+  issue: DataQualityIssue;
+  onAction: (issue: DataQualityIssue, status: "open" | "resolved" | "ignored" | "snoozed") => Promise<void>;
+}) {
   const target = String(issue.event_id || issue.target_id || "");
   const link = issue.target_type === "relation" ? "/admin/relations" : `/admin/events/${target}`;
   const metadata = (issue.metadata || {}) as Record<string, unknown>;
+  const status = issue.handling_status || "open";
+
+  function handleAction(event: MouseEvent<HTMLButtonElement>, nextStatus: "open" | "resolved" | "ignored" | "snoozed") {
+    event.preventDefault();
+    event.stopPropagation();
+    void onAction(issue, nextStatus);
+  }
+
   return (
-    <Link className="issue-card" to={link}>
-      <span>{String(issue.issue_type)} / {String(issue.severity)}</span>
-      <strong>{String(issue.title || issue.target_id)}</strong>
-      <p>{String(issue.message || issue.description || "")}</p>
-      <small>
-        {String(metadata.region || metadata.relation_type || issue.target_type || "")}
-        {metadata.start_year ? ` / ${String(metadata.start_year)}` : ""}
-        {metadata.confidence !== undefined ? ` / confidence ${Number(metadata.confidence).toFixed(2)}` : ""}
-      </small>
-    </Link>
+    <article className="issue-card">
+      <Link className="issue-card-main" to={link}>
+        <span>{issue.issue_type} / {issue.severity} / {status}</span>
+        <strong>{String(issue.title || issue.target_id)}</strong>
+        <p>{String(issue.message || issue.description || "")}</p>
+        <small>
+          {String(metadata.region || metadata.relation_type || issue.target_type || "")}
+          {metadata.start_year ? ` / ${String(metadata.start_year)}` : ""}
+          {metadata.confidence !== undefined ? ` / confidence ${Number(metadata.confidence).toFixed(2)}` : ""}
+        </small>
+      </Link>
+      <div className="button-row tight issue-actions">
+        <button className="ghost-button" onClick={(event) => handleAction(event, "resolved")}>标记已处理</button>
+        <button className="ghost-button" onClick={(event) => handleAction(event, "ignored")}>忽略</button>
+        {status !== "open" && (
+          <button className="ghost-button" onClick={(event) => handleAction(event, "open")}>重新打开</button>
+        )}
+      </div>
+    </article>
   );
 }
 

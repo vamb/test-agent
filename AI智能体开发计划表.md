@@ -178,8 +178,9 @@ ai-agent/
 | B2 | 7 | 来源批量核验 | `POST /admin/sources/bulk-verify` | 批量处理来源质量 | 支持 source_ids、reliability、is_primary；记录事件审计 | 已完成 |
 | B3 | 8 | 导入合并策略 | `POST /imports/staging/{row_id}/merge` | 让重复预览后可以真正处理冲突 | 支持 keep_existing、replace_existing、merge_sources、merge_categories、merge_sources_and_categories | 已完成 |
 | B3 | 9 | 导入文件解析轻量版 | `POST /imports/parse` | 提升导入体验 | 支持 JSON 文本/对象和 CSV 文本解析为标准 events payload | 已完成 |
-| B4 | 10 | 知识库版本和重切分 | 文档版本字段 / re-chunk 接口 | 支撑文档更新后的可追溯管理 | 文档更新保留版本，chunk 变化可查看 | 暂缓 |
-| B4 | 11 | 向量任务自动处理 | Worker 或队列消费 vector jobs | 数据量变大后避免手动 process | 创建任务后可异步完成，失败有错误信息和重试入口 | 暂缓 |
+| B3 | 10 | 数据质量处理台账 | `POST /admin/data-quality/issues/actions`、`data_quality_issue_actions` | 让已修复或决定忽略的问题不再反复干扰运营列表 | 支持 open、resolved、ignored、snoozed；summary/list 合并处理状态；初始化脚本和 schema 测试覆盖 | 已完成 |
+| B4 | 11 | 知识库版本和重切分 | 文档版本字段 / re-chunk 接口 | 支撑文档更新后的可追溯管理 | 文档更新保留版本，chunk 变化可查看 | 暂缓 |
+| B4 | 12 | 向量任务自动处理 | Worker 或队列消费 vector jobs | 数据量变大后避免手动 process | 创建任务后可异步完成，失败有错误信息和重试入口 | 暂缓 |
 
 ### 管理后台前端开发工作表
 
@@ -195,10 +196,10 @@ ai-agent/
 | F3 | 6 | 事件库列表和筛选 | `/admin/events` | `GET /admin/events`、`POST /admin/events/bulk-update` | 支持关键词、年份、地区、状态、最低置信度、有无来源筛选和批量归档 | 已完成 |
 | F3 | 7 | 后台事件详情编辑 | `/admin/events/:eventId` | `GET /admin/events/{event_id}`、`PATCH /admin/events/{event_id}` | 事件核心字段已改为表单编辑，可保存并查看审计、来源、关系 | 已完成 |
 | F3 | 8 | 来源和关系维护 | `/admin/events/:eventId`、`/admin/relations` | 来源新增/编辑/删除/核验、关系列表/新增/编辑/删除 | 可维护来源 reliability、citation、excerpt、URL，也可维护事件关系说明和置信度 | 已完成 |
-| F4 | 9 | 数据质量修复台 | `/admin/quality` | `GET /admin/data-quality/summary`、`GET /admin/data-quality/issues` | 可按问题类型进入事件或关系修复；总览页问题卡片可跳转 | 已完成 |
+| F4 | 9 | 数据质量修复台 | `/admin/quality` | `GET /admin/data-quality/summary`、`GET /admin/data-quality/issues`、`POST /admin/data-quality/issues/actions` | 可按问题类型进入事件或关系修复；可标记已处理、忽略和重新打开 | 已完成 |
 | F4 | 10 | 知识库管理 | `/admin/knowledge`、`/admin/knowledge/:documentId` | `GET /knowledge/documents`、`GET /knowledge/documents/{document_id}/chunks`、`PATCH /knowledge/documents/{document_id}`、`POST /knowledge/documents/{document_id}/reembed` | 可查看文档、chunk、更新元数据、停用/归档、触发 reembed | 已完成 |
 | F4 | 11 | 向量管理 | `/admin/vectors` | `GET /vectors/status`、`POST /vectors/rebuild-jobs`、`POST /vectors/rebuild-jobs/{job_id}/process` | 可看 embedding 覆盖率、创建/处理重建任务、查看任务状态 | 已完成 |
-| F5 | 12 | 前端结构化整理和视觉 QA | 全局 | 无新增 | 已拆出 `AdminPages.tsx` 和 `adminApi.ts`，`npm run build` 通过；更细移动端视觉 QA 后续继续 | 已完成第一版 |
+| F5 | 12 | 前端结构化整理和视觉 QA | 全局 | 无新增 | 已拆出 `AdminPages.tsx` 和 `adminApi.ts`，管理后台移动端表格/工具栏/导航已完成 390px 视口检查，`npm run build` 通过 | 已完成 |
 
 ### 不应自研的后端能力
 
@@ -275,7 +276,7 @@ ai-agent/
 | 1 | 真实数据导入演练 | 已完成 12 条小批量种子导入和 22 条扩展导入演练 | 管理后台已可用，扩展批次暴露出低置信、弱来源和重复候选，下一步进入体验修复 | 第十阶段：人工确认机制；平台化第一版 |
 | 2 | Agent 返回结构标准化 | 已完成 | 后端同步接口和 SSE `final_answer` 已稳定返回 `answer`、`events`、`references`、`links`；前端不再递归解析 observation，改为按标准结构渲染事件卡片和引用来源 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
 | 3 | RAG 引用注入回答 | 已完成第一版 | Agent 已注册 `search_knowledge` 工具，回答前会检索知识库 chunk，并把知识文档与事件来源注入 `references` 和回答正文 | 第八阶段：RAG 知识库 |
-| 4 | 管理后台真实运营体验 QA | 未开始 | 需要在真实导入演练中检查表单、筛选、错误状态、移动端和空状态，避免只在样例数据上看起来可用 | 平台化第一版 |
+| 4 | 管理后台真实运营体验 QA | 已完成第一轮 | 已在真实导入演练后修复质量页、重复候选、弱来源处理、移动端布局，并补质量问题处理台账；后续随新增数据继续迭代 | 平台化第一版 |
 | 5 | Langfuse 可观测性集成 | 已完成预留第一版 | 已新增 telemetry adapter、Langfuse 环境变量和 trace 链接入口；后续接入 Langfuse SDK 统一查看运行、工具调用、token 和成本 | 第十四阶段：可观测性 |
 | 6 | 完整 RBAC / 多租户权限 | 暂缓 | 当前暂不考虑权限；后续上线需要用户身份、角色、租户隔离和权限策略落库 | 第十二阶段：安全体系 |
 
@@ -283,7 +284,7 @@ ai-agent/
 
 | 优先级 | 接下来准备做什么 | 目标 | 对应 PDF 功能/章节 |
 |---:|---|---|---|
-| 1 | 管理后台体验修复 | 已完成质量页、重复候选提示和弱来源快捷处理；继续根据 12 条和 22 条演练批次做移动端问题检查 | 平台化第一版 |
+| 1 | 管理后台体验修复 | 已完成质量页、重复候选提示、弱来源快捷处理、移动端视觉 QA 和质量问题处理闭环 | 平台化第一版 |
 | 2 | 小批量导入数据核验 | 在 `/admin/events` 和 `/admin/quality` 核验已导入的 `reviewing` 种子数据，必要时合并同名或近似重复记录 | 第十阶段：人工确认机制；平台化第一版 |
 | 3 | 真实数据导入演练扩展 | 已完成 22 条扩展批次；后续只在需要验证字段或专题覆盖时继续扩展 | 第十阶段：人工确认机制；平台化第一版 |
 | 4 | Agent 返回结构标准化 | 已完成；后端在 `final_answer` 和同步接口中稳定返回 `answer`、`references`、`links`、`events`，前端不再依赖递归解析 observation | 第二阶段：Structured Output；第三阶段：最小 Agent Loop；第十六阶段：前后端通信 |
@@ -296,11 +297,12 @@ ai-agent/
 |---|---:|---|---|---|---|
 | W1 | 1 | 小批量种子数据核验支撑 | 在 `/admin/imports/:batchId`、`/admin/events`、`/admin/quality` 支撑 12 条 `reviewing` 事件核验；已补 `import_batch_id` 筛选、`duplicate_title` 质量问题和批次核验摘要 | 可从导入批次直接查看本批事件、低置信、弱来源、重复候选和结构缺口；`duplicate_title` 可发现“大化改新”等同标题候选 | 已完成 |
 | W2 | 2 | 数据库初始化脚本同步 | 更新完整建库入口、管理后台索引和 schema 文件测试 | `init.sql` 覆盖当前后端依赖；后端全量测试通过；当前本地库索引同步 | 已完成 |
-| W3 | 3 | 管理后台体验修复 | 根据实际人工核验修复表单字段、错误提示、重复候选提示、空状态、移动端布局 | 已完成质量页、重复候选提示和弱来源快捷处理；前端 `npm.cmd run build` 通过；后端全量测试通过 | 进行中 |
+| W3 | 3 | 管理后台体验修复 | 根据实际人工核验修复表单字段、错误提示、重复候选提示、空状态、移动端布局 | 已完成质量页、重复候选提示、弱来源快捷处理和移动端视觉 QA；前端 `npm.cmd run build` 通过；后端全量测试通过 | 已完成 |
 | W4 | 4 | 数据导入演练扩展 | 已新增 22 条扩展种子数据，并通过导入审核流确认入库 | 新增批次可导入、可审核、可确认，重复和错误行能被后台处理；扩展数据验证和专项测试通过 | 已完成 |
 | W5 | 5 | Agent 返回结构标准化 | 后端输出 `answer`、`events`、`references`、`links`；前端按结构渲染 | 聊天页不再递归解析 observation；事件卡片和引用来源按标准字段渲染；后端全量测试和前端构建通过 | 已完成 |
 | W6 | 6 | RAG 引用注入回答 | 把事件来源和知识文档 chunk 注入回答上下文和前端展示 | Agent 会调用 `search_knowledge`，回答正文追加参考资料；结构化 `references` 含事件来源和知识 chunk；后端全量测试通过 | 已完成 |
 | W7 | 7 | Langfuse 集成预留 | 后端接 trace/tool/token/error 上报；前端只保留跳转入口 | 可从 run_id 对应到 Langfuse trace；不开发自研 Trace 后台；后端全量测试和前端构建通过 | 已完成第一版 |
+| W8 | 8 | 数据质量处理闭环 | 新增数据质量问题处理台账、API 和前端操作 | 可把问题标记为已处理、忽略或重新打开；初始化表同步；后端全量测试和前端构建通过 | 已完成 |
 
 ## 后端重构工作表
 

@@ -4,6 +4,7 @@ from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 
 from apps.api.settings import PostgresSettings
 from tools.historical.pagination import normalize_pagination
@@ -22,6 +23,9 @@ ISSUE_TYPES = [
     "archived_visible",
 ]
 
+ACTION_STATUSES = {"open", "resolved", "ignored", "snoozed"}
+SUPPRESSED_ACTION_STATUSES = {"resolved", "ignored", "snoozed"}
+
 
 class DataQualityService:
     def __init__(self, postgres_settings: PostgresSettings) -> None:
@@ -32,10 +36,18 @@ class DataQualityService:
         total = 0
         with psycopg.connect(self.postgres_settings.dsn, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
+                self._ensure_actions_table(cur)
                 for issue_type in ISSUE_TYPES:
-                    count = self._issue_count(cur, issue_type)
+                    raw_count = self._issue_count(cur, issue_type)
+                    suppressed = self._suppressed_issue_count(cur, issue_type)
+                    count = max(raw_count - suppressed, 0)
                     severity = self._issue_severity(issue_type)
-                    summary[issue_type] = {"count": count, "severity": severity}
+                    summary[issue_type] = {
+                        "count": count,
+                        "raw_count": raw_count,
+                        "handled_count": suppressed,
+                        "severity": severity,
+                    }
                     total += count
         return {"total_issues": total, "issues": summary}
 
@@ -55,23 +67,97 @@ class DataQualityService:
         limit, offset = normalize_pagination(limit, offset)
         with psycopg.connect(self.postgres_settings.dsn, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
+                self._ensure_actions_table(cur)
                 all_issues: list[dict[str, Any]] = []
                 for current_type in issue_types:
                     if severity and self._issue_severity(current_type) != severity:
                         continue
                     all_issues.extend(self._issue_rows(cur, current_type))
 
-        all_issues.sort(key=lambda item: (item["severity_rank"], item["issue_type"], item["title"]))
-        paged = all_issues[offset : offset + limit]
+                all_issues = self._attach_actions(cur, all_issues)
+
+        visible_issues = [
+            issue
+            for issue in all_issues
+            if issue.get("handling_status", "open") not in SUPPRESSED_ACTION_STATUSES
+        ]
+        visible_issues.sort(key=lambda item: (item["severity_rank"], item["issue_type"], item["title"]))
+        paged = visible_issues[offset : offset + limit]
         for issue in paged:
             issue.pop("severity_rank", None)
         return {
             "count": len(paged),
-            "total": len(all_issues),
+            "total": len(visible_issues),
+            "raw_total": len(all_issues),
             "limit": limit,
             "offset": offset,
             "issues": paged,
         }
+
+    def set_issue_action(self, payload: dict[str, Any]) -> dict[str, Any]:
+        issue_type = str(payload.get("issue_type", ""))
+        target_type = str(payload.get("target_type", ""))
+        target_id = str(payload.get("target_id", ""))
+        status = str(payload.get("status", "resolved"))
+        if issue_type not in ISSUE_TYPES:
+            return {"success": False, "error": "invalid issue_type"}
+        if not target_type or not target_id:
+            return {"success": False, "error": "target_type and target_id are required"}
+        if status not in ACTION_STATUSES:
+            return {"success": False, "error": "invalid status"}
+
+        issue_key = self._issue_key(issue_type, target_type, target_id)
+        metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+        with psycopg.connect(self.postgres_settings.dsn, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                self._ensure_actions_table(cur)
+                cur.execute(
+                    """
+                    INSERT INTO data_quality_issue_actions (
+                      issue_key,
+                      issue_type,
+                      target_type,
+                      target_id,
+                      status,
+                      handled_by,
+                      reason,
+                      metadata
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (issue_key)
+                    DO UPDATE SET
+                      status = EXCLUDED.status,
+                      handled_by = EXCLUDED.handled_by,
+                      reason = EXCLUDED.reason,
+                      metadata = EXCLUDED.metadata,
+                      updated_at = now()
+                    RETURNING
+                      id::text,
+                      issue_key,
+                      issue_type,
+                      target_type,
+                      target_id,
+                      status,
+                      handled_by,
+                      reason,
+                      metadata,
+                      created_at,
+                      updated_at
+                    """,
+                    [
+                        issue_key,
+                        issue_type,
+                        target_type,
+                        target_id,
+                        status,
+                        str(payload.get("handled_by", "")),
+                        str(payload.get("reason", "")),
+                        Jsonb(metadata),
+                    ],
+                )
+                action = dict(cur.fetchone())
+            conn.commit()
+        return {"success": True, "action": action}
 
     def _issue_severity(self, issue_type: str) -> str:
         high = {
@@ -317,7 +403,94 @@ class DataQualityService:
             "severity_rank": severity_rank,
             "target_type": target_type,
             "target_id": target_id,
+            "issue_key": self._issue_key(issue_type, target_type, target_id),
+            "handling_status": "open",
             "title": title,
             "message": message,
             "metadata": metadata,
         }
+
+    def _ensure_actions_table(self, cur: psycopg.Cursor) -> None:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS data_quality_issue_actions (
+              id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+              issue_key text NOT NULL UNIQUE,
+              issue_type text NOT NULL,
+              target_type text NOT NULL,
+              target_id text NOT NULL,
+              status text NOT NULL DEFAULT 'open',
+              handled_by text NOT NULL DEFAULT '',
+              reason text NOT NULL DEFAULT '',
+              metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+              created_at timestamptz NOT NULL DEFAULT now(),
+              updated_at timestamptz NOT NULL DEFAULT now(),
+              CONSTRAINT data_quality_issue_actions_status
+                CHECK (status IN ('open', 'resolved', 'ignored', 'snoozed'))
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_data_quality_issue_actions_status
+              ON data_quality_issue_actions (status)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_data_quality_issue_actions_issue_type
+              ON data_quality_issue_actions (issue_type)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_data_quality_issue_actions_target
+              ON data_quality_issue_actions (target_type, target_id)
+            """
+        )
+
+    def _suppressed_issue_count(self, cur: psycopg.Cursor, issue_type: str) -> int:
+        cur.execute(
+            """
+            SELECT count(*) AS count
+            FROM data_quality_issue_actions
+            WHERE issue_type = %s
+              AND status = ANY(%s)
+            """,
+            [issue_type, list(SUPPRESSED_ACTION_STATUSES)],
+        )
+        return int(cur.fetchone()["count"])
+
+    def _attach_actions(
+        self,
+        cur: psycopg.Cursor,
+        issues: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not issues:
+            return issues
+        issue_keys = [str(issue["issue_key"]) for issue in issues]
+        cur.execute(
+            """
+            SELECT
+              issue_key,
+              status,
+              handled_by,
+              reason,
+              updated_at
+            FROM data_quality_issue_actions
+            WHERE issue_key = ANY(%s)
+            """,
+            [issue_keys],
+        )
+        actions = {row["issue_key"]: dict(row) for row in cur.fetchall()}
+        for issue in issues:
+            action = actions.get(issue["issue_key"])
+            if action:
+                issue["handling_status"] = action["status"]
+                issue["handled_by"] = action["handled_by"]
+                issue["handling_reason"] = action["reason"]
+                issue["handled_at"] = action["updated_at"]
+        return issues
+
+    def _issue_key(self, issue_type: str, target_type: str, target_id: str) -> str:
+        return f"{issue_type}:{target_type}:{target_id}"

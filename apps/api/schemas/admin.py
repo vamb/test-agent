@@ -51,6 +51,14 @@ class AdminBulkVerifySourcesRequest(AdminVerifySourceRequest):
     source_ids: list[str] = Field(default_factory=list)
 
 
+class AdminQualityIssueActionRequest(AdminPayload):
+    issue_type: str
+    target_type: str
+    target_id: str
+    status: str = "resolved"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class AdminRelationRequest(AdminPayload):
     relation: dict[str, Any]
 

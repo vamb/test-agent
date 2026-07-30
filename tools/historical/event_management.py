@@ -189,6 +189,9 @@ class EventManagementService:
             offset=offset,
         )
 
+    def set_data_quality_issue_action(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.data_quality_service.set_issue_action(payload)
+
     def dictionaries(self) -> dict[str, Any]:
         with psycopg.connect(self.postgres_settings.dsn, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
