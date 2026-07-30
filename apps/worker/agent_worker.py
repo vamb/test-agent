@@ -8,9 +8,11 @@ from typing import Any
 
 from agent.models.factory import build_model_adapter
 from agent.runtime.loop import AgentLoop
+from agent.runtime.observability import AgentTelemetry
 from agent.runtime.queue import AgentRunQueue
 from agent.runtime.recorder import AgentRunRecorder
 from apps.api.settings import AppSettings
+from knowledge.service import KnowledgeService
 from tools.database.postgres import PostgresClient
 from tools.historical.postgres_repository import PostgresHistoricalEventRepository
 from tools.historical.repository import HistoricalEventRepository
@@ -40,8 +42,12 @@ class AgentWorker:
         self.queue = AgentRunQueue(self.recorder, settings.queue)
         self.agent = AgentLoop(
             model_adapter=build_model_adapter(settings.model),
-            tool_registry=build_historical_tool_registry(self._build_query_service()),
+            tool_registry=build_historical_tool_registry(
+                self._build_query_service(),
+                knowledge_service=KnowledgeService(settings.postgres),
+            ),
             recorder=self.recorder,
+            telemetry=AgentTelemetry(settings.observability),
         )
 
     def process_one(self) -> WorkerResult:

@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from agent.models.factory import build_model_adapter
 from agent.runtime.loop import AgentLoop
-from apps.api.dependencies import agent_queue, recorder, settings, tool_registry
+from apps.api.dependencies import agent_queue, recorder, settings, telemetry, tool_registry
 from apps.worker.agent_worker import AgentWorker
 
 
@@ -22,11 +22,12 @@ def query_agent(payload: dict) -> dict:
         model_adapter=build_model_adapter(settings.model),
         tool_registry=tool_registry,
         recorder=recorder,
+        telemetry=telemetry,
     )
     response = agent.run(user_input)
+    payload = response.as_payload()
     return {
-        "run_id": response.run_id,
-        "answer": response.answer,
+        **payload,
         "steps": [
             {
                 "tool_name": step.tool_name,
@@ -62,6 +63,7 @@ def query_agent_stream(payload: dict) -> StreamingResponse:
         model_adapter=build_model_adapter(settings.model),
         tool_registry=tool_registry,
         recorder=recorder,
+        telemetry=telemetry,
     )
     return StreamingResponse(
         _sse_events(agent.stream(user_input)),
@@ -75,6 +77,8 @@ def get_agent_run(run_id: str) -> dict:
     if not run:
         return {"found": False, "run_id": run_id}
     run["found"] = True
+    link = telemetry.trace_link_for_run_id(run_id)
+    run["links"] = [link] if link else []
     return run
 
 

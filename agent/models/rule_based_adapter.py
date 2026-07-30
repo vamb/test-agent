@@ -21,10 +21,10 @@ class RuleBasedModelAdapter:
         years = [int(item) for item in re.findall(r"-?\d{3,4}", user_input)]
 
         if self._asks_for_relation(user_input):
-            return self._decide_relation(user_input, years, messages, called_tools)
+            return self._decide_relation(user_input, years, messages, called_tools, tools)
 
         if len(years) >= 2:
-            return self._decide_range(user_input, years, messages, called_tools)
+            return self._decide_range(user_input, years, messages, called_tools, tools)
 
         if years:
             if "search_events_by_year" not in called_tools:
@@ -42,11 +42,14 @@ class RuleBasedModelAdapter:
                         },
                     ),
                 )
+            if self._should_search_knowledge(tools, called_tools):
+                return self._knowledge_search_decision(user_input)
             return ModelDecision(
                 action="finish",
                 reason="Year search completed.",
                 answer=self._format_year_result(
-                    self._last_tool_result(messages, "search_events_by_year")
+                    self._last_tool_result(messages, "search_events_by_year"),
+                    self._last_tool_result(messages, "search_knowledge"),
                 ),
             )
 
@@ -59,11 +62,14 @@ class RuleBasedModelAdapter:
                     {"start_year": 600, "end_year": 900, "regions": None},
                 ),
             )
+        if self._should_search_knowledge(tools, called_tools):
+            return self._knowledge_search_decision(user_input)
         return ModelDecision(
             action="finish",
             reason="Default range search completed.",
             answer=self._format_range_result(
-                self._last_tool_result(messages, "search_events_by_range")
+                self._last_tool_result(messages, "search_events_by_range"),
+                self._last_tool_result(messages, "search_knowledge"),
             ),
         )
 
@@ -73,6 +79,7 @@ class RuleBasedModelAdapter:
         years: list[int],
         messages: list[dict[str, Any]],
         called_tools: list[str],
+        tools: list[dict[str, Any]],
     ) -> ModelDecision:
         if "resolve_event" not in called_tools:
             return ModelDecision(
@@ -120,12 +127,16 @@ class RuleBasedModelAdapter:
                 tool_call=ToolCall("find_related_events", {"event_id": event_id}),
             )
 
+        if self._should_search_knowledge(tools, called_tools):
+            return self._knowledge_search_decision(user_input)
+
         return ModelDecision(
             action="finish",
             reason="Relation context and relation records are available.",
             answer=self._format_relation_result(
                 self._last_tool_result(messages, "get_event_detail"),
                 self._last_tool_result(messages, "find_related_events"),
+                self._last_tool_result(messages, "search_knowledge"),
             ),
         )
 
@@ -135,6 +146,7 @@ class RuleBasedModelAdapter:
         years: list[int],
         messages: list[dict[str, Any]],
         called_tools: list[str],
+        tools: list[dict[str, Any]],
     ) -> ModelDecision:
         start_year, end_year = min(years[0], years[1]), max(years[0], years[1])
         regions = self._infer_regions(user_input)
@@ -169,11 +181,15 @@ class RuleBasedModelAdapter:
                 ),
             )
 
+        if self._should_search_knowledge(tools, called_tools):
+            return self._knowledge_search_decision(user_input)
+
         return ModelDecision(
             action="finish",
             reason="Regional comparison completed.",
             answer=self._format_comparison(
-                self._last_tool_result(messages, "compare_regions")
+                self._last_tool_result(messages, "compare_regions"),
+                self._last_tool_result(messages, "search_knowledge"),
             ),
         )
 
@@ -188,6 +204,18 @@ class RuleBasedModelAdapter:
             if message.get("role") == "tool" and message.get("name") == tool_name:
                 return dict(message.get("content", {}))
         return {}
+
+    def _should_search_knowledge(self, tools: list[dict[str, Any]], called_tools: list[str]) -> bool:
+        return "search_knowledge" not in called_tools and any(
+            tool.get("name") == "search_knowledge" for tool in tools
+        )
+
+    def _knowledge_search_decision(self, user_input: str) -> ModelDecision:
+        return ModelDecision(
+            action="call_tool",
+            reason="Retrieve knowledge chunks to cite source-backed context before final answer.",
+            tool_call=ToolCall("search_knowledge", {"query": user_input, "limit": 3}),
+        )
 
     def _infer_regions(self, text: str) -> list[str]:
         region_keywords = {
@@ -214,7 +242,7 @@ class RuleBasedModelAdapter:
         keywords = ["关系", "关联", "影响", "因果", "有关"]
         return any(keyword in text for keyword in keywords)
 
-    def _format_year_result(self, observation: dict) -> str:
+    def _format_year_result(self, observation: dict, knowledge: dict | None = None) -> str:
         events = observation.get("events", [])
         if not events:
             return f"当前数据集中没有找到 {observation.get('year')} 年的相关事件。"
@@ -230,9 +258,10 @@ class RuleBasedModelAdapter:
                 f"- {event['region']} / {event['polity']}：{event['title']}。{event['summary']}"
             )
         lines.append("说明：以上为同期事件；请区分同期与因果，是否存在因果关系需要进一步查看来源和事件关系。")
+        self._append_knowledge_references(lines, knowledge)
         return "\n".join(lines)
 
-    def _format_range_result(self, observation: dict) -> str:
+    def _format_range_result(self, observation: dict, knowledge: dict | None = None) -> str:
         events = observation.get("events", [])
         if not events:
             return (
@@ -246,9 +275,10 @@ class RuleBasedModelAdapter:
                 f"- {event['start_year']}-{event.get('end_year') or event['start_year']} "
                 f"{event['region']} / {event['polity']}：{event['title']}"
             )
+        self._append_knowledge_references(lines, knowledge)
         return "\n".join(lines)
 
-    def _format_comparison(self, observation: dict) -> str:
+    def _format_comparison(self, observation: dict, knowledge: dict | None = None) -> str:
         rows = observation.get("rows", [])
         if not rows:
             return (
@@ -261,9 +291,10 @@ class RuleBasedModelAdapter:
             title_list = "；".join(event["title"] for event in row["events"]) or "暂无样例事件"
             lines.append(f"- {row['region']}：{title_list}")
         lines.append("分析提示：横向对照先展示同一时期背景，因果或影响关系需要单独验证。")
+        self._append_knowledge_references(lines, knowledge)
         return "\n".join(lines)
 
-    def _format_relation_result(self, detail: dict, relations: dict) -> str:
+    def _format_relation_result(self, detail: dict, relations: dict, knowledge: dict | None = None) -> str:
         if not detail.get("found"):
             return "当前数据集中没有找到该事件，无法分析关系。"
 
@@ -288,4 +319,16 @@ class RuleBasedModelAdapter:
                     f"{relation['explanation']} 证据强弱：{relation['confidence']}"
                 )
         lines.append("说明：同期不等于因果；关系分析需要看 relation_type、confidence 和来源证据。")
+        self._append_knowledge_references(lines, knowledge)
         return "\n".join(lines)
+
+    def _append_knowledge_references(self, lines: list[str], knowledge: dict | None) -> None:
+        results = (knowledge or {}).get("results", [])
+        if not results:
+            return
+        lines.append("参考资料：")
+        for item in results[:3]:
+            citation = item.get("citation") or item.get("title") or "知识库资料"
+            content = str(item.get("content", "")).strip().replace("\n", " ")
+            excerpt = content[:80]
+            lines.append(f"- {citation}：{excerpt}")

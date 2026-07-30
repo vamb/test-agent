@@ -14,24 +14,24 @@
    - 确认入库
    - 进入数据质量和事件详情页修复问题
 2. Agent 返回结构标准化：
-   - 稳定输出 `answer`
-   - 稳定输出 `references`
-   - 稳定输出 `links`
-   - 稳定输出 `events`
-   - 前端不再依赖递归解析工具 observation
+   - 已完成；稳定输出 `answer`
+   - 已完成；稳定输出 `references`
+   - 已完成；稳定输出 `links`
+   - 已完成；稳定输出 `events`
+   - 已完成；前端不再依赖递归解析工具 observation
 3. 管理后台体验修复：
    - 根据真实导入演练修复字段校验
    - 优化错误提示和空状态
    - 优化重复合并提示
    - 做更细的移动端视觉 QA
 4. RAG 引用注入回答：
-   - 把事件来源注入回答
-   - 把知识文档 chunk 注入回答
-   - 前端展示引用来源
+   - 已完成第一版；把事件来源注入回答
+   - 已完成第一版；把知识文档 chunk 注入回答
+   - 已完成第一版；前端展示引用来源
 5. Langfuse 集成预留：
-   - 上报 Agent trace
-   - 上报工具调用链
-   - 上报 token、耗时和成本
+   - 已完成第一版；新增 Langfuse telemetry adapter，默认关闭
+   - 已完成第一版；同步接口、SSE final 和运行详情可返回 Langfuse trace 链接
+   - 已预留工具调用、token、耗时、成本和错误上报入口，后续替换为 Langfuse SDK
    - 评测结果后续接入 Langfuse datasets/evals
 6. 已完成的管理后端增强：
    - 数据质量检查
@@ -98,9 +98,9 @@
 | W2 | 2 | 数据库初始化脚本同步 | `init.sql` 覆盖当前后端依赖；新增 schema 文件测试；当前本地库同步新增索引 | 已完成 |
 | W3 | 3 | 管理后台体验修复 | 根据实际核验结果修复表单、错误提示、重复候选提示、空状态和移动端问题 | 进行中 |
 | W4 | 4 | 数据导入演练扩展 | 扩展到 20-50 条事件，新增批次可导入、审核、确认和质量修复 | 待开始 |
-| W5 | 5 | Agent 返回结构标准化 | 后端稳定输出 `answer`、`events`、`references`、`links`，前端不再递归解析 observation | 待开始 |
-| W6 | 6 | RAG 引用注入回答 | 回答能展示事件来源和知识文档 chunk 引用 | 待开始 |
-| W7 | 7 | Langfuse 集成预留 | run_id 可对应到 Langfuse trace，本系统不自研 Trace 后台 | 待开始 |
+| W5 | 5 | Agent 返回结构标准化 | 后端稳定输出 `answer`、`events`、`references`、`links`，前端不再递归解析 observation | 已完成 |
+| W6 | 6 | RAG 引用注入回答 | 回答能展示事件来源和知识文档 chunk 引用 | 已完成 |
+| W7 | 7 | Langfuse 集成预留 | run_id 可对应到 Langfuse trace，本系统不自研 Trace 后台 | 已完成第一版 |
 
 ## 后端重构工作表
 

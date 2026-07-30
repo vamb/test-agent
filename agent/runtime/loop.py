@@ -8,7 +8,9 @@ from typing import Any, Iterator
 from agent.models.base import ModelAdapter
 from agent.models.base import ModelUsage
 from agent.runtime.recorder import AgentRunRecorder
+from agent.runtime.observability import AgentTelemetry, TraceContext
 from agent.runtime.simple_historical_agent import AgentResponse, AgentStep
+from agent.runtime.structured_response import build_structured_response
 from tools.registry.base import ToolRegistry
 from tools.registry.executor import ToolExecutor
 
@@ -30,12 +32,14 @@ class AgentLoop:
         tool_registry: ToolRegistry,
         recorder: AgentRunRecorder | None = None,
         config: AgentLoopConfig | None = None,
+        telemetry: AgentTelemetry | None = None,
     ) -> None:
         self.model_adapter = model_adapter
         self.tool_registry = tool_registry
         self.executor = ToolExecutor(tool_registry)
         self.recorder = recorder
         self.config = config or AgentLoopConfig()
+        self.telemetry = telemetry or AgentTelemetry()
 
     def run(self, user_input: str) -> AgentResponse:
         recorded_run = (
@@ -48,35 +52,63 @@ class AgentLoop:
             else None
         )
         run_id = recorded_run.run_id if recorded_run else None
+        trace_context = self.telemetry.start_run(
+            run_id,
+            user_input=user_input,
+            model_name=self.model_adapter.model_name,
+            prompt_version="historical-agent-loop-v1",
+        )
         try:
-            response = self._run_without_recording(user_input, run_id=run_id)
+            response = self._run_without_recording(
+                user_input,
+                run_id=run_id,
+                trace_context=trace_context,
+            )
         except AgentRunCancelled as exc:
             if self.recorder and run_id:
                 self.recorder.cancel_run(run_id, str(exc))
+            self.telemetry.cancel_run(trace_context, str(exc))
             raise
         except Exception as exc:
             if self.recorder and run_id:
                 self.recorder.fail_run(run_id, str(exc))
+            self.telemetry.fail_run(trace_context, str(exc))
             raise
 
         if self.recorder and run_id:
             self.recorder.finish_run(run_id, response.answer)
+        self.telemetry.finish_run(trace_context, response.answer)
+        response = self._with_observability_links(response, trace_context)
         return response
 
     def run_existing(self, user_input: str, run_id: str) -> AgentResponse:
+        trace_context = self.telemetry.start_run(
+            run_id,
+            user_input=user_input,
+            model_name=self.model_adapter.model_name,
+            prompt_version="historical-agent-loop-v1",
+        )
         try:
-            response = self._run_without_recording(user_input, run_id=run_id)
+            response = self._run_without_recording(
+                user_input,
+                run_id=run_id,
+                trace_context=trace_context,
+            )
         except AgentRunCancelled as exc:
             if self.recorder:
                 self.recorder.cancel_run(run_id, str(exc))
+            self.telemetry.cancel_run(trace_context, str(exc))
             raise
         except Exception as exc:
             if self.recorder:
                 self.recorder.fail_run(run_id, str(exc))
+            self.telemetry.fail_run(trace_context, str(exc))
             raise
 
         if self.recorder:
             self.recorder.finish_run(run_id, response.answer)
+        self.telemetry.finish_run(trace_context, response.answer)
+        response = self._with_observability_links(response, trace_context)
         return response
 
     def resume_existing(self, run_id: str) -> AgentResponse:
@@ -85,20 +117,31 @@ class AgentLoop:
         run = self.recorder.get_run(run_id)
         if not run:
             raise RuntimeError(f"Agent run not found: {run_id}")
+        trace_context = self.telemetry.start_run(
+            run_id,
+            user_input=str(run["user_input"]),
+            model_name=self.model_adapter.model_name,
+            prompt_version=str(run.get("prompt_version") or "historical-agent-loop-v1"),
+        )
         try:
             response = self._run_without_recording(
                 str(run["user_input"]),
                 run_id=run_id,
                 existing_steps=self._completed_steps_from_run(run),
+                trace_context=trace_context,
             )
         except AgentRunCancelled as exc:
             self.recorder.cancel_run(run_id, str(exc))
+            self.telemetry.cancel_run(trace_context, str(exc))
             raise
         except Exception as exc:
             self.recorder.fail_run(run_id, str(exc))
+            self.telemetry.fail_run(trace_context, str(exc))
             raise
 
         self.recorder.finish_run(run_id, response.answer)
+        self.telemetry.finish_run(trace_context, response.answer)
+        response = self._with_observability_links(response, trace_context)
         return response
 
     def stream(self, user_input: str) -> Iterator[dict[str, Any]]:
@@ -112,7 +155,18 @@ class AgentLoop:
             else None
         )
         run_id = recorded_run.run_id if recorded_run else None
-        yield {"event": "run_started", "run_id": run_id}
+        trace_context = self.telemetry.start_run(
+            run_id,
+            user_input=user_input,
+            model_name=self.model_adapter.model_name,
+            prompt_version="historical-agent-loop-v1",
+        )
+        yield {
+            "event": "run_started",
+            "run_id": run_id,
+            "trace_id": trace_context.trace_id if trace_context else None,
+            "trace_url": trace_context.trace_url if trace_context else "",
+        }
 
         messages: list[dict[str, Any]] = [{"role": "user", "content": user_input}]
         steps: list[AgentStep] = []
@@ -126,10 +180,23 @@ class AgentLoop:
                     answer = decision.answer or ""
                     if self.recorder and run_id:
                         self.recorder.finish_run(run_id, answer)
+                    self.telemetry.finish_run(
+                        trace_context,
+                        answer,
+                        usage=self._usage_payload(decision.usage),
+                    )
+                    structured = build_structured_response(answer, steps, run_id)
+                    links = self._merge_links(
+                        structured["links"],
+                        self._observability_links(trace_context),
+                    )
                     yield {
                         "event": "final_answer",
                         "run_id": run_id,
                         "answer": answer,
+                        "events": structured["events"],
+                        "references": structured["references"],
+                        "links": links,
                         "step_count": len(steps),
                         "usage": self._usage_payload(decision.usage),
                     }
@@ -180,6 +247,8 @@ class AgentLoop:
                     model_output_summary=self._summarize_model_output(decision),
                     token_input=decision.usage.token_input,
                     token_output=decision.usage.token_output,
+                    trace_context=trace_context,
+                    usage=self._usage_payload(decision.usage),
                 )
                 steps.append(step)
                 messages.append(
@@ -206,6 +275,7 @@ class AgentLoop:
         except AgentRunCancelled as exc:
             if self.recorder and run_id:
                 self.recorder.cancel_run(run_id, str(exc))
+            self.telemetry.cancel_run(trace_context, str(exc))
             yield {
                 "event": "run_cancelled",
                 "run_id": run_id,
@@ -214,6 +284,7 @@ class AgentLoop:
         except Exception as exc:
             if self.recorder and run_id:
                 self.recorder.fail_run(run_id, str(exc))
+            self.telemetry.fail_run(trace_context, str(exc))
             yield {
                 "event": "run_failed",
                 "run_id": run_id,
@@ -225,6 +296,7 @@ class AgentLoop:
         user_input: str,
         run_id: str | None = None,
         existing_steps: list[AgentStep] | None = None,
+        trace_context: TraceContext | None = None,
     ) -> AgentResponse:
         messages: list[dict[str, Any]] = [{"role": "user", "content": user_input}]
         steps: list[AgentStep] = existing_steps or []
@@ -276,6 +348,8 @@ class AgentLoop:
                 model_output_summary=self._summarize_model_output(decision),
                 token_input=decision.usage.token_input,
                 token_output=decision.usage.token_output,
+                trace_context=trace_context,
+                usage=self._usage_payload(decision.usage),
             )
             steps.append(step)
             messages.append(
@@ -302,6 +376,8 @@ class AgentLoop:
         model_output_summary: str = "",
         token_input: int = 0,
         token_output: int = 0,
+        trace_context: TraceContext | None = None,
+        usage: dict[str, Any] | None = None,
     ) -> None:
         if self.recorder and run_id:
             self.recorder.record_tool_step(
@@ -317,6 +393,45 @@ class AgentLoop:
                 token_input=token_input,
                 token_output=token_output,
             )
+        self.telemetry.record_tool_step(
+            trace_context,
+            step_index=step_index,
+            tool_name=step.tool_name,
+            tool_arguments=step.tool_arguments,
+            tool_result=step.observation,
+            status=status,
+            error_message=error_message,
+            usage=usage,
+        )
+
+    def _with_observability_links(
+        self,
+        response: AgentResponse,
+        trace_context: TraceContext | None,
+    ) -> AgentResponse:
+        links = self._merge_links(
+            response.as_payload()["links"],
+            self._observability_links(trace_context),
+        )
+        return replace(response, links=links)
+
+    def _observability_links(self, trace_context: TraceContext | None) -> list[dict[str, Any]]:
+        link = self.telemetry.trace_link(trace_context)
+        return [link] if link else []
+
+    def _merge_links(
+        self,
+        base_links: list[dict[str, Any]],
+        extra_links: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        result = list(base_links)
+        seen = {(str(link.get("type", "")), str(link.get("href", ""))) for link in result}
+        for link in extra_links:
+            key = (str(link.get("type", "")), str(link.get("href", "")))
+            if key not in seen:
+                seen.add(key)
+                result.append(link)
+        return result
 
     def _trim_observation(self, observation: dict[str, Any]) -> dict[str, Any]:
         result = dict(observation)

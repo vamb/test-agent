@@ -38,9 +38,34 @@ export type AgentStreamEvent = {
   tool_name?: string;
   status?: string;
   answer?: string;
+  events?: TimelineEvent[];
+  references?: AgentReference[];
+  links?: AgentLink[];
   observation?: Record<string, unknown>;
   tool_arguments?: Record<string, unknown>;
   error_message?: string;
+};
+
+export type AgentReference = {
+  id: string;
+  title: string;
+  source_type: string;
+  citation: string;
+  excerpt: string;
+  event_id: string;
+  event_title: string;
+  reliability?: number;
+  document_id?: string;
+  chunk_id?: string;
+  score?: number;
+};
+
+export type AgentLink = {
+  type: string;
+  target_id?: string;
+  title: string;
+  href: string;
+  external?: boolean;
 };
 
 export async function compareRegions(params: {

@@ -334,6 +334,10 @@ textarea:focus {
   margin-top: 10px;
 }
 
+.result-cluster.compact {
+  margin-top: 8px;
+}
+
 .cluster-title {
   display: inline-flex;
   align-items: center;
@@ -347,6 +351,55 @@ textarea:focus {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
+}
+
+.reference-list {
+  display: grid;
+  gap: 8px;
+}
+
+.external-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.external-trace-link {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line-strong);
+  background: rgba(23, 32, 28, 0.72);
+  color: var(--accent-cool);
+  padding: 0 10px;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.external-trace-link:hover {
+  border-color: var(--accent);
+}
+
+.reference-item {
+  border-left: 2px solid var(--accent-cool);
+  background: rgba(23, 32, 28, 0.72);
+  padding: 9px 11px;
+}
+
+.reference-item strong,
+.reference-item small {
+  display: block;
+}
+
+.reference-item strong {
+  font-size: 13px;
+}
+
+.reference-item small {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
 }
 
 .event-link-card {

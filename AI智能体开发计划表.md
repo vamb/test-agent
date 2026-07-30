@@ -234,7 +234,7 @@ ai-agent/
 | 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理、管理后台数据运营 |
 | 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；也可用管理后台完成导入解析、批次审核、staging 修正/合并、确认入库、事件编辑、来源维护、关系维护、数据质量查看、知识库文档维护和向量任务处理；当前已新增 12 条小批量种子事件入库 |
 | 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 58/58 通过，MVP 评测最近一次 4/4 通过 |
-| 下一步重点 | 真实数据导入演练、管理后台体验问题修复、Agent 返回结构标准化、引用/来源注入回答、Langfuse 集成预留 |
+| 下一步重点 | 真实数据导入演练、管理后台体验问题修复、Langfuse SDK 正式接入、LangGraph 工作流迁移预研 |
 | 暂不推进 | 多智能体、MCP、Playwright、复杂 RBAC、Kubernetes，等单 Agent 与数据管理链路稳定后再做 |
 
 | 模块 | 状态 | 已在线完成的功能 | 对应 PDF 功能/章节 |
@@ -273,10 +273,10 @@ ai-agent/
 | 优先级 | 能力 | 当前状态 | 为什么紧要 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
 | 1 | 真实数据导入演练 | 已完成小批量 12 条种子导入，20-50 条演练待扩展 | 管理后台已可用，需要继续用真实历史事件跑完整流程，暴露字段、校验、重复合并和体验问题 | 第十阶段：人工确认机制；平台化第一版 |
-| 2 | Agent 返回结构标准化 | 未完成 | 当前前端从工具 observation 中提取事件，能跑但协议不够稳定；需要后端明确返回 `references` / `links` / `events`，支撑事件、来源、对照页统一跳转 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
-| 3 | RAG 引用注入回答 | 部分完成 | MVP 已有本地 embedding 和 pgvector 检索，但 Agent 回答还没有稳定引用知识文档和来源 | 第八阶段：RAG 知识库 |
+| 2 | Agent 返回结构标准化 | 已完成 | 后端同步接口和 SSE `final_answer` 已稳定返回 `answer`、`events`、`references`、`links`；前端不再递归解析 observation，改为按标准结构渲染事件卡片和引用来源 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
+| 3 | RAG 引用注入回答 | 已完成第一版 | Agent 已注册 `search_knowledge` 工具，回答前会检索知识库 chunk，并把知识文档与事件来源注入 `references` 和回答正文 | 第八阶段：RAG 知识库 |
 | 4 | 管理后台真实运营体验 QA | 未开始 | 需要在真实导入演练中检查表单、筛选、错误状态、移动端和空状态，避免只在样例数据上看起来可用 | 平台化第一版 |
-| 5 | Langfuse 可观测性集成 | 未完成 | 已有数据库记录，但后台不自研 Trace/成本报表；后续接入 Langfuse 统一查看运行、工具调用、token 和成本 | 第十四阶段：可观测性 |
+| 5 | Langfuse 可观测性集成 | 已完成预留第一版 | 已新增 telemetry adapter、Langfuse 环境变量和 trace 链接入口；后续接入 Langfuse SDK 统一查看运行、工具调用、token 和成本 | 第十四阶段：可观测性 |
 | 6 | 完整 RBAC / 多租户权限 | 暂缓 | 当前暂不考虑权限；后续上线需要用户身份、角色、租户隔离和权限策略落库 | 第十二阶段：安全体系 |
 
 ## 前端和主链路下一步计划
@@ -286,9 +286,9 @@ ai-agent/
 | 1 | 小批量导入数据核验 | 在 `/admin/events` 和 `/admin/quality` 核验刚导入的 12 条 `reviewing` 种子数据，必要时合并同名“大化改新”记录 | 第十阶段：人工确认机制；平台化第一版 |
 | 2 | 真实数据导入演练扩展 | 如当前 12 条数据流程稳定，再扩展到 20-50 条历史事件，继续走导入、审核、质量修复、事件/来源/关系维护完整流程 | 第十阶段：人工确认机制；平台化第一版 |
 | 3 | 管理后台体验修复 | 根据演练结果修复字段校验、错误提示、表单 ergonomics、重复合并提示、空状态和移动端问题 | 平台化第一版 |
-| 4 | Agent 返回结构标准化 | 后端在 `final_answer` 或同步接口中稳定返回 `answer`、`references`、`links`、`events`，前端不再依赖递归解析 observation | 第二阶段：Structured Output；第三阶段：最小 Agent Loop；第十六阶段：前后端通信 |
-| 5 | RAG 引用注入回答 | 把知识库检索和事件来源稳定注入 Agent 答案，回答可以显示引用来源和文档 chunk | 第八阶段：RAG 知识库 |
-| 6 | Langfuse 集成预留 | 后端上报 trace、tool call、token、成本和错误信息，后台只提供跳转入口，不自研 Agent run 搜索与分析页 | 第十四阶段：可观测性；第十三阶段：评测体系 |
+| 4 | Agent 返回结构标准化 | 已完成；后端在 `final_answer` 和同步接口中稳定返回 `answer`、`references`、`links`、`events`，前端不再依赖递归解析 observation | 第二阶段：Structured Output；第三阶段：最小 Agent Loop；第十六阶段：前后端通信 |
+| 5 | RAG 引用注入回答 | 已完成第一版；知识库检索和事件来源已稳定注入 Agent 答案，回答可显示引用来源和文档 chunk | 第八阶段：RAG 知识库 |
+| 6 | Langfuse 集成预留 | 已完成第一版；后端已预留 trace、tool call、token、成本和错误上报入口，前端可展示外部 trace 跳转；后台不自研 Agent run 搜索与分析页 | 第十四阶段：可观测性；第十三阶段：评测体系 |
 
 ## 当前工作计划表
 
@@ -298,9 +298,9 @@ ai-agent/
 | W2 | 2 | 数据库初始化脚本同步 | 更新完整建库入口、管理后台索引和 schema 文件测试 | `init.sql` 覆盖当前后端依赖；后端全量测试通过；当前本地库索引同步 | 已完成 |
 | W3 | 3 | 管理后台体验修复 | 根据实际人工核验修复表单字段、错误提示、重复候选提示、空状态、移动端布局 | 前端 `npm.cmd run build` 通过；后台主要页面无明显阻塞流程 | 进行中 |
 | W4 | 4 | 数据导入演练扩展 | 在当前 12 条稳定后扩展到 20-50 条历史事件，继续走审核流 | 新增批次可导入、可审核、可确认，重复和错误行能被后台处理 | 待开始 |
-| W5 | 5 | Agent 返回结构标准化 | 后端输出 `answer`、`events`、`references`、`links`；前端按结构渲染 | 聊天页不再递归解析 observation；事件卡片和引用链接稳定 | 待开始 |
-| W6 | 6 | RAG 引用注入回答 | 把事件来源和知识文档 chunk 注入回答上下文和前端展示 | 回答能显示来源标题、citation、chunk 或事件来源链接 | 待开始 |
-| W7 | 7 | Langfuse 集成预留 | 后端接 trace/tool/token/error 上报；前端只保留跳转入口 | 可从 run_id 对应到 Langfuse trace；不开发自研 Trace 后台 | 待开始 |
+| W5 | 5 | Agent 返回结构标准化 | 后端输出 `answer`、`events`、`references`、`links`；前端按结构渲染 | 聊天页不再递归解析 observation；事件卡片和引用来源按标准字段渲染；后端全量测试和前端构建通过 | 已完成 |
+| W6 | 6 | RAG 引用注入回答 | 把事件来源和知识文档 chunk 注入回答上下文和前端展示 | Agent 会调用 `search_knowledge`，回答正文追加参考资料；结构化 `references` 含事件来源和知识 chunk；后端全量测试通过 | 已完成 |
+| W7 | 7 | Langfuse 集成预留 | 后端接 trace/tool/token/error 上报；前端只保留跳转入口 | 可从 run_id 对应到 Langfuse trace；不开发自研 Trace 后台；后端全量测试和前端构建通过 | 已完成第一版 |
 
 ## 后端重构工作表
 
@@ -321,8 +321,8 @@ ai-agent/
 |---:|---|---|---|
 | 1 | 真实数据导入演练脚本和样例数据 | 准备可重复导入的 20-50 条事件样例，用于验证管理后台和数据校验 | 第十阶段：人工确认机制；平台化第一版 |
 | 2 | Agent 返回结构标准化 | 稳定返回 `answer`、`references`、`links`、`events`，支撑前端引用和跳转 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
-| 3 | RAG 引用注入 | 把事件来源和知识文档 chunk 作为引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
-| 4 | Langfuse 集成 | 上报 trace、tool call、token、成本和错误；不开发自研运行分析后台 | 第十四阶段：可观测性 |
+| 3 | RAG 引用注入 | 已完成第一版；事件来源和知识文档 chunk 已作为引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
+| 4 | Langfuse 集成 | 已完成预留第一版；后续替换 telemetry adapter 为 Langfuse SDK 上报 trace、tool call、token、成本和错误；不开发自研运行分析后台 | 第十四阶段：可观测性 |
 | 5 | LangGraph 工作流 | 后续增强：把当前手写 Loop、checkpoint 和人工确认迁移到 LangGraph | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
 | 6 | MCP 接入 | 等本地工具边界稳定后，把核心工具服务标准化给外部智能体复用 | 第九阶段：MCP 能力标准化 |
 

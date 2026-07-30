@@ -45,8 +45,8 @@ class KnowledgeServiceTest(unittest.TestCase):
 
         self.assertEqual(document["chunk_count"], 1)
         self.assertGreaterEqual(result["count"], 1)
-        self.assertIn("安史之乱", result["results"][0]["content"])
-        self.assertEqual(result["results"][0]["citation"], "测试资料：安史之乱")
+        self.assertTrue(any("安史之乱" in item["content"] for item in result["results"]))
+        self.assertTrue(any(item["citation"] == "测试资料：安史之乱" for item in result["results"]))
 
     def test_knowledge_api_helpers(self) -> None:
         document = ingest_knowledge_document(

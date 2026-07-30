@@ -15,6 +15,9 @@
 | 2026-07-30 | 完成后端 R4 公共历史实体 upsert 抽取：新增 `HistoricalEntityResolver`，导入确认和后台事件编辑共用地区、国家、政权、分类 upsert | 后端 `python -m unittest tests.test_import_review tests.test_event_management` 通过，19/19；后端 `python -m unittest discover tests` 通过，59/59 | 进入 R5，为管理写接口补 Pydantic request/response models |
 | 2026-07-30 | 完成后端 R5 写接口 Pydantic 化：admin、imports、knowledge/vector 写接口新增 request/response models，并补 OpenAPI schema 回归测试 | 后端 `python -m unittest tests.test_api_admin_schemas tests.test_import_review tests.test_knowledge_service tests.test_event_management` 通过，25/25；后端 `python -m unittest discover tests` 通过，61/61 | 下一步收尾 R6 轻微代码味道，随后进入 Agent 返回结构标准化 |
 | 2026-07-30 | 完成后端 R6 轻微代码味道清理：新增 `payload_to_dict` 统一路由 payload 转换，新增 `normalize_pagination` 统一分页 clamp，并复用公共审计/JSON safe helper | 后端 `python -m unittest tests.test_import_review tests.test_event_management tests.test_api_admin_schemas` 通过，21/21；后端 `python -m unittest discover tests` 通过，61/61；`EventManagementService` 降到 370 行 | 后端重构工作表 R1-R6 收口，下一步推进 Agent 返回结构标准化 |
+| 2026-07-30 | 完成 Agent 返回结构标准化：新增结构化 response normalizer，同步接口和 SSE `final_answer` 均输出 `answer`、`events`、`references`、`links`；前端聊天页改为按标准字段渲染事件卡片和引用来源 | 后端 `python -m unittest tests.test_agent_loop tests.test_api_agent` 通过，10/10；后端 `python -m unittest discover tests` 通过，61/61；前端 `npm.cmd run build` 通过 | 下一步推进 RAG 引用注入回答，让回答正文和引用来源更紧密 |
+| 2026-07-30 | 完成 RAG 引用注入回答第一版：Agent registry 新增 `search_knowledge` 工具，RuleBased Agent 在最终回答前检索知识库 chunk，回答正文追加参考资料，结构化 `references` 同时包含事件来源和知识文档 chunk | 后端 `python -m unittest tests.test_agent_loop tests.test_api_agent tests.test_agent_worker tests.test_knowledge_service` 通过，22/22；后端 `python -m unittest discover tests` 通过，62/62 | 下一步做 Langfuse 集成预留，或提交 W5-W6 改动 |
+| 2026-07-30 | 完成 Langfuse 集成预留第一版：新增 telemetry adapter 和环境变量配置，AgentLoop 在 run/stream/worker 路径预留 trace、tool、token、错误上报入口；同步接口、SSE final、运行详情和聊天页可承接 Langfuse 外部 trace 链接 | 后端 `python -m unittest tests.test_agent_loop tests.test_api_agent tests.test_agent_worker` 通过，19/19；后端 `python -m unittest discover tests` 通过，63/63；前端 `npm.cmd run build` 通过 | 下一步提交 W5-W7 改动，或进入真实数据导入演练和管理后台体验修复 |
 
 ## 12 周开发周期
 
@@ -26,10 +29,10 @@
 | 第 4 周 | 2026-08-18 至 2026-08-24 | 数据底座 | 建立历史事件结构化数据库 | PostgreSQL 表设计、pgvector、导入脚本、事件来源表、基础校验 | PostgreSQL 历史事件数据底座 | 已完成 |
 | 第 5 周 | 2026-08-25 至 2026-08-31 | 任务型 Agent | 展示 Agent 每一步执行过程 | 任务表、步骤表、工具调用表、SSE 步骤流、执行日志、取消入口 | 可回放、可流式观察、可取消的 Agent 执行记录 | 已完成 MVP |
 | 第 6 周 | 2026-09-01 至 2026-09-07 | 横向对照 | 生成多地区时间对照表 | compare_regions、React 横向对照表组件、事件详情和来源展示 | 600-900 年欧亚历史对照表 Demo | 已完成 MVP |
-| 第 7 周 | 2026-09-08 至 2026-09-14 | RAG 和来源 | 支持来源引用和文本检索 | pgvector、文档切分、来源检索、引用格式输出 | 带来源的历史问答 | 已完成检索 MVP，引用注入待做 |
+| 第 7 周 | 2026-09-08 至 2026-09-14 | RAG 和来源 | 支持来源引用和文本检索 | pgvector、文档切分、来源检索、引用格式输出 | 带来源的历史问答 | 已完成检索 MVP 和引用注入第一版 |
 | 第 8 周 | 2026-09-15 至 2026-09-21 | 关联分析 | 分析同期事件是否有关联 | event_relations、find_related_events、证据强弱提示 | 事件关系分析 Demo | 已完成 MVP |
 | 第 9 周 | 2026-09-22 至 2026-09-28 | 安全和权限 | 防止错误导入、错误修改和无来源结论 | 只读工具权限、管理员导入确认、审计日志、争议标记 | 安全策略和数据修改确认机制 | 已完成写操作确认 MVP，完整 RBAC 待做 |
-| 第 10 周 | 2026-09-29 至 2026-10-05 | Langfuse 可观测性集成 | 能排查每次回答为什么这么回答 | 接入 Langfuse，上报 Trace、工具耗时、模型输入输出摘要、token 和成本 | Langfuse 中可查看 Agent 运行详情；本系统后台只保留跳转入口 | 已完成模型/工具记录 MVP，Langfuse 集成待做 |
+| 第 10 周 | 2026-09-29 至 2026-10-05 | Langfuse 可观测性集成 | 能排查每次回答为什么这么回答 | 接入 Langfuse，上报 Trace、工具耗时、模型输入输出摘要、token 和成本 | Langfuse 中可查看 Agent 运行详情；本系统后台只保留跳转入口 | 已完成模型/工具记录 MVP 和 Langfuse 预留第一版，完整 SDK 接入待做 |
 | 第 11 周 | 2026-10-06 至 2026-10-12 | 评测 | 判断 Agent 回答质量是否稳定 | 构建评测集、年份查询评测、对照表评测、关联分析评测 | 回归测试报告 | 已完成 MVP |
 | 第 12 周 | 2026-10-13 至 2026-10-19 | 平台化 | 形成可持续扩展的内部数据运营版本 | 数据导入审核后台、事件库管理、来源管理、关系管理、知识库管理、向量管理、模型配置、反馈入口 | Alpha 版本；运行观测、成本看板和评测分析由 Langfuse 提供 | 待开始 |
 
@@ -57,7 +60,7 @@
 
 ## 当前任务队列
 
-当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、RAG 检索、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力和完整数据库初始化入口均已完成；管理后台边界已明确为数据资产、知识库和向量管理；后端重构工作表 R1-R6 已收口；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步推进 Agent 返回结构标准化。
+当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、RAG 检索、RAG 引用注入第一版、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力、完整数据库初始化入口、后端重构 R1-R6、Agent 返回结构标准化、Langfuse 集成预留第一版均已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步提交 W5-W7 改动，或进入真实数据导入演练和管理后台体验修复。
 
 | 优先级 | 任务 | 负责人 | 状态 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
@@ -89,11 +92,11 @@
 | 26 | 实现 Redis / Worker / 任务恢复 | 后端 | 已完成 Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收和 checkpoint 恢复 MVP | 系统架构：Task Worker；第十一阶段：任务持久化与故障恢复 |
 | 27 | 实现横向对照表 UI | 前端 | 已完成 MVP | 第一阶段 MVP：React 聊天页面；业务可视化前端 |
 | 28 | 聊天主界面、事件详情页和移动端适配 | 前端 | 已完成 MVP，已接入 `react-router-dom` | 第一阶段 MVP：React 聊天页面；第十六阶段：前后端通信；业务可视化前端 |
-| 29 | Agent 返回结构标准化 | 前端/后端 | 待开始；下一轮重点 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
+| 29 | Agent 返回结构标准化 | 前端/后端 | 已完成；后端同步接口和 SSE final 输出 `answer`、`events`、`references`、`links`，前端按标准字段渲染事件卡片和引用来源 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
 | 30 | 横向对照结果详情页 | 前端/后端 | 待开始 | 第四阶段：工具系统；业务可视化前端 |
 | 31 | 数据导入审核后台 | 前端/后端 | 已完成；支持导入解析、批次列表、staging 审核、修正、合并、确认/拒绝 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
 | 32 | 事件库、来源、关系、知识库和向量管理后台 | 前端/后端 | 已完成；支持事件筛选/编辑、来源 CRUD/核验、关系 CRUD、知识文档维护和向量任务 | 第八阶段：RAG 知识库；平台化第一版 |
-| 33 | Langfuse 集成 | 后端/平台 | 待开始；Agent 运行详情、工具调用链、token/cost 和评测分析交给 Langfuse，不自研对应后台 | 第十三阶段：评测体系；第十四阶段：可观测性 |
+| 33 | Langfuse 集成 | 后端/平台 | 已完成预留第一版；Agent 运行详情、工具调用链、token/cost 和评测分析交给 Langfuse，不自研对应后台 | 第十三阶段：评测体系；第十四阶段：可观测性 |
 | 34 | 导入审核后台后端增强 | 后端 | 已完成；已补批次列表、staging 修正、重新校验、导入预览 | 第十阶段：人工确认机制；第十二阶段：安全体系；平台化第一版 |
 | 35 | 管理总览和事件列表后端 | 后端 | 已完成；已补后台首页统计、事件分页搜索筛选、事件审计日志、后台事件扩展字段更新 | 平台化第一版；第十二阶段：安全体系 |
 | 36 | 来源、关系、知识库、向量管理后端 | 后端 | 已完成；已补来源 CRUD、关系 CRUD、文档列表/chunk/reembed、向量覆盖率/重建和向量任务 | 第八阶段：RAG 知识库；平台化第一版 |
@@ -116,7 +119,7 @@
 | 2 | 真实数据导入演练扩展 | 如 12 条种子数据核验稳定，再扩展到 20-50 条历史事件，走导入解析、批次审核、staging 修正、重复合并、确认入库、质量修复全流程 | 用真实数据验证后台可运营性，并整理需要修复的问题清单 | 第十阶段：人工确认机制；平台化第一版 |
 | 3 | Agent 返回结构标准化 | 后端明确输出 `answer`、`references`、`links`、`events`，前端根据类型渲染事件、来源、对照卡片 | 前端不再依赖递归解析工具 observation；刷新和跳转后链接仍可用 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
 | 4 | RAG 引用注入回答 | 把知识库检索和事件来源稳定注入 Agent 回答 | 回答能展示引用来源和知识文档 chunk，降低无来源结论风险 | 第八阶段：RAG 知识库 |
-| 5 | Langfuse 集成预留 | 后端上报 trace、tool call、token、成本和错误信息；本系统后台只提供跳转入口，不做 Agent run 搜索与分析页 | 可以从本系统 run_id 跳转到 Langfuse 查看完整运行详情 | 第十三阶段：评测体系；第十四阶段：可观测性 |
+| 5 | Langfuse 集成预留 | 已完成第一版；后端预留 trace、tool call、token、成本和错误上报入口；本系统后台只提供跳转入口，不做 Agent run 搜索与分析页 | 可以从本系统 run_id 跳转到 Langfuse 查看完整运行详情 | 第十三阶段：评测体系；第十四阶段：可观测性 |
 
 ## 管理后台前端开发工作表
 

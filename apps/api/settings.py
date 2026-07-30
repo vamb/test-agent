@@ -87,11 +87,37 @@ class QueueSettings:
 
 
 @dataclass(frozen=True)
+class ObservabilitySettings:
+    langfuse_enabled: bool = False
+    langfuse_host: str = ""
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_trace_url_template: str = ""
+
+    @classmethod
+    def from_env(cls) -> "ObservabilitySettings":
+        enabled = os.getenv("LANGFUSE_ENABLED", "false").lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        return cls(
+            langfuse_enabled=enabled,
+            langfuse_host=os.getenv("LANGFUSE_HOST", "").rstrip("/"),
+            langfuse_public_key=os.getenv("LANGFUSE_PUBLIC_KEY", ""),
+            langfuse_secret_key=os.getenv("LANGFUSE_SECRET_KEY", ""),
+            langfuse_trace_url_template=os.getenv("LANGFUSE_TRACE_URL_TEMPLATE", ""),
+        )
+
+
+@dataclass(frozen=True)
 class AppSettings:
     postgres: PostgresSettings
     model: ModelSettings
     security: SecuritySettings
     queue: QueueSettings
+    observability: ObservabilitySettings
 
     @classmethod
     def from_env(cls) -> "AppSettings":
@@ -100,4 +126,5 @@ class AppSettings:
             model=ModelSettings.from_env(),
             security=SecuritySettings.from_env(),
             queue=QueueSettings.from_env(),
+            observability=ObservabilitySettings.from_env(),
         )

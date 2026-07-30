@@ -21,6 +21,9 @@ class ApiAgentTest(unittest.TestCase):
 
         self.assertIn("run_id", response)
         self.assertIn("安史之乱爆发", response["answer"])
+        self.assertTrue(any(event["title"] == "安史之乱爆发" for event in response["events"]))
+        self.assertIn("references", response)
+        self.assertIn("links", response)
         run = get_agent_run(response["run_id"])
         self.assertTrue(run["found"])
         self.assertEqual(run["status"], "completed")

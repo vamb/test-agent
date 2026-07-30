@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from apps.api.settings import AppSettings
 from agent.runtime.recorder import AgentRunRecorder
+from agent.runtime.structured_response import build_structured_response
 from tools.historical.postgres_repository import PostgresHistoricalEventRepository
 from tools.historical.repository import HistoricalEventRepository
 from tools.historical.service import HistoricalQueryService
@@ -22,6 +23,33 @@ class AgentResponse:
     answer: str
     steps: list[AgentStep]
     run_id: str | None = None
+    events: list[dict] | None = None
+    references: list[dict] | None = None
+    links: list[dict] | None = None
+
+    def as_payload(self) -> dict:
+        structured = build_structured_response(self.answer, self.steps, self.run_id)
+        structured_links = structured["links"]
+        if self.links is not None:
+            structured_links = _merge_links(structured_links, self.links)
+        return {
+            "run_id": self.run_id,
+            "answer": self.answer,
+            "events": self.events if self.events is not None else structured["events"],
+            "references": self.references if self.references is not None else structured["references"],
+            "links": structured_links,
+        }
+
+
+def _merge_links(base_links: list[dict], extra_links: list[dict]) -> list[dict]:
+    result = list(base_links)
+    seen = {(str(link.get("type", "")), str(link.get("href", ""))) for link in result}
+    for link in extra_links:
+        key = (str(link.get("type", "")), str(link.get("href", "")))
+        if key not in seen:
+            seen.add(key)
+            result.append(link)
+    return result
 
 
 class SimpleHistoricalAgent:

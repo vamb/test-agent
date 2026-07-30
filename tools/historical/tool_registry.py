@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from knowledge.service import KnowledgeService
 from tools.historical.service import HistoricalQueryService
 from tools.registry.base import ToolDefinition, ToolRegistry
 
 
-def build_historical_tool_registry(service: HistoricalQueryService) -> ToolRegistry:
+def build_historical_tool_registry(
+    service: HistoricalQueryService,
+    knowledge_service: KnowledgeService | None = None,
+) -> ToolRegistry:
     registry = ToolRegistry()
 
     registry.register(
@@ -127,6 +131,26 @@ def build_historical_tool_registry(service: HistoricalQueryService) -> ToolRegis
         ),
         lambda args: _resolve_event(service, str(args["query"])),
     )
+
+    if knowledge_service:
+        registry.register(
+            ToolDefinition(
+                name="search_knowledge",
+                description="Search knowledge document chunks for citations and source-backed context.",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"},
+                        "limit": {"type": "integer", "default": 3},
+                    },
+                    "required": ["query"],
+                },
+            ),
+            lambda args: knowledge_service.search(
+                query=str(args["query"]),
+                limit=int(args.get("limit", 3)),
+            ),
+        )
 
     return registry
 

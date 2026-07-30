@@ -40,6 +40,8 @@ import {
 } from "./AdminPages";
 import {
   AgentStreamEvent,
+  AgentLink,
+  AgentReference,
   CompareRow,
   TimelineEvent,
   compareRegions,
@@ -58,6 +60,8 @@ type ChatMessage = {
   runId?: string;
   steps?: AgentStreamEvent[];
   events?: TimelineEvent[];
+  references?: AgentReference[];
+  links?: AgentLink[];
 };
 
 export function App() {
@@ -140,12 +144,16 @@ function ChatPage() {
           current.map((message) => {
             if (message.id !== assistantId) return message;
             const steps = [...(message.steps || []), event];
-            const events = mergeEvents(message.events || [], extractEvents(event));
+            const events = mergeEvents(message.events || [], event.events || []);
+            const references = mergeReferences(message.references || [], event.references || []);
+            const links = mergeLinks(message.links || [], event.links || []);
             return {
               ...message,
               runId: event.run_id || message.runId,
               steps,
               events,
+              references,
+              links,
               content:
                 event.event === "final_answer"
                   ? event.answer || message.content
@@ -335,6 +343,8 @@ function MessageBubble({
 }) {
   const steps = message.steps || [];
   const events = message.events || [];
+  const references = message.references || [];
+  const externalLinks = (message.links || []).filter((link) => link.external);
 
   return (
     <article className={`message-row ${message.role}`}>
@@ -373,6 +383,46 @@ function MessageBubble({
                   </div>
                   <ExternalLink size={16} />
                 </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {references.length > 0 && (
+          <div className="result-cluster compact">
+            <div className="cluster-title">
+              <FileText size={15} />
+              <span>引用来源</span>
+            </div>
+            <div className="reference-list">
+              {references.slice(0, 5).map((reference) => (
+                <div className="reference-item" key={`${reference.id}-${reference.title}`}>
+                  <strong>{reference.title}</strong>
+                  <small>{reference.citation || reference.event_title}</small>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {externalLinks.length > 0 && (
+          <div className="result-cluster compact">
+            <div className="cluster-title">
+              <ExternalLink size={15} />
+              <span>外部追踪</span>
+            </div>
+            <div className="external-link-list">
+              {externalLinks.map((link) => (
+                <a
+                  className="external-trace-link"
+                  key={`${link.type}-${link.href}`}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span>{link.title}</span>
+                  <ExternalLink size={14} />
+                </a>
               ))}
             </div>
           </div>
@@ -508,34 +558,28 @@ function ArchiveList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function extractEvents(event: AgentStreamEvent): TimelineEvent[] {
-  const candidates: TimelineEvent[] = [];
-  collectEvents(event.observation, candidates);
-  return candidates;
-}
-
-function collectEvents(value: unknown, result: TimelineEvent[]) {
-  if (!value) return;
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectEvents(item, result));
-    return;
-  }
-  if (typeof value !== "object") return;
-  const record = value as Record<string, unknown>;
-  if (
-    typeof record.id === "string" &&
-    typeof record.title === "string" &&
-    typeof record.start_year === "number"
-  ) {
-    result.push(record as unknown as TimelineEvent);
-  }
-  Object.values(record).forEach((item) => collectEvents(item, result));
-}
-
 function mergeEvents(current: TimelineEvent[], next: TimelineEvent[]) {
   const byId = new Map<string, TimelineEvent>();
   [...current, ...next].forEach((event) => byId.set(event.id, event));
   return [...byId.values()];
+}
+
+function mergeReferences(current: AgentReference[], next: AgentReference[]) {
+  const byId = new Map<string, AgentReference>();
+  [...current, ...next].forEach((reference) => {
+    const key = reference.id || `${reference.event_id}-${reference.title}-${reference.citation}`;
+    byId.set(key, reference);
+  });
+  return [...byId.values()];
+}
+
+function mergeLinks(current: AgentLink[], next: AgentLink[]) {
+  const byHref = new Map<string, AgentLink>();
+  [...current, ...next].forEach((link) => {
+    const key = `${link.type}-${link.href}`;
+    byHref.set(key, link);
+  });
+  return [...byHref.values()];
 }
 
 function buildCompareSummary(rows: CompareRow[], startYear: number, endYear: number) {
