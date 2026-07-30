@@ -41,6 +41,22 @@ set LANGFUSE_BASE_URL=https://cloud.langfuse.com
 
 如果是自建 Langfuse，把 `LANGFUSE_BASE_URL` 改成自建地址。旧配置 `LANGFUSE_HOST` 仍兼容。
 
+## Agent 工作流引擎
+
+默认使用现有手写 loop：
+
+```bash
+set AGENT_WORKFLOW_ENGINE=loop
+```
+
+可选开启 LangGraph 适配器：
+
+```bash
+set AGENT_WORKFLOW_ENGINE=langgraph
+```
+
+当前 LangGraph 第一版是单节点适配器，用来先打通 API、worker、checkpoint 和 telemetry 的引擎切换边界；后续再把模型决策、工具执行、人工确认和完成节点拆成独立 graph nodes。
+
 ## 首批接口
 
 ```text

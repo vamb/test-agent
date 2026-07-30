@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from agent.models.factory import build_model_adapter
-from agent.runtime.loop import AgentLoop
+from agent.runtime.workflow import build_agent_workflow
 from apps.api.dependencies import agent_queue, recorder, settings, telemetry, tool_registry
 from apps.worker.agent_worker import AgentWorker
 
@@ -18,7 +18,8 @@ router = APIRouter()
 @router.post("/agent/query")
 def query_agent(payload: dict) -> dict:
     user_input = str(payload.get("input", ""))
-    agent = AgentLoop(
+    agent = build_agent_workflow(
+        workflow_engine=settings.agent_runtime.workflow_engine,
         model_adapter=build_model_adapter(settings.model),
         tool_registry=tool_registry,
         recorder=recorder,
@@ -59,7 +60,8 @@ def enqueue_agent_query(payload: dict) -> dict:
 @router.post("/agent/query/stream")
 def query_agent_stream(payload: dict) -> StreamingResponse:
     user_input = str(payload.get("input", ""))
-    agent = AgentLoop(
+    agent = build_agent_workflow(
+        workflow_engine=settings.agent_runtime.workflow_engine,
         model_adapter=build_model_adapter(settings.model),
         tool_registry=tool_registry,
         recorder=recorder,

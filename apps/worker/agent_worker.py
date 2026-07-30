@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from agent.models.factory import build_model_adapter
-from agent.runtime.loop import AgentLoop
 from agent.runtime.observability import AgentTelemetry
 from agent.runtime.queue import AgentRunQueue
 from agent.runtime.recorder import AgentRunRecorder
+from agent.runtime.workflow import build_agent_workflow
 from apps.api.settings import AppSettings
 from knowledge.service import KnowledgeService
 from tools.database.postgres import PostgresClient
@@ -40,7 +40,8 @@ class AgentWorker:
         self.settings = settings
         self.recorder = AgentRunRecorder(settings.postgres)
         self.queue = AgentRunQueue(self.recorder, settings.queue)
-        self.agent = AgentLoop(
+        self.agent = build_agent_workflow(
+            workflow_engine=settings.agent_runtime.workflow_engine,
             model_adapter=build_model_adapter(settings.model),
             tool_registry=build_historical_tool_registry(
                 self._build_query_service(),

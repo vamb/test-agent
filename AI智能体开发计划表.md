@@ -237,7 +237,7 @@ ai-agent/
 | 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理、管理后台数据运营 |
 | 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；也可用管理后台完成导入解析、批次审核、staging 修正/合并、确认入库、事件编辑、来源维护、关系维护、数据质量查看、知识库文档维护和向量任务处理；当前已新增 12 条小批量种子事件入库 |
 | 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 58/58 通过，MVP 评测最近一次 4/4 通过 |
-| 下一步重点 | 提交 W12 改动、LangGraph 工作流迁移预研、Langfuse datasets/evals 对接 |
+| 下一步重点 | 提交 W13 改动、拆 LangGraph 多节点工作流、Langfuse datasets/evals 对接 |
 | 暂不推进 | 多智能体、MCP、Playwright、复杂 RBAC、Kubernetes，等单 Agent 与数据管理链路稳定后再做 |
 
 | 模块 | 状态 | 已在线完成的功能 | 对应 PDF 功能/章节 |
@@ -309,6 +309,7 @@ ai-agent/
 | W10 | 10 | 知识库版本和重切分 | 新增文档版本表、版本列表 API、rechunk API 和知识详情页版本操作 | 文档 ingest/rechunk 均记录版本快照；可生成新 chunk 版本；后端全量测试和前端构建通过 | 已完成 |
 | W11 | 11 | 向量任务自动处理 | 新增 pending vector job 自动领取、批量处理 API、`apps.worker.vector_worker` 和前端自动处理入口 | 创建向量任务后可自动处理；可批量消费 pending jobs；后端全量测试和前端构建通过 | 已完成 |
 | W12 | 12 | Langfuse SDK 正式接入 | `AgentTelemetry` 可选加载 Langfuse SDK，创建 deterministic trace、agent observation、model generation、tool observation，并上报 token、成本、完成/失败/取消状态 | 未配置或 SDK 不可用时不影响 Agent 主链路；后端全量测试通过；后台不自研 Trace 分析页 | 已完成第一版 |
+| W13 | 13 | LangGraph 迁移前置 | 新增 `AGENT_WORKFLOW_ENGINE`、`agent.runtime.workflow` 工厂和 LangGraph 可选单节点适配器；API/worker 改为统一工作流接口 | 默认 loop 行为不变；`langgraph` 引擎具备切换边界；后端全量测试通过 | 已完成第一版 |
 
 ## 后端重构工作表
 
@@ -331,7 +332,7 @@ ai-agent/
 | 2 | Agent 返回结构标准化 | 稳定返回 `answer`、`references`、`links`、`events`，支撑前端引用和跳转 | 第二阶段：Structured Output；第十六阶段：前后端通信 |
 | 3 | RAG 引用注入 | 已完成第一版；事件来源和知识文档 chunk 已作为引用注入 Agent 回答 | 第八阶段：RAG 知识库 |
 | 4 | Langfuse 集成 | 已完成 SDK 第一版；后续可继续把本地评测结果接入 Langfuse datasets/evals；不开发自研运行分析后台 | 第十四阶段：可观测性 |
-| 5 | LangGraph 工作流 | 后续增强：把当前手写 Loop、checkpoint 和人工确认迁移到 LangGraph | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
+| 5 | LangGraph 工作流 | 已完成迁移前置；后续把当前单节点适配器拆成 decision、tool execution、confirmation、finish 多节点工作流 | 第六阶段：模型决策和固定工作流结合；第十一阶段：Checkpoint |
 | 6 | MCP 接入 | 等本地工具边界稳定后，把核心工具服务标准化给外部智能体复用 | 第九阶段：MCP 能力标准化 |
 
 详细缺口见 [backend_gap_review.md](docs/backend_gap_review.md)。

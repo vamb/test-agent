@@ -116,12 +116,22 @@ class ObservabilitySettings:
 
 
 @dataclass(frozen=True)
+class AgentRuntimeSettings:
+    workflow_engine: str = "loop"
+
+    @classmethod
+    def from_env(cls) -> "AgentRuntimeSettings":
+        return cls(workflow_engine=os.getenv("AGENT_WORKFLOW_ENGINE", "loop"))
+
+
+@dataclass(frozen=True)
 class AppSettings:
     postgres: PostgresSettings
     model: ModelSettings
     security: SecuritySettings
     queue: QueueSettings
     observability: ObservabilitySettings
+    agent_runtime: AgentRuntimeSettings
 
     @classmethod
     def from_env(cls) -> "AppSettings":
@@ -131,4 +141,5 @@ class AppSettings:
             security=SecuritySettings.from_env(),
             queue=QueueSettings.from_env(),
             observability=ObservabilitySettings.from_env(),
+            agent_runtime=AgentRuntimeSettings.from_env(),
         )

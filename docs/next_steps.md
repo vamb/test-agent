@@ -107,6 +107,7 @@
 | W10 | 10 | 知识库版本和重切分 | 新增 `knowledge_document_versions`、`GET /knowledge/documents/{document_id}/versions`、`POST /knowledge/documents/{document_id}/rechunk`；知识详情页可查看版本并生成新 chunk 版本 | 已完成 |
 | W11 | 11 | 向量任务自动处理 | 新增 `POST /vectors/rebuild-jobs/process-pending` 和 `apps.worker.vector_worker`；向量页创建任务时可自动处理，也可批量处理 pending jobs | 已完成 |
 | W12 | 12 | Langfuse SDK 正式接入 | `AgentTelemetry` 可选加载 Langfuse SDK，创建 deterministic trace、agent observation、model generation 和 tool observation，并上报 token、成本、完成/失败/取消状态 | 已完成第一版 |
+| W13 | 13 | LangGraph 迁移前置 | 新增 `AGENT_WORKFLOW_ENGINE`、workflow factory 和 LangGraph 可选单节点适配器；API/worker 通过统一工作流接口执行 | 已完成第一版 |
 
 ## 后端重构工作表
 
