@@ -111,6 +111,7 @@
 | W14 | 14 | LangGraph 多节点适配第一版 | `LangGraphAgentWorkflow` 拆成 `prepare_state -> execute_agent_loop -> finalize_response` 三节点 pipeline，补 fake LangGraph 组装测试 | 已完成第一版 |
 | W15 | 15 | LangGraph 细粒度节点第一版 | `LangGraphAgentWorkflow` 推理循环拆成 `prepare_state -> decide -> execute_tool -> decide/finalize_response/max_steps_exceeded`，复用 recorder、telemetry 和 checkpoint helper | 已完成第一版 |
 | W16 | 16 | LangGraph SSE streaming | `LangGraphAgentWorkflow.stream()` 复用细粒度节点并输出兼容前端的 SSE 事件，不再回退旧 Loop stream | 已完成第一版 |
+| W17 | 17 | LangGraph 人工确认中断节点 | 新增 `confirmation_required` 节点；高风险或需确认工具未带 `confirmed: true` 时暂停执行，run 标记 `waiting_for_user`，streaming 输出 `confirmation_required` | 已完成第一版 |
 
 ## 后端重构工作表
 

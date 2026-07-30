@@ -4,6 +4,7 @@ import types
 import unittest
 from unittest.mock import patch
 
+from agent.models.base import ModelDecision, ToolCall
 from agent.models.rule_based_adapter import RuleBasedModelAdapter
 from agent.runtime.loop import AgentLoop
 from agent.runtime.workflow import LangGraphAgentWorkflow, build_agent_workflow
@@ -11,6 +12,7 @@ from apps.api.settings import AppSettings, AgentRuntimeSettings
 from tools.historical.postgres_repository import PostgresHistoricalEventRepository
 from tools.historical.service import HistoricalQueryService
 from tools.historical.tool_registry import build_historical_tool_registry
+from tools.registry.base import ToolDefinition, ToolRegistry
 
 
 class AgentWorkflowTest(unittest.TestCase):
@@ -72,6 +74,7 @@ class AgentWorkflowTest(unittest.TestCase):
                 "prepare_state",
                 "decide",
                 "execute_tool",
+                "confirmation_required",
                 "max_steps_exceeded",
                 "finalize_response",
             ],
@@ -80,6 +83,7 @@ class AgentWorkflowTest(unittest.TestCase):
             workflow._graph.edges,
             [
                 ("prepare_state", "decide"),
+                ("confirmation_required", "__end__"),
                 ("max_steps_exceeded", "__end__"),
                 ("finalize_response", "__end__"),
             ],
@@ -123,10 +127,64 @@ class AgentWorkflowTest(unittest.TestCase):
         self.assertIn("references", final_event)
         self.assertIn("links", final_event)
 
+    def test_langgraph_confirmation_node_pauses_risky_tool(self) -> None:
+        calls: list[dict] = []
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=DangerousToolAdapter(),
+                tool_registry=self._dangerous_tool_registry(calls),
+            )
+
+        response = workflow.run("删除一条数据")
+        payload = response.as_payload()
+
+        self.assertEqual(calls, [])
+        self.assertIn("需要人工确认", response.answer)
+        self.assertTrue(any(link["type"] == "confirmation_required" for link in payload["links"]))
+
+    def test_langgraph_stream_emits_confirmation_required_event(self) -> None:
+        calls: list[dict] = []
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=DangerousToolAdapter(),
+                tool_registry=self._dangerous_tool_registry(calls),
+            )
+
+        events = list(workflow.stream("删除一条数据"))
+        event_names = [event["event"] for event in events]
+        confirmation = [event for event in events if event["event"] == "confirmation_required"][0]
+
+        self.assertEqual(calls, [])
+        self.assertIn("confirmation_required", event_names)
+        self.assertNotIn("tool_result", event_names)
+        self.assertEqual(confirmation["tool_name"], "dangerous_write")
+        self.assertIn("需要人工确认", confirmation["answer"])
+
     def _tool_registry(self):
         settings = AppSettings.from_env().postgres
         service = HistoricalQueryService(PostgresHistoricalEventRepository(settings))
         return build_historical_tool_registry(service)
+
+    def _dangerous_tool_registry(self, calls: list[dict]) -> ToolRegistry:
+        registry = ToolRegistry()
+        registry.register(
+            ToolDefinition(
+                name="dangerous_write",
+                description="Dangerous write test tool",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "target_id": {"type": "string"},
+                        "confirmed": {"type": "boolean", "default": False},
+                    },
+                    "required": ["target_id"],
+                },
+                risk_level="high",
+                requires_confirmation=True,
+            ),
+            lambda payload: calls.append(payload) or {"success": True},
+        )
+        return registry
 
 
 class FakeCompiledGraph:
@@ -189,6 +247,20 @@ class FakeStateGraph:
         graph.conditional_edges = self.conditional_edges
         graph.conditional_sources = list(self.conditional_edges.keys())
         return graph
+
+
+class DangerousToolAdapter:
+    model_name = "dangerous-tool-test"
+
+    def decide(self, messages: list[dict], tools: list[dict]) -> ModelDecision:
+        return ModelDecision(
+            action="call_tool",
+            reason="test confirmation gate",
+            tool_call=ToolCall(
+                name="dangerous_write",
+                arguments={"target_id": "event-1"},
+            ),
+        )
 
 
 def _fake_langgraph_modules():

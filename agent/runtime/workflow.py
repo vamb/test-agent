@@ -111,8 +111,10 @@ class LangGraphAgentWorkflow:
             raise
 
         if self.loop.recorder and run_id:
-            self.loop.recorder.finish_run(run_id, response.answer)
-        self.loop.telemetry.finish_run(trace_context, response.answer)
+            if not self._response_requires_confirmation(response):
+                self.loop.recorder.finish_run(run_id, response.answer)
+        if not self._response_requires_confirmation(response):
+            self.loop.telemetry.finish_run(trace_context, response.answer)
         return self.loop._with_observability_links(response, trace_context)
 
     def run_existing(self, user_input: str, run_id: str) -> AgentResponse:
@@ -140,8 +142,10 @@ class LangGraphAgentWorkflow:
             raise
 
         if self.loop.recorder:
-            self.loop.recorder.finish_run(run_id, response.answer)
-        self.loop.telemetry.finish_run(trace_context, response.answer)
+            if not self._response_requires_confirmation(response):
+                self.loop.recorder.finish_run(run_id, response.answer)
+        if not self._response_requires_confirmation(response):
+            self.loop.telemetry.finish_run(trace_context, response.answer)
         return self.loop._with_observability_links(response, trace_context)
 
     def resume_existing(self, run_id: str) -> AgentResponse:
@@ -173,8 +177,9 @@ class LangGraphAgentWorkflow:
             self.loop.telemetry.fail_run(trace_context, str(exc))
             raise
 
-        self.loop.recorder.finish_run(run_id, response.answer)
-        self.loop.telemetry.finish_run(trace_context, response.answer)
+        if not self._response_requires_confirmation(response):
+            self.loop.recorder.finish_run(run_id, response.answer)
+            self.loop.telemetry.finish_run(trace_context, response.answer)
         return self.loop._with_observability_links(response, trace_context)
 
     def stream(self, user_input: str) -> Iterator[dict[str, Any]]:
@@ -242,6 +247,25 @@ class LangGraphAgentWorkflow:
 
                 if not getattr(decision, "tool_call", None):
                     raise RuntimeError("Model requested a tool call without tool details.")
+                if self._decision_requires_confirmation(decision):
+                    state = self._confirmation_required_node(state)
+                    response = self.loop._with_observability_links(
+                        _response_from_graph_result(state),
+                        trace_context,
+                    )
+                    payload = response.as_payload()
+                    yield {
+                        "event": "confirmation_required",
+                        "run_id": run_id,
+                        "answer": response.answer,
+                        "events": payload["events"],
+                        "references": payload["references"],
+                        "links": payload["links"],
+                        "step_count": len(response.steps),
+                        "tool_name": decision.tool_call.name,
+                        "tool_arguments": decision.tool_call.arguments,
+                    }
+                    return
 
                 step_index = len(list(state.get("steps", [])))
                 tool_call_id = f"call_{step_index}"
@@ -307,6 +331,7 @@ class LangGraphAgentWorkflow:
         graph.add_node("prepare_state", self._prepare_state_node)
         graph.add_node("decide", self._decide_node)
         graph.add_node("execute_tool", self._execute_tool_node)
+        graph.add_node("confirmation_required", self._confirmation_required_node)
         graph.add_node("max_steps_exceeded", self._max_steps_exceeded_node)
         graph.add_node("finalize_response", self._finalize_response_node)
         graph.set_entry_point("prepare_state")
@@ -317,6 +342,7 @@ class LangGraphAgentWorkflow:
             {
                 "execute_tool": "execute_tool",
                 "finalize_response": "finalize_response",
+                "confirmation_required": "confirmation_required",
             },
         )
         graph.add_conditional_edges(
@@ -327,6 +353,7 @@ class LangGraphAgentWorkflow:
                 "max_steps_exceeded": "max_steps_exceeded",
             },
         )
+        graph.add_edge("confirmation_required", END)
         graph.add_edge("max_steps_exceeded", END)
         graph.add_edge("finalize_response", END)
         return graph.compile()
@@ -455,6 +482,44 @@ class LangGraphAgentWorkflow:
         )
         return {**state, "response": response, "workflow_stage": "finalized"}
 
+    def _confirmation_required_node(self, state: dict[str, Any]) -> dict[str, Any]:
+        decision = state.get("decision")
+        tool_call = getattr(decision, "tool_call", None)
+        tool_name = str(getattr(tool_call, "name", ""))
+        tool_arguments = dict(getattr(tool_call, "arguments", {}) or {})
+        message = (
+            f"工具 `{tool_name}` 需要人工确认后才能执行。"
+            "请确认操作风险和参数后，带 `confirmed: true` 重新提交。"
+        )
+        run_id = str(state.get("run_id", "")) or None
+        if self.loop.recorder and run_id:
+            self.loop.recorder.wait_for_user(run_id, message)
+        response = AgentResponse(
+            answer=message,
+            steps=list(state.get("steps", [])),
+            run_id=run_id,
+            links=[
+                {
+                    "type": "confirmation_required",
+                    "target_id": tool_name,
+                    "title": "Human Confirmation Required",
+                    "href": "",
+                    "external": False,
+                    "tool_name": tool_name,
+                    "tool_arguments": tool_arguments,
+                }
+            ],
+        )
+        return {
+            **state,
+            "response": response,
+            "confirmation_required": {
+                "tool_name": tool_name,
+                "tool_arguments": tool_arguments,
+            },
+            "workflow_stage": "waiting_for_confirmation",
+        }
+
     def _max_steps_exceeded_node(self, state: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("当前问题需要更多推理步骤，已达到本轮 Agent 最大工具调用次数。")
 
@@ -462,6 +527,8 @@ class LangGraphAgentWorkflow:
         decision = state.get("decision")
         if getattr(decision, "action", "") == "finish":
             return "finalize_response"
+        if self._decision_requires_confirmation(decision):
+            return "confirmation_required"
         return "execute_tool"
 
     def _route_after_tool(self, state: dict[str, Any]) -> str:
@@ -485,6 +552,23 @@ class LangGraphAgentWorkflow:
             }
         )
         return _response_from_graph_result(result)
+
+    def _decision_requires_confirmation(self, decision: Any) -> bool:
+        tool_call = getattr(decision, "tool_call", None)
+        if not tool_call:
+            return False
+        arguments = dict(getattr(tool_call, "arguments", {}) or {})
+        if arguments.get("confirmed") is True:
+            return False
+        try:
+            definition = self.loop.tool_registry.get(str(tool_call.name)).definition
+        except Exception:
+            return False
+        return definition.requires_confirmation or definition.risk_level == "high"
+
+    def _response_requires_confirmation(self, response: AgentResponse) -> bool:
+        links = response.links or []
+        return any(link.get("type") == "confirmation_required" for link in links)
 
 
 def _response_from_graph_result(result: dict[str, Any]) -> AgentResponse:

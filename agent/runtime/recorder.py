@@ -215,6 +215,21 @@ class AgentRunRecorder:
                 )
             conn.commit()
 
+    def wait_for_user(self, run_id: str, message: str) -> None:
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE agent_runs
+                    SET status = 'waiting_for_user',
+                        error_message = %s
+                    WHERE id = %s
+                      AND status = 'running'
+                    """,
+                    [message, run_id],
+                )
+            conn.commit()
+
     def mark_run_pending_for_retry(self, run_id: str, error_message: str) -> bool:
         with self._connect() as conn:
             with conn.cursor() as cur:
