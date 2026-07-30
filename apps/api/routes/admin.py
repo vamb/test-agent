@@ -5,6 +5,20 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from apps.api.dependencies import event_management_service
+from apps.api.payloads import payload_to_dict
+from apps.api.schemas.admin import (
+    AdminBulkUpdateEventsRequest,
+    AdminBulkVerifySourcesRequest,
+    AdminCreateEventRequest,
+    AdminMutationResponse,
+    AdminPayload,
+    AdminRelationRequest,
+    AdminSourceRequest,
+    AdminUpdateEventRequest,
+    AdminUpdateRelationRequest,
+    AdminUpdateSourceRequest,
+    AdminVerifySourceRequest,
+)
 
 
 router = APIRouter()
@@ -72,14 +86,14 @@ def admin_list_events(
     )
 
 
-@router.post("/admin/events")
-def admin_create_event(payload: dict) -> dict:
-    return event_management_service.create_event(payload)
+@router.post("/admin/events", response_model=AdminMutationResponse)
+def admin_create_event(payload: AdminCreateEventRequest) -> dict:
+    return event_management_service.create_event(payload_to_dict(payload))
 
 
-@router.post("/admin/events/bulk-update")
-def admin_bulk_update_events(payload: dict) -> dict:
-    return event_management_service.bulk_update_events(payload)
+@router.post("/admin/events/bulk-update", response_model=AdminMutationResponse)
+def admin_bulk_update_events(payload: AdminBulkUpdateEventsRequest) -> dict:
+    return event_management_service.bulk_update_events(payload_to_dict(payload))
 
 
 @router.get("/admin/events/{event_id}/changes")
@@ -96,44 +110,44 @@ def admin_get_event_detail(event_id: str) -> dict:
     return event_management_service.get_admin_event_detail(event_id)
 
 
-@router.patch("/admin/events/{event_id}")
-def admin_update_event(event_id: str, payload: dict) -> dict:
-    return event_management_service.update_event(event_id, payload)
+@router.patch("/admin/events/{event_id}", response_model=AdminMutationResponse)
+def admin_update_event(event_id: str, payload: AdminUpdateEventRequest) -> dict:
+    return event_management_service.update_event(event_id, payload_to_dict(payload))
 
 
-@router.post("/admin/events/{event_id}/archive")
-def admin_archive_event(event_id: str, payload: dict) -> dict:
-    return event_management_service.archive_event(event_id, payload)
+@router.post("/admin/events/{event_id}/archive", response_model=AdminMutationResponse)
+def admin_archive_event(event_id: str, payload: AdminPayload) -> dict:
+    return event_management_service.archive_event(event_id, payload_to_dict(payload))
 
 
-@router.post("/admin/events/{event_id}/dispute")
-def admin_dispute_event(event_id: str, payload: dict) -> dict:
-    return event_management_service.mark_event_disputed(event_id, payload)
+@router.post("/admin/events/{event_id}/dispute", response_model=AdminMutationResponse)
+def admin_dispute_event(event_id: str, payload: AdminPayload) -> dict:
+    return event_management_service.mark_event_disputed(event_id, payload_to_dict(payload))
 
 
-@router.post("/admin/sources/{source_id}/verify")
-def admin_verify_source(source_id: str, payload: dict) -> dict:
-    return event_management_service.verify_source(source_id, payload)
+@router.post("/admin/sources/{source_id}/verify", response_model=AdminMutationResponse)
+def admin_verify_source(source_id: str, payload: AdminVerifySourceRequest) -> dict:
+    return event_management_service.verify_source(source_id, payload_to_dict(payload))
 
 
-@router.post("/admin/sources/bulk-verify")
-def admin_bulk_verify_sources(payload: dict) -> dict:
-    return event_management_service.bulk_verify_sources(payload)
+@router.post("/admin/sources/bulk-verify", response_model=AdminMutationResponse)
+def admin_bulk_verify_sources(payload: AdminBulkVerifySourcesRequest) -> dict:
+    return event_management_service.bulk_verify_sources(payload_to_dict(payload))
 
 
-@router.post("/admin/events/{event_id}/sources")
-def admin_add_source(event_id: str, payload: dict) -> dict:
-    return event_management_service.add_source(event_id, payload)
+@router.post("/admin/events/{event_id}/sources", response_model=AdminMutationResponse)
+def admin_add_source(event_id: str, payload: AdminSourceRequest) -> dict:
+    return event_management_service.add_source(event_id, payload_to_dict(payload))
 
 
-@router.patch("/admin/sources/{source_id}")
-def admin_update_source(source_id: str, payload: dict) -> dict:
-    return event_management_service.update_source(source_id, payload)
+@router.patch("/admin/sources/{source_id}", response_model=AdminMutationResponse)
+def admin_update_source(source_id: str, payload: AdminUpdateSourceRequest) -> dict:
+    return event_management_service.update_source(source_id, payload_to_dict(payload))
 
 
-@router.delete("/admin/sources/{source_id}")
-def admin_delete_source(source_id: str, payload: dict) -> dict:
-    return event_management_service.delete_source(source_id, payload)
+@router.delete("/admin/sources/{source_id}", response_model=AdminMutationResponse)
+def admin_delete_source(source_id: str, payload: AdminPayload) -> dict:
+    return event_management_service.delete_source(source_id, payload_to_dict(payload))
 
 
 @router.get("/admin/relations")
@@ -151,16 +165,16 @@ def admin_list_relations(
     )
 
 
-@router.post("/admin/relations")
-def admin_create_relation(payload: dict) -> dict:
-    return event_management_service.create_relation(payload)
+@router.post("/admin/relations", response_model=AdminMutationResponse)
+def admin_create_relation(payload: AdminRelationRequest) -> dict:
+    return event_management_service.create_relation(payload_to_dict(payload))
 
 
-@router.patch("/admin/relations/{relation_id}")
-def admin_update_relation(relation_id: str, payload: dict) -> dict:
-    return event_management_service.update_relation(relation_id, payload)
+@router.patch("/admin/relations/{relation_id}", response_model=AdminMutationResponse)
+def admin_update_relation(relation_id: str, payload: AdminUpdateRelationRequest) -> dict:
+    return event_management_service.update_relation(relation_id, payload_to_dict(payload))
 
 
-@router.delete("/admin/relations/{relation_id}")
-def admin_delete_relation(relation_id: str, payload: dict) -> dict:
-    return event_management_service.delete_relation(relation_id, payload)
+@router.delete("/admin/relations/{relation_id}", response_model=AdminMutationResponse)
+def admin_delete_relation(relation_id: str, payload: AdminPayload) -> dict:
+    return event_management_service.delete_relation(relation_id, payload_to_dict(payload))

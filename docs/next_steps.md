@@ -108,10 +108,10 @@
 |---|---:|---|---|---|
 | R1 | 1 | 统一向量任务表 schema 兜底 | 运行时建表和正式 schema 约束一致，schema 文件测试覆盖 | 已完成 |
 | R2 | 2 | 拆分 FastAPI 路由 | 已拆出 agent、events、imports、admin、knowledge/vector routers；路径不变，现有 API 测试全过 | 已完成 |
-| R3 | 3 | 拆分管理服务 | 事件、来源、关系、数据质量、总览、批次核验职责分离 | 待开始 |
-| R4 | 4 | 抽公共历史实体 upsert | 导入和后台编辑复用地区/国家/政权/分类 upsert | 待开始 |
-| R5 | 5 | 写接口 Pydantic 化 | 写接口输入输出契约稳定，前端调用兼容 | 待开始 |
-| R6 | 6 | 清理轻微代码味道 | 已清理重复 import，helper 重复逻辑后续继续 | 进行中 |
+| R3 | 3 | 拆分管理服务 | 已拆出事件主体、数据质量、来源、关系、总览、批次核验和公共审计服务 | 已完成 |
+| R4 | 4 | 抽公共历史实体 upsert | 已新增 `HistoricalEntityResolver`，导入确认和后台编辑共用地区/国家/政权/分类 upsert | 已完成 |
+| R5 | 5 | 写接口 Pydantic 化 | admin、imports、knowledge/vector 写接口已有 Pydantic request/response models，OpenAPI schema 测试覆盖 | 已完成 |
+| R6 | 6 | 清理轻微代码味道 | 已清理重复 payload 转换、分页 clamp 和管理审计/JSON safe helper | 已完成 |
 
 ## 管理后台优先补的后端接口
 

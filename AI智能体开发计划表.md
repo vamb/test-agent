@@ -308,10 +308,10 @@ ai-agent/
 |---|---:|---|---|---|---|
 | R1 | 1 | 统一向量任务表 schema 兜底 | `knowledge/service.py` 的运行时建表逻辑与 `schema_vector_jobs.sql` 保持一致 | schema 文件测试覆盖约束；后端全量测试通过 | 已完成 |
 | R2 | 2 | 拆分 FastAPI 路由 | 将 `apps/api/main.py` 拆成 agent、events、imports、admin、knowledge、vectors routers | 已拆出 agent、events、imports、admin、knowledge/vector routers；`main.py` 降到 124 行；路由路径不变；后端全量测试通过 | 已完成 |
-| R3 | 3 | 拆分管理服务 | 将 `EventManagementService` 拆为事件、来源、关系、数据质量、总览、批次核验服务 | 对外 API 返回兼容；管理测试全过 | 待开始 |
-| R4 | 4 | 抽公共历史实体 upsert | 合并 import 和 management 中 region/country/polity/category ensure 逻辑 | 导入和事件编辑行为不变；重复实现减少 | 待开始 |
-| R5 | 5 | 写接口 Pydantic 化 | 为事件、来源、关系、导入、向量任务写接口补 request/response models | 错误返回更稳定；前端调用不变 | 待开始 |
-| R6 | 6 | 清理轻微代码味道 | 重复 import、分页/JSON safe/helper 重复逻辑 | 已清理 `main.py` 重复 import；后续 helper 重复逻辑再逐步处理 | 进行中 |
+| R3 | 3 | 拆分管理服务 | 将 `EventManagementService` 拆为事件、来源、关系、数据质量、总览、批次核验服务 | 已拆出 `EventAdminService`、`DataQualityService`、`SourceManagementService`、`RelationManagementService`、`ManagementOverviewService`、`ImportBatchReviewService` 和公共审计基类；原 API 通过门面保持兼容；管理专项测试和后端全量测试通过 | 已完成 |
+| R4 | 4 | 抽公共历史实体 upsert | 合并 import 和 management 中 region/country/polity/category ensure 逻辑 | 已新增 `HistoricalEntityResolver`；导入确认和后台事件编辑复用同一套地区/国家/政权/分类 upsert；导入+管理专项测试和后端全量测试通过 | 已完成 |
+| R5 | 5 | 写接口 Pydantic 化 | 为事件、来源、关系、导入、向量任务写接口补 request/response models | 已为 admin、imports、knowledge/vector 写接口补 Pydantic request/response models；OpenAPI schema 测试覆盖关键写接口；前端调用和现有测试兼容 | 已完成 |
+| R6 | 6 | 清理轻微代码味道 | 重复 import、分页/JSON safe/helper 重复逻辑 | 已清理重复 payload 转换、分页 clamp 和管理审计/JSON safe helper；后端全量测试通过 | 已完成 |
 
 ## 后端下一步建议
 

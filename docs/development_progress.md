@@ -11,6 +11,10 @@
 | 2026-07-29 | 完成前端主流程改造：聊天页成为主入口；引入 `react-router-dom`；事件卡片跳转 `/events/:eventId`；详情页独立展示事件档案；补齐移动端适配；前端默认 API 切换到 `19000`；明确管理后台与 Langfuse 边界，并倒推后端增强清单 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常 | 优先补齐导入审核后台后端接口，再接数据导入审核后台；随后补事件/来源/知识库/向量管理接口；Agent 观测和评测详情后续接 Langfuse，不自研后台 |
 | 2026-07-29 | 完成种子数据核验支撑能力：后台事件列表支持 `import_batch_id`，数据质量新增 `duplicate_title`，导入批次详情新增核验摘要面板，后端新增 `GET /admin/import-batches/{batch_id}/review` | 后端 `python -m unittest discover tests` 通过，56/56；前端 `npm.cmd run build` 通过；真实种子批次返回 12 条事件、1 条低置信、12 条弱来源、1 个重复候选、0 个结构缺口 | 继续做实际人工核验和管理后台体验修复，再扩展 20-50 条真实数据导入演练 |
 | 2026-07-29 | 完成数据库初始化脚本同步：新增 `infrastructure/database/init.sql`，纳入事件审计、知识库、事件向量列、向量任务表和基础字典；补管理后台查询索引和 schema 文件测试 | 后端 `python -m unittest discover tests` 通过，58/58；当前本地库已同步新增 5 个索引 | 后续每次表结构变化同步更新 `init.sql` 和 schema 文件测试 |
+| 2026-07-30 | 完成后端 R3 管理服务拆分：新增 `EventAdminService`、`DataQualityService`、`SourceManagementService`、`RelationManagementService`、`ManagementOverviewService`、`ImportBatchReviewService` 和公共审计基类；`EventManagementService` 保留兼容门面并删除重复私有实现 | 后端 `python -m unittest tests.test_event_management` 通过，12/12；后端 `python -m unittest discover tests` 通过，59/59；`EventManagementService` 降到 371 行 | 进入 R4，抽取 import 和 management 共享的地区/国家/政权/分类 upsert |
+| 2026-07-30 | 完成后端 R4 公共历史实体 upsert 抽取：新增 `HistoricalEntityResolver`，导入确认和后台事件编辑共用地区、国家、政权、分类 upsert | 后端 `python -m unittest tests.test_import_review tests.test_event_management` 通过，19/19；后端 `python -m unittest discover tests` 通过，59/59 | 进入 R5，为管理写接口补 Pydantic request/response models |
+| 2026-07-30 | 完成后端 R5 写接口 Pydantic 化：admin、imports、knowledge/vector 写接口新增 request/response models，并补 OpenAPI schema 回归测试 | 后端 `python -m unittest tests.test_api_admin_schemas tests.test_import_review tests.test_knowledge_service tests.test_event_management` 通过，25/25；后端 `python -m unittest discover tests` 通过，61/61 | 下一步收尾 R6 轻微代码味道，随后进入 Agent 返回结构标准化 |
+| 2026-07-30 | 完成后端 R6 轻微代码味道清理：新增 `payload_to_dict` 统一路由 payload 转换，新增 `normalize_pagination` 统一分页 clamp，并复用公共审计/JSON safe helper | 后端 `python -m unittest tests.test_import_review tests.test_event_management tests.test_api_admin_schemas` 通过，21/21；后端 `python -m unittest discover tests` 通过，61/61；`EventManagementService` 降到 370 行 | 后端重构工作表 R1-R6 收口，下一步推进 Agent 返回结构标准化 |
 
 ## 12 周开发周期
 
@@ -53,7 +57,7 @@
 
 ## 当前任务队列
 
-当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、RAG 检索、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力和完整数据库初始化入口均已完成；管理后台边界已明确为数据资产、知识库和向量管理；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步优先做管理后台体验修复和真实数据导入演练扩展，再推进 Agent 返回结构标准化。
+当前状态：后端查询、Agent Loop、Function Calling、工具稳定性、模型观测、SSE 步骤流、运行取消、Redis 队列/Worker、processing ack、失败重试、死信队列、visibility timeout 回收、checkpoint 恢复、数据导入审核流、RAG 检索、事件管理、人工确认、React 聊天主界面、React Router 页面跳转、事件详情页、移动端适配、`/admin` 管理后台可运营版、种子数据核验支撑能力和完整数据库初始化入口均已完成；管理后台边界已明确为数据资产、知识库和向量管理；后端重构工作表 R1-R6 已收口；Agent Trace、token/cost、工具调用链和评测分析后续交给 Langfuse，不自研重复后台。下一步推进 Agent 返回结构标准化。
 
 | 优先级 | 任务 | 负责人 | 状态 | 对应 PDF 功能/章节 |
 |---:|---|---|---|---|
@@ -102,7 +106,7 @@
 | 43 | 真实数据导入演练扩展 | 数据/前端/后端 | 待开始；先核验当前 12 条 reviewing 数据，再决定是否扩展到 20-50 条 | 第十阶段：人工确认机制；平台化第一版 |
 | 44 | 种子数据核验支撑能力 | 后端/前端 | 已完成；`/admin/events` 支持 `import_batch_id` 筛选，数据质量新增 `duplicate_title` 同标题候选检测，新增 `GET /admin/import-batches/{batch_id}/review`，导入详情页可查看本批低置信、弱来源、重复候选和结构缺口 | 第十阶段：人工确认机制；平台化第一版 |
 | 45 | 数据库初始化脚本同步 | 后端/数据库 | 已完成；新增 `infrastructure/database/init.sql`，完整初始化当前后端依赖的基础表、事件审计、知识库、事件向量列、向量任务表和基础字典，并补 schema 文件测试 | 数据底座；平台化第一版 |
-| 46 | 后端重构计划 | 后端 | 进行中；R1 统一向量任务表 schema 兜底已完成，R2 FastAPI 路由拆分已完成，R6 已开始清理轻微代码味道；后续继续拆管理服务、抽公共 upsert、写接口 Pydantic 化 | 平台化第一版；工程可维护性 |
+| 46 | 后端重构计划 | 后端 | 已完成；R1 统一向量任务表 schema 兜底、R2 FastAPI 路由拆分、R3 管理服务拆分、R4 公共历史实体 upsert 抽取、R5 写接口 Pydantic 化、R6 轻微代码味道清理均已完成 | 平台化第一版；工程可维护性 |
 
 ## 下一阶段执行计划
 

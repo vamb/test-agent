@@ -12,7 +12,9 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from apps.api.settings import PostgresSettings
+from tools.historical.entity_resolver import HistoricalEntityResolver
 from tools.historical.models import HistoricalEvent
+from tools.historical.pagination import normalize_pagination
 
 
 @dataclass(frozen=True)
@@ -24,6 +26,7 @@ class ValidationResult:
 class ImportReviewService:
     def __init__(self, settings: PostgresSettings) -> None:
         self.settings = settings
+        self.entity_resolver = HistoricalEntityResolver()
 
     def parse_events(self, content: str, input_format: str = "json") -> dict[str, Any]:
         input_format = input_format.lower()
@@ -69,8 +72,7 @@ class ImportReviewService:
             params.append(created_by)
 
         where_sql = f"WHERE {' AND '.join(where)}" if where else ""
-        limit = max(1, min(limit, 200))
-        offset = max(0, offset)
+        limit, offset = normalize_pagination(limit, offset)
 
         with psycopg.connect(self.settings.dsn, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
@@ -843,68 +845,6 @@ class ImportReviewService:
                 }
         return differences
 
-    def _ensure_region(self, cur: psycopg.Cursor, name: str) -> str:
-        cur.execute(
-            """
-            INSERT INTO regions (name)
-            VALUES (%s)
-            ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-            RETURNING id::text
-            """,
-            [name],
-        )
-        return cur.fetchone()["id"]
-
-    def _ensure_country(
-        self, cur: psycopg.Cursor, name: str, region_id: str
-    ) -> str | None:
-        if not name:
-            return None
-        first_name = name.split("、", maxsplit=1)[0]
-        cur.execute(
-            """
-            INSERT INTO modern_countries (name, region_id)
-            VALUES (%s, %s)
-            ON CONFLICT (name) DO UPDATE SET
-              region_id = coalesce(modern_countries.region_id, EXCLUDED.region_id)
-            RETURNING id::text
-            """,
-            [first_name, region_id],
-        )
-        return cur.fetchone()["id"]
-
-    def _ensure_polity(
-        self, cur: psycopg.Cursor, event: HistoricalEvent, region_id: str
-    ) -> str:
-        cur.execute("SELECT id::text FROM polities WHERE name = %s", [event.polity])
-        row = cur.fetchone()
-        if row:
-            return row["id"]
-
-        cur.execute(
-            """
-            INSERT INTO polities (name, region_id, start_year, end_year)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (name, start_year, end_year) DO UPDATE SET
-              region_id = EXCLUDED.region_id
-            RETURNING id::text
-            """,
-            [event.polity, region_id, event.start_year, event.end_year],
-        )
-        return cur.fetchone()["id"]
-
-    def _ensure_category(self, cur: psycopg.Cursor, name: str) -> str:
-        cur.execute(
-            """
-            INSERT INTO categories (name)
-            VALUES (%s)
-            ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-            RETURNING id::text
-            """,
-            [name],
-        )
-        return cur.fetchone()["id"]
-
     def _insert_event(
         self,
         cur: psycopg.Cursor,
@@ -912,9 +852,15 @@ class ImportReviewService:
         import_batch_id: str,
     ) -> str:
         event_id = event.id or self._stable_event_id(event)
-        region_id = self._ensure_region(cur, event.region)
-        country_id = self._ensure_country(cur, event.modern_country, region_id)
-        polity_id = self._ensure_polity(cur, event, region_id)
+        region_id = self.entity_resolver.ensure_region(cur, event.region)
+        country_id = self.entity_resolver.ensure_country(cur, event.modern_country, region_id)
+        polity_id = self.entity_resolver.ensure_polity(
+            cur,
+            event.polity,
+            region_id,
+            event.start_year,
+            event.end_year,
+        )
 
         cur.execute(
             """
@@ -987,7 +933,7 @@ class ImportReviewService:
 
         cur.execute("DELETE FROM event_categories WHERE event_id = %s", [event_id])
         for category in event.category:
-            category_id = self._ensure_category(cur, category)
+            category_id = self.entity_resolver.ensure_category(cur, category)
             cur.execute(
                 """
                 INSERT INTO event_categories (event_id, category_id)

@@ -3,13 +3,21 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from apps.api.dependencies import knowledge_service
+from apps.api.payloads import payload_to_dict
+from apps.api.schemas.knowledge import (
+    KnowledgeDocumentIngestRequest,
+    KnowledgeDocumentUpdateRequest,
+    KnowledgeMutationResponse,
+    VectorRebuildRequest,
+)
 
 
 router = APIRouter()
 
 
-@router.post("/knowledge/documents")
-def ingest_knowledge_document(payload: dict) -> dict:
+@router.post("/knowledge/documents", response_model=KnowledgeMutationResponse)
+def ingest_knowledge_document(payload: KnowledgeDocumentIngestRequest) -> dict:
+    payload = payload_to_dict(payload)
     return knowledge_service.ingest_document(
         title=str(payload.get("title", "Untitled document")),
         content=str(payload.get("content", "")),
@@ -44,15 +52,16 @@ def get_knowledge_document_chunks(
     return knowledge_service.get_document_chunks(document_id, limit=limit, offset=offset)
 
 
-@router.patch("/knowledge/documents/{document_id}")
-def update_knowledge_document(document_id: str, payload: dict) -> dict:
+@router.patch("/knowledge/documents/{document_id}", response_model=KnowledgeMutationResponse)
+def update_knowledge_document(document_id: str, payload: KnowledgeDocumentUpdateRequest) -> dict:
+    payload = payload_to_dict(payload)
     updates = payload.get("updates", payload)
     if not isinstance(updates, dict):
         return {"success": False, "error": "updates must be an object"}
     return knowledge_service.update_document(document_id, updates)
 
 
-@router.post("/knowledge/documents/{document_id}/reembed")
+@router.post("/knowledge/documents/{document_id}/reembed", response_model=KnowledgeMutationResponse)
 def reembed_knowledge_document(document_id: str) -> dict:
     return knowledge_service.reembed_document(document_id)
 
@@ -67,8 +76,9 @@ def get_vector_status() -> dict:
     return knowledge_service.vector_status()
 
 
-@router.post("/vectors/rebuild")
-def rebuild_vectors(payload: dict | None = None) -> dict:
+@router.post("/vectors/rebuild", response_model=KnowledgeMutationResponse)
+def rebuild_vectors(payload: VectorRebuildRequest | None = None) -> dict:
+    payload = payload_to_dict(payload)
     target = "knowledge"
     limit = 100
     if payload:
@@ -77,8 +87,9 @@ def rebuild_vectors(payload: dict | None = None) -> dict:
     return knowledge_service.rebuild_vectors(target=target, limit=limit)
 
 
-@router.post("/vectors/rebuild-jobs")
-def create_vector_rebuild_job(payload: dict | None = None) -> dict:
+@router.post("/vectors/rebuild-jobs", response_model=KnowledgeMutationResponse)
+def create_vector_rebuild_job(payload: VectorRebuildRequest | None = None) -> dict:
+    payload = payload_to_dict(payload)
     target = "knowledge"
     limit = 100
     created_by = ""
@@ -98,6 +109,6 @@ def get_vector_rebuild_job(job_id: str) -> dict:
     return knowledge_service.get_vector_rebuild_job(job_id)
 
 
-@router.post("/vectors/rebuild-jobs/{job_id}/process")
+@router.post("/vectors/rebuild-jobs/{job_id}/process", response_model=KnowledgeMutationResponse)
 def process_vector_rebuild_job(job_id: str) -> dict:
     return knowledge_service.process_vector_rebuild_job(job_id)
