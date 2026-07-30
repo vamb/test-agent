@@ -47,7 +47,7 @@ class AgentWorkflowTest(unittest.TestCase):
                 tool_registry=self._tool_registry(),
             )
 
-    def test_langgraph_adapter_compiles_three_node_pipeline(self) -> None:
+    def test_langgraph_adapter_compiles_decision_tool_pipeline(self) -> None:
         fake_graph_module = types.ModuleType("langgraph.graph")
         fake_graph_module.END = "__end__"
         fake_graph_module.StateGraph = FakeStateGraph
@@ -68,16 +68,38 @@ class AgentWorkflowTest(unittest.TestCase):
 
         self.assertEqual(
             workflow._graph.node_names,
-            ["prepare_state", "execute_agent_loop", "finalize_response"],
+            [
+                "prepare_state",
+                "decide",
+                "execute_tool",
+                "max_steps_exceeded",
+                "finalize_response",
+            ],
         )
         self.assertEqual(
             workflow._graph.edges,
             [
-                ("prepare_state", "execute_agent_loop"),
-                ("execute_agent_loop", "finalize_response"),
+                ("prepare_state", "decide"),
+                ("max_steps_exceeded", "__end__"),
                 ("finalize_response", "__end__"),
             ],
         )
+        self.assertEqual(
+            workflow._graph.conditional_sources,
+            ["decide", "execute_tool"],
+        )
+
+    def test_langgraph_adapter_runs_decision_tool_pipeline(self) -> None:
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=RuleBasedModelAdapter(),
+                tool_registry=self._tool_registry(),
+            )
+
+        response = workflow.run("755年中国发生安史之乱时，中东和中亚发生了什么？")
+
+        self.assertIn("安史之乱爆发", response.answer)
+        self.assertEqual([step.tool_name for step in response.steps], ["search_events_by_year"])
 
     def _tool_registry(self):
         settings = AppSettings.from_env().postgres
@@ -95,7 +117,9 @@ class FakeCompiledGraph:
         self.nodes = nodes
         self.node_names = list(nodes.keys())
         self.edges = edges
+        self.conditional_edges: dict[str, tuple[object, dict[str, str]]] = {}
         self.entry_point = entry_point
+        self.conditional_sources: list[str] = []
 
     def invoke(self, state: dict) -> dict:
         current = self.entry_point
@@ -103,8 +127,13 @@ class FakeCompiledGraph:
         while current != "__end__":
             node = self.nodes[current]
             result = node(result)
-            next_edges = [target for source, target in self.edges if source == current]
-            current = next_edges[0] if next_edges else "__end__"
+            if current in self.conditional_edges:
+                router, path_map = self.conditional_edges[current]
+                route = router(result)
+                current = path_map[route]
+            else:
+                next_edges = [target for source, target in self.edges if source == current]
+                current = next_edges[0] if next_edges else "__end__"
         return result
 
 
@@ -113,6 +142,7 @@ class FakeStateGraph:
         self.state_type = state_type
         self.nodes: dict[str, object] = {}
         self.edges: list[tuple[str, str]] = []
+        self.conditional_edges: dict[str, tuple[object, dict[str, str]]] = {}
         self.entry_point = ""
 
     def add_node(self, name: str, node: object) -> None:
@@ -124,8 +154,34 @@ class FakeStateGraph:
     def add_edge(self, source: str, target: str) -> None:
         self.edges.append((source, target))
 
+    def add_conditional_edges(
+        self,
+        source: str,
+        router: object,
+        path_map: dict[str, str],
+    ) -> None:
+        self.conditional_edges[source] = (router, path_map)
+
     def compile(self) -> FakeCompiledGraph:
-        return FakeCompiledGraph(self.nodes, self.edges, self.entry_point)
+        graph = FakeCompiledGraph(self.nodes, self.edges, self.entry_point)
+        graph.conditional_edges = self.conditional_edges
+        graph.conditional_sources = list(self.conditional_edges.keys())
+        return graph
+
+
+def _fake_langgraph_modules():
+    fake_graph_module = types.ModuleType("langgraph.graph")
+    fake_graph_module.END = "__end__"
+    fake_graph_module.StateGraph = FakeStateGraph
+    fake_langgraph_module = types.ModuleType("langgraph")
+    fake_langgraph_module.graph = fake_graph_module
+    return patch.dict(
+        sys.modules,
+        {
+            "langgraph": fake_langgraph_module,
+            "langgraph.graph": fake_graph_module,
+        },
+    )
 
 
 def _module_available(name: str) -> bool:

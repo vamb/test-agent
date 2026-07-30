@@ -55,7 +55,7 @@ set AGENT_WORKFLOW_ENGINE=loop
 set AGENT_WORKFLOW_ENGINE=langgraph
 ```
 
-当前 LangGraph 第一版是单节点适配器，用来先打通 API、worker、checkpoint 和 telemetry 的引擎切换边界；后续再把模型决策、工具执行、人工确认和完成节点拆成独立 graph nodes。
+当前 LangGraph 第一版已经拆出 `prepare_state`、`decide`、`execute_tool`、`finalize_response` 和 `max_steps_exceeded` 节点，并复用现有 recorder、checkpoint 恢复、telemetry 和工具执行 helper；后续再补 SSE streaming 和人工确认中断节点。
 
 ## 首批接口
 
