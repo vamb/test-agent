@@ -208,6 +208,78 @@ class AgentWorkflowTest(unittest.TestCase):
         self.assertEqual(completed_run["steps"][0]["status"], "completed")
         self.assertTrue(completed_run["steps"][0]["tool_arguments"]["confirmed"])
 
+    def test_langgraph_confirm_existing_uses_recorded_pending_arguments(self) -> None:
+        if not self.db_available:
+            self.skipTest("PostgreSQL is not available")
+        calls: list[dict] = []
+        recorder = AgentRunRecorder(self.settings.postgres)
+        adapter = MutatingResumeDangerousToolAdapter()
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=adapter,
+                tool_registry=self._dangerous_tool_registry(calls),
+                recorder=recorder,
+            )
+
+        pending = workflow.run("删除一条数据")
+        confirmed = workflow.confirm_existing(str(pending.run_id))
+
+        self.assertIn("危险操作已执行", confirmed.answer)
+        self.assertEqual(calls, [{"target_id": "event-1", "confirmed": True}])
+
+    def test_langgraph_confirm_existing_rejects_repeat_confirmation(self) -> None:
+        if not self.db_available:
+            self.skipTest("PostgreSQL is not available")
+        calls: list[dict] = []
+        recorder = AgentRunRecorder(self.settings.postgres)
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=ConfirmableDangerousToolAdapter(),
+                tool_registry=self._dangerous_tool_registry(calls),
+                recorder=recorder,
+            )
+
+        pending = workflow.run("删除一条数据")
+        workflow.confirm_existing(str(pending.run_id))
+
+        with self.assertRaisesRegex(RuntimeError, "not waiting for user confirmation"):
+            workflow.confirm_existing(str(pending.run_id))
+
+        self.assertEqual(calls, [{"target_id": "event-1", "confirmed": True}])
+
+    def test_langgraph_blocks_model_self_confirmed_high_risk_tool(self) -> None:
+        calls: list[dict] = []
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=SelfConfirmedDangerousToolAdapter(),
+                tool_registry=self._dangerous_tool_registry(calls),
+            )
+
+        response = workflow.run("执行危险操作")
+
+        self.assertEqual(calls, [])
+        self.assertIn("模型不能自行设置 confirmed=true", response.answer)
+        self.assertEqual(response.links[0]["type"], "security_blocked")
+
+    def test_langgraph_security_block_records_audit_event(self) -> None:
+        if not self.db_available:
+            self.skipTest("PostgreSQL is not available")
+        calls: list[dict] = []
+        recorder = AgentRunRecorder(self.settings.postgres)
+        with _fake_langgraph_modules():
+            workflow = LangGraphAgentWorkflow(
+                model_adapter=SelfConfirmedDangerousToolAdapter(),
+                tool_registry=self._dangerous_tool_registry(calls),
+                recorder=recorder,
+            )
+
+        response = workflow.run("执行危险操作")
+        events = recorder.list_security_events(response.run_id)
+
+        self.assertEqual(calls, [])
+        self.assertEqual(events[0]["event_type"], "security_blocked")
+        self.assertEqual(events[0]["category"], "confirmed_high_risk_tool_call")
+
     def _tool_registry(self):
         settings = AppSettings.from_env().postgres
         service = HistoricalQueryService(PostgresHistoricalEventRepository(settings))
@@ -352,6 +424,45 @@ class ConfirmableDangerousToolAdapter:
             tool_call=ToolCall(
                 name="dangerous_write",
                 arguments={"target_id": "event-1"},
+            ),
+        )
+
+
+class MutatingResumeDangerousToolAdapter:
+    model_name = "mutating-resume-dangerous-tool-test"
+
+    def __init__(self) -> None:
+        self.decisions = 0
+
+    def decide(self, messages: list[dict], tools: list[dict]) -> ModelDecision:
+        if any(message.get("role") == "tool" for message in messages):
+            return ModelDecision(
+                action="finish",
+                reason="tool completed",
+                answer="危险操作已执行。",
+            )
+        self.decisions += 1
+        target_id = "event-1" if self.decisions == 1 else "event-2"
+        return ModelDecision(
+            action="call_tool",
+            reason="test confirmation argument drift",
+            tool_call=ToolCall(
+                name="dangerous_write",
+                arguments={"target_id": target_id},
+            ),
+        )
+
+
+class SelfConfirmedDangerousToolAdapter:
+    model_name = "self-confirmed-dangerous-tool-test"
+
+    def decide(self, messages: list[dict], tools: list[dict]) -> ModelDecision:
+        return ModelDecision(
+            action="call_tool",
+            reason="test unsafe self confirmation",
+            tool_call=ToolCall(
+                name="dangerous_write",
+                arguments={"target_id": "event-1", "confirmed": True},
             ),
         )
 

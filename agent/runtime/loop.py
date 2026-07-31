@@ -9,6 +9,11 @@ from agent.models.base import ModelAdapter
 from agent.models.base import ModelUsage
 from agent.runtime.recorder import AgentRunRecorder
 from agent.runtime.observability import AgentTelemetry, TraceContext
+from agent.runtime.security import (
+    PromptSecurityGuard,
+    SecurityDecision,
+    annotate_untrusted_observation,
+)
 from agent.runtime.simple_historical_agent import AgentResponse, AgentStep
 from agent.runtime.structured_response import build_structured_response
 from tools.registry.base import ToolRegistry
@@ -40,6 +45,7 @@ class AgentLoop:
         self.recorder = recorder
         self.config = config or AgentLoopConfig()
         self.telemetry = telemetry or AgentTelemetry()
+        self.security_guard = PromptSecurityGuard()
 
     def run(self, user_input: str) -> AgentResponse:
         recorded_run = (
@@ -59,6 +65,9 @@ class AgentLoop:
             prompt_version="historical-agent-loop-v1",
         )
         try:
+            security = self.security_guard.assess_user_input(user_input)
+            if not security.allowed:
+                return self._security_blocked_response(security, run_id, trace_context)
             response = self._run_without_recording(
                 user_input,
                 run_id=run_id,
@@ -90,6 +99,9 @@ class AgentLoop:
             prompt_version="historical-agent-loop-v1",
         )
         try:
+            security = self.security_guard.assess_user_input(user_input)
+            if not security.allowed:
+                return self._security_blocked_response(security, run_id, trace_context)
             response = self._run_without_recording(
                 user_input,
                 run_id=run_id,
@@ -126,6 +138,9 @@ class AgentLoop:
             prompt_version=str(run.get("prompt_version") or "historical-agent-loop-v1"),
         )
         try:
+            security = self.security_guard.assess_user_input(str(run["user_input"]))
+            if not security.allowed:
+                return self._security_blocked_response(security, run_id, trace_context)
             response = self._run_without_recording(
                 str(run["user_input"]),
                 run_id=run_id,
@@ -229,6 +244,20 @@ class AgentLoop:
         messages: list[dict[str, Any]] = [{"role": "user", "content": user_input}]
         steps: list[AgentStep] = []
         try:
+            security = self.security_guard.assess_user_input(user_input)
+            if not security.allowed:
+                response = self._security_blocked_response(security, run_id, trace_context)
+                payload = response.as_payload()
+                yield {
+                    "event": "run_failed",
+                    "run_id": run_id,
+                    "answer": response.answer,
+                    "events": payload["events"],
+                    "references": payload["references"],
+                    "links": payload["links"],
+                    "error_message": response.answer,
+                }
+                return
             for _ in range(self.config.max_steps):
                 self._raise_if_cancelled(run_id)
                 decision = self._decide_with_timing(messages)
@@ -275,6 +304,21 @@ class AgentLoop:
 
                 if not decision.tool_call:
                     raise RuntimeError("Model requested a tool call without tool details.")
+
+                tool_security = self._assess_decision_tool_call(decision)
+                if not tool_security.allowed:
+                    response = self._security_blocked_response(tool_security, run_id, trace_context)
+                    payload = response.as_payload()
+                    yield {
+                        "event": "run_failed",
+                        "run_id": run_id,
+                        "answer": response.answer,
+                        "events": payload["events"],
+                        "references": payload["references"],
+                        "links": payload["links"],
+                        "error_message": response.answer,
+                    }
+                    return
 
                 if self._decision_requires_confirmation(decision):
                     response = self._confirmation_required_response(
@@ -433,6 +477,10 @@ class AgentLoop:
             if not decision.tool_call:
                 raise RuntimeError("Model requested a tool call without tool details.")
 
+            tool_security = self._assess_decision_tool_call(decision)
+            if not tool_security.allowed:
+                return self._security_blocked_response(tool_security, run_id, trace_context)
+
             if self._decision_requires_confirmation(decision):
                 return self._confirmation_required_response(
                     decision=decision,
@@ -560,7 +608,7 @@ class AgentLoop:
             if isinstance(items, list) and len(items) > self.config.max_observation_items:
                 result[key] = items[: self.config.max_observation_items]
                 result[f"{key}_truncated"] = True
-        return result
+        return annotate_untrusted_observation(result, "tool_observation")
 
     def _json_dumps(self, value: Any) -> str:
         return json.dumps(value, ensure_ascii=False, default=str)
@@ -663,6 +711,49 @@ class AgentLoop:
 
     def _response_requires_confirmation(self, response: AgentResponse) -> bool:
         return any(link.get("type") == "confirmation_required" for link in response.links or [])
+
+    def _assess_decision_tool_call(self, decision: Any) -> SecurityDecision:
+        tool_call = getattr(decision, "tool_call", None)
+        if not tool_call:
+            return SecurityDecision(allowed=True)
+        return self.security_guard.assess_model_tool_call(
+            str(tool_call.name),
+            dict(getattr(tool_call, "arguments", {}) or {}),
+            self.tool_registry,
+        )
+
+    def _security_blocked_response(
+        self,
+        decision: SecurityDecision,
+        run_id: str | None,
+        trace_context: TraceContext | None,
+    ) -> AgentResponse:
+        message = f"安全策略已拦截：{decision.reason}"
+        if self.recorder and run_id:
+            self.recorder.fail_run(run_id, message)
+            self.recorder.record_security_event(
+                event_type="security_blocked",
+                category=decision.category,
+                reason=decision.reason,
+                run_id=run_id,
+                metadata={"answer": message},
+            )
+        self.telemetry.fail_run(trace_context, message)
+        return AgentResponse(
+            answer=message,
+            steps=[],
+            run_id=run_id,
+            links=[
+                {
+                    "type": "security_blocked",
+                    "target_id": decision.category,
+                    "title": "Security Policy Blocked",
+                    "href": "",
+                    "external": False,
+                    "reason": decision.reason,
+                }
+            ],
+        )
 
     def _confirmation_required_response(
         self,

@@ -45,6 +45,24 @@ class AgentRecorderTest(unittest.TestCase):
         self.assertEqual(run["error_message"], "test cancellation")
         self.assertIsNone(run["final_answer"])
 
+    def test_security_event_is_recorded_and_listed(self) -> None:
+        recorder = AgentRunRecorder(self.settings)
+        recorded_run = recorder.start_run("security audit me")
+
+        event_id = recorder.record_security_event(
+            event_type="security_blocked",
+            category="prompt_injection",
+            reason="unit-test security reason",
+            run_id=recorded_run.run_id,
+            metadata={"source": "unit-test"},
+        )
+        events = recorder.list_security_events(recorded_run.run_id)
+
+        self.assertTrue(event_id)
+        self.assertEqual(events[0]["event_type"], "security_blocked")
+        self.assertEqual(events[0]["category"], "prompt_injection")
+        self.assertEqual(events[0]["metadata"]["source"], "unit-test")
+
 
 if __name__ == "__main__":
     unittest.main()

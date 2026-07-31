@@ -98,14 +98,31 @@ class EvaluationRunner:
         expected_tools = case.get("expected_tools", [])
         forbidden_tools = case.get("forbidden_tools", [])
         expected_answer_points = case.get("expected_answer_points", [])
+        expected_link_types = case.get("expected_link_types", [])
+        expected_security_categories = case.get("expected_security_categories", [])
         max_steps = case.get("max_steps", 8)
 
         checks: list[tuple[str, bool]] = []
         missing_tools = [tool for tool in expected_tools if tool not in called_tools]
         forbidden_called = [tool for tool in forbidden_tools if tool in called_tools]
         answer = response.answer
+        links = response.as_payload().get("links", [])
+        link_types = [str(link.get("type", "")) for link in links]
+        security_categories = [
+            str(link.get("target_id", ""))
+            for link in links
+            if str(link.get("type", "")) == "security_blocked"
+        ]
         missing_points = [
             point for point in expected_answer_points if not self._answer_contains(answer, point)
+        ]
+        missing_link_types = [
+            link_type for link_type in expected_link_types if link_type not in link_types
+        ]
+        missing_security_categories = [
+            category
+            for category in expected_security_categories
+            if category not in security_categories
         ]
         too_many_steps = len(called_tools) > max_steps
 
@@ -113,6 +130,10 @@ class EvaluationRunner:
         checks.append(("forbidden_tools", not forbidden_called))
         checks.append(("answer_points", not missing_points))
         checks.append(("max_steps", not too_many_steps))
+        if expected_link_types:
+            checks.append(("expected_link_types", not missing_link_types))
+        if expected_security_categories:
+            checks.append(("expected_security_categories", not missing_security_categories))
 
         passed_checks = sum(1 for _, ok in checks if ok)
         score = round(passed_checks / len(checks), 2)
@@ -122,6 +143,10 @@ class EvaluationRunner:
             "missing_tools": missing_tools,
             "forbidden_called": forbidden_called,
             "missing_answer_points": missing_points,
+            "link_types": link_types,
+            "missing_link_types": missing_link_types,
+            "security_categories": security_categories,
+            "missing_security_categories": missing_security_categories,
             "step_count": len(called_tools),
             "max_steps": max_steps,
         }

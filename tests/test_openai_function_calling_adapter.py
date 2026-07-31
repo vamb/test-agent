@@ -64,6 +64,29 @@ class OpenAIFunctionCallingAdapterTest(unittest.TestCase):
             "search_events_by_year",
         )
 
+    def test_system_prompt_marks_external_context_as_untrusted(self) -> None:
+        client = FakeClient()
+        adapter = OpenAIFunctionCallingAdapter(api_key="test", client=client)
+
+        adapter.decide(
+            messages=[{"role": "user", "content": "查询历史资料"}],
+            tools=[
+                {
+                    "name": "search_events_by_year",
+                    "description": "Search by year",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {"year": {"type": "integer"}},
+                        "required": ["year"],
+                    },
+                }
+            ],
+        )
+
+        system_prompt = client.chat.completions.last_request["messages"][0]["content"]
+        self.assertIn("不可信指令", system_prompt)
+        self.assertIn("不得自行设置 confirmed=true", system_prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

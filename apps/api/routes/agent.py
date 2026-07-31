@@ -19,6 +19,7 @@ from apps.api.dependencies import (
 )
 from apps.api.routes.auth import optional_current_user, require_admin_user
 from apps.worker.agent_worker import AgentWorker
+from agent.runtime.security import untrusted_context_block
 
 
 router = APIRouter()
@@ -343,8 +344,9 @@ def _optional_text(value: Any) -> str | None:
 def _with_memory_context(user_input: str, memory_context: str) -> str:
     if not memory_context:
         return user_input
+    memory_block = untrusted_context_block("long_term_memory", memory_context)
     return (
-        f"{memory_context}\n\n"
+        f"{memory_block}\n\n"
         "用户当前问题如下。回答时必须优先使用工具查询到的事实；"
         "长期记忆只用于理解用户偏好和研究兴趣。\n"
         f"{user_input}"

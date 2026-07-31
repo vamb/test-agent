@@ -238,6 +238,78 @@ class AgentRunRecorder:
                 )
             conn.commit()
 
+    def record_security_event(
+        self,
+        event_type: str,
+        category: str,
+        reason: str,
+        run_id: str | None = None,
+        user_id: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        with self._connect() as conn:
+            self._ensure_security_audit_table(conn)
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO security_audit_logs (
+                      run_id,
+                      user_id,
+                      event_type,
+                      category,
+                      reason,
+                      metadata
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id::text
+                    """,
+                    [
+                        run_id,
+                        user_id,
+                        event_type,
+                        category,
+                        reason,
+                        Jsonb(self._json_safe(metadata or {})),
+                    ],
+                )
+                event_id = str(cur.fetchone()["id"])
+            conn.commit()
+        return event_id
+
+    def list_security_events(
+        self,
+        run_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            self._ensure_security_audit_table(conn)
+            where = ""
+            params: list[Any] = []
+            if run_id:
+                where = "WHERE run_id = %s"
+                params.append(run_id)
+            params.append(max(1, min(int(limit), 200)))
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT
+                      id::text,
+                      run_id::text,
+                      user_id,
+                      event_type,
+                      category,
+                      reason,
+                      metadata,
+                      created_at
+                    FROM security_audit_logs
+                    {where}
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT %s
+                    """,
+                    params,
+                )
+                return [dict(row) for row in cur.fetchall()]
+
     def wait_for_user(self, run_id: str, message: str) -> None:
         with self._connect() as conn:
             with conn.cursor() as cur:
@@ -394,3 +466,38 @@ class AgentRunRecorder:
         if isinstance(value, tuple):
             return [self._json_safe(item) for item in value]
         return value
+
+    def _ensure_security_audit_table(self, conn: psycopg.Connection) -> None:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS security_audit_logs (
+                  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+                  run_id uuid REFERENCES agent_runs(id) ON DELETE SET NULL,
+                  user_id text NOT NULL DEFAULT '',
+                  event_type text NOT NULL,
+                  category text NOT NULL DEFAULT '',
+                  reason text NOT NULL DEFAULT '',
+                  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+                  created_at timestamptz NOT NULL DEFAULT now()
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_security_audit_logs_run_id
+                  ON security_audit_logs (run_id)
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_security_audit_logs_category
+                  ON security_audit_logs (category)
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_security_audit_logs_created_at
+                  ON security_audit_logs (created_at DESC)
+                """
+            )

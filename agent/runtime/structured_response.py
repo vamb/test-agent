@@ -58,6 +58,8 @@ def build_structured_response(
                 "event_id": event_id or "",
                 "event_title": event_title or "",
                 "reliability": source.get("reliability"),
+                "untrusted": True,
+                "context_label": "event_source",
             }
         )
 
@@ -94,6 +96,8 @@ def build_structured_response(
                 "document_id": document_id,
                 "chunk_id": str(chunk_id or ""),
                 "score": item.get("score"),
+                "untrusted": True,
+                "context_label": "knowledge_chunk",
             }
         )
         if document_id:

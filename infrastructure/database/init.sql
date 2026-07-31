@@ -13,6 +13,7 @@
 \ir schema_event_management.sql
 \ir schema_auth_chat.sql
 \ir schema_memory.sql
+\ir schema_security.sql
 \ir schema_knowledge.sql
 \ir schema_vector_optional.sql
 \ir schema_vector_jobs.sql

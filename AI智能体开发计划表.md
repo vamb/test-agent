@@ -233,11 +233,11 @@ ai-agent/
 
 | 项目 | 当前状态 |
 |---|---|
-| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP、Agent 事件修订草案工具、Agent 来源核验/可靠度调整工具、业务确认面板增强、RBAC 和工具权限第一版、管理后台支撑 API B1/B2/B3、React 聊天主界面、React Router 跳转、事件详情页、移动端适配、管理后台可运营版、LangGraph 细粒度节点、人工确认中断、确认恢复入口、前端确认交互和确认链路端到端联调已完成；Agent 观测与评测分析交给 Langfuse |
+| 当前阶段 | 后端基础 MVP、任务型 Agent 运行状态 MVP、Redis 队列/Worker MVP、checkpoint 恢复 MVP、数据导入审核流 MVP、RAG 检索 MVP、事件管理/人工确认 MVP、Agent 事件修订草案工具、Agent 来源核验/可靠度调整工具、业务确认面板增强、RBAC 和工具权限第一版、Prompt Injection 与工具安全基线、管理后台支撑 API B1/B2/B3、React 聊天主界面、React Router 跳转、事件详情页、移动端适配、管理后台可运营版、LangGraph 细粒度节点、人工确认中断、确认恢复入口、前端确认交互和确认链路端到端联调已完成；Agent 观测与评测分析交给 Langfuse |
 | 已完成主链路 | FastAPI API、React Web、React Router、PostgreSQL、pgvector、历史查询工具、Agent Loop、Function Calling、执行记录、自动评测、SSE 步骤流、运行取消、异步提交/Worker 执行、checkpoint 恢复、数据导入审核、知识库检索、受控事件管理、管理后台数据运营、LangGraph 确认暂停和确认恢复真实联调 |
-| 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；Agent 可生成事件字段修订草案和来源核验/可靠度调整草案，确认前不写库，确认面板展示目标对象、字段旧值/新值、风险说明和工具参数，确认后需要 admin session 才能继续执行高风险工具；管理写接口支持 admin session，也兼容旧 admin token 过渡；导入、知识库和向量写接口要求 admin session；也可用管理后台完成导入解析、批次审核、staging 修正/合并、确认入库、事件编辑、来源维护、关系维护、数据质量查看、知识库文档维护和向量任务处理；当前已完成 12 条小批量种子事件和 22 条扩展种子事件导入演练 |
+| 当前可运行能力 | 用户可在聊天页运行 Agent、查看 SSE 工具调用过程、从回答里的事件卡片跳转详情页；Agent 可生成事件字段修订草案和来源核验/可靠度调整草案，确认前不写库，确认面板展示目标对象、字段旧值/新值、风险说明和工具参数，确认后需要 admin session 才能继续执行高风险工具；管理写接口支持 admin session，也兼容旧 admin token 过渡；导入、知识库和向量写接口要求 admin session；明显绕过系统指令/人工确认的 Prompt Injection 会被拦截，模型不能自行设置 `confirmed=true` 调用高风险工具，长期记忆以不可信上下文注入；也可用管理后台完成导入解析、批次审核、staging 修正/合并、确认入库、事件编辑、来源维护、关系维护、数据质量查看、知识库文档维护和向量任务处理；当前已完成 12 条小批量种子事件和 22 条扩展种子事件导入演练 |
 | 当前验证结果 | 前端 `npm.cmd run build` 通过；前端 `http://127.0.0.1:5174` 返回 200；后端 `http://127.0.0.1:19000/health` 正常；后端单元测试最近一次 82/82 通过，MVP 评测最近一次 4/4 通过 |
-| 下一步重点 | Prompt Injection 与工具安全基线、确认链路端到端回归演练、后台角色管理 UI |
+| 下一步重点 | 确认链路端到端回归演练、后台角色管理 UI、评测集扩充到安全/权限场景 |
 | 暂不推进 | 多智能体、MCP、Playwright、复杂 RBAC、Kubernetes，等单 Agent 与数据管理链路稳定后再做 |
 
 | 模块 | 状态 | 已在线完成的功能 | 对应 PDF 功能/章节 |
@@ -280,7 +280,7 @@ ai-agent/
 | 3 | 业务确认面板 | 已完成第一版 | 事件修订、来源核验等高风险操作可展示目标对象、字段 diff、风险说明和工具参数明细；后续可继续加审计跳转和角色权限提示 | 第十阶段：人工确认机制；第十二阶段：安全体系 |
 | 4 | Agent 驱动的数据修订工具 | 已完成事件修订和来源核验第一版 | Agent 已能生成事件修订草案、来源核验/可靠度调整草案，并在确认后调用管理 API 落库和记录审计 | 第四阶段：工具系统；平台化第一版 |
 | 5 | 完整 RBAC / 多租户权限 | 已完成 RBAC 第一版，完整资源权限待做 | 已有登录、HttpOnly session 和 admin role；管理写接口、导入/知识库/向量写接口、Agent 确认入口已接入 admin 门禁；租户、资源级权限和后台角色管理 UI 待做 | 第十二阶段：安全体系 |
-| 6 | Prompt Injection 与工具安全 | 未开始系统化建设 | RAG、外部文档和工具结果进入上下文后，必须防止内容污染系统指令或诱导越权工具调用 | 第十二阶段：安全体系 |
+| 6 | Prompt Injection 与工具安全 | 已完成第一版 | 明显绕过系统指令/确认的输入会被拦截；模型自带 `confirmed=true` 调用高风险工具会被阻止；OpenAI system prompt 和长期记忆注入已标记不可信上下文；后续继续扩充评测集和 RAG 文档隔离策略 | 第十二阶段：安全体系 |
 | 7 | 评测体系升级 | 已有本地 MVP | 评测集数量少，缺期望工具、禁止工具、权限攻击、Prompt Injection、断网、并发和 Langfuse datasets/evals 接入 | 第十三阶段：评测体系 |
 | 8 | Langfuse / OpenTelemetry 联调 | 已完成 SDK 第一版 | 还需要验证真实 trace、tool span、model span、取消、失败、确认恢复、token/cost 是否完整进入 Langfuse | 第十四阶段：可观测性 |
 | 9 | LangGraph 生产化 | 已完成第一版 | 还需要补断线恢复、长期 waiting 状态恢复、checkpoint 策略统一、worker 和状态机融合、手写 Loop 与 LangGraph 的长期边界 | 第十一阶段：任务持久化与故障恢复 |
@@ -336,12 +336,22 @@ ai-agent/
 | W30 | 30 | 来源核验和可靠度调整 Agent 工具 | 让 Agent 基于用户指令或知识库内容提出来源可靠度、主来源标记和 citation 修订建议 | 确认前只展示建议；确认后调用来源编辑接口；后台事件详情能看到审计记录；回答可返回来源变更结果和事件链接；后端测试覆盖 | 已完成第一版 |
 | W31 | 31 | 业务确认面板增强 | 针对事件修订、来源核验等真实业务工具展示目标事件、字段 diff、风险说明、影响范围和跳转入口 | 确认面板不再只展示 JSON；用户能看懂将要修改什么；确认、失败和恢复状态清晰；前端构建和后端测试通过 | 已完成第一版 |
 | W32 | 32 | RBAC 和资源权限第一版 | 新增角色、权限策略、资源授权和管理接口权限校验，逐步替换 admin token | 已完成第一版 role 门禁：普通用户不能访问管理写接口、导入/知识库/向量写接口和 Agent 确认入口；管理写接口兼容旧 admin token 过渡；资源级权限和租户隔离后续继续 | 已完成第一版 |
-| W33 | 33 | Prompt Injection 和工具安全基线 | 对 RAG 文档、工具 observation、外部链接和用户输入建立隔离策略、危险指令检测和安全测试集 | 文档内容不能覆盖系统/开发者指令；工具调用必须通过权限策略；评测覆盖越权、注入、恶意来源和敏感操作 | 待开始 |
-| W34 | 34 | 评测体系升级和 Langfuse eval 接入 | 扩充评测集，记录期望工具、禁止工具、最大步数、答案结构、权限攻击和安全样例，并同步到 Langfuse datasets/evals | Prompt 或模型升级前后可自动比较质量；评测结果含工具路径、答案质量、安全约束和回归趋势 | 待开始 |
+| W33 | 33 | Prompt Injection 和工具安全基线 | 对 RAG 文档、工具 observation、外部链接和用户输入建立隔离策略、危险指令检测和安全测试集 | 已完成第一版：明显注入/绕过确认输入会拦截；模型不能自行确认高风险工具；长期记忆以不可信上下文注入；OpenAI system prompt 强化工具安全边界；测试覆盖越权确认和注入拦截 | 已完成第一版 |
+| W34 | 34 | 评测体系升级和 Langfuse eval 接入 | 已先完成本地安全评测第一步：扩展 runner 支持 `expected_link_types`、`expected_security_categories`，新增 `evaluation/datasets/security_cases.json` 覆盖 Prompt Injection、越权确认、恶意 RAG/记忆/工具 observation 注入；已补 LangGraph 确认恢复安全回归，覆盖参数漂移、重复确认和模型自确认高风险工具；已新增 `security_audit_logs` 记录安全拦截事件；后续同步到 Langfuse datasets/evals | Prompt 或模型升级前后可自动比较质量；评测结果含工具路径、答案质量、安全约束和回归趋势 | 进行中 |
 | W35 | 35 | Langfuse / OpenTelemetry 联调验收 | 验证真实 trace、model generation、tool observation、取消、失败、确认恢复、token/cost 上报完整性 | 每个 Agent run 可从前端或后台跳转到 Langfuse；关键 span、错误和成本字段完整；未配置 Langfuse 时主链路不受影响 | 待开始 |
 | W36 | 36 | Docker Compose 一键部署 | 补 FastAPI、Web、PostgreSQL、Redis、初始化脚本和环境变量模板的一键启动 | 新机器可通过文档和 `docker compose up` 跑起系统；数据库初始化、pgvector、样例数据导入和端口配置可复现 | 待开始 |
 | W37 | 37 | LangGraph 生产化收敛 | 统一 checkpoint 策略、断线恢复、waiting 状态长期恢复、worker 状态机和手写 Loop / LangGraph 边界 | SSE 断线后可恢复；等待确认任务可跨重启继续；默认工作流路径明确，减少双实现漂移 | 待开始 |
 | W38 | 38 | Playwright 和 MCP 后置试点 | 在核心业务工具稳定后，再接受控 Playwright 工具和历史 Agent MCP Server | Playwright 不暴露任意代码执行；MCP Server 有鉴权和版本锁定；仅包装稳定工具，不把核心业务逻辑写死在协议层 | 暂缓 |
+
+### W33 后续加强项（待做）
+
+| 编号 | 待做项 | 说明 | 建议承接 |
+|---:|---|---|---|
+| S1 | 安全评测集扩充 | 已新增本地安全评测数据集和 runner 安全断言字段，覆盖 Prompt Injection、越权确认、恶意 RAG 文档、长期记忆注入、工具 observation 注入、`confirmed=true` 绕过尝试；待接入 Langfuse datasets/evals | W34 |
+| S2 | RAG/工具返回上下文隔离升级 | 已完成第一步：工具 observation 递归为 `content/citation/excerpt/summary/notes/url` 等文本字段增加不可信上下文 sidecar，不覆盖原展示字段；结构化 references 标记 `untrusted/context_label`；后续扩展到导入资料和更多业务文本入口 | W34 |
+| S3 | 细粒度工具权限策略 | 明确只读工具、草案工具、写入工具、导入/知识库/向量工具的角色权限；后续支持 curator、resource scope 和租户策略 | W32 后续 |
+| S4 | 参数篡改和确认恢复安全测试 | 已完成第一步：LangGraph 确认恢复强制使用 recorder 中保存的 pending 参数，覆盖模型恢复时参数漂移、重复确认、模型自带 `confirmed=true` 高风险工具拦截；普通用户确认已由 HTTP admin role 测试覆盖；待继续补过期确认和错误 run 归属测试 | W34 / W37 |
+| S5 | 安全事件审计 | 已完成第一版：新增 `security_audit_logs`、recorder 写入/查询方法和运行时建表兜底；手写 Loop 与 LangGraph 的 `security_blocked` 会记录 event_type、category、reason、run_id、metadata；待继续接 Langfuse metadata 和后台查询入口 | W35 |
 
 ## 后端重构工作表
 

@@ -444,6 +444,19 @@ class LangGraphAgentWorkflow:
         self.loop._raise_if_cancelled(run_id)
         messages = list(state.get("messages", []))
         decision = self.loop._decide_with_timing(messages)
+        security = self.loop._assess_decision_tool_call(decision)
+        if not security.allowed:
+            response = self.loop._security_blocked_response(
+                security,
+                run_id,
+                state.get("trace_context"),
+            )
+            return {
+                **state,
+                "decision": decision,
+                "response": response,
+                "workflow_stage": "security_blocked",
+            }
         decision = self._apply_confirmation_override(
             decision,
             dict(state.get("confirmation_overrides") or {}),
@@ -530,6 +543,8 @@ class LangGraphAgentWorkflow:
         }
 
     def _finalize_response_node(self, state: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(state.get("response"), AgentResponse):
+            return state
         decision = state.get("decision")
         answer = str(getattr(decision, "answer", "") or "")
         self.loop._raise_if_cancelled(str(state.get("run_id", "")) or None)
@@ -605,6 +620,8 @@ class LangGraphAgentWorkflow:
         raise RuntimeError("当前问题需要更多推理步骤，已达到本轮 Agent 最大工具调用次数。")
 
     def _route_after_decision(self, state: dict[str, Any]) -> str:
+        if state.get("workflow_stage") == "security_blocked":
+            return "finalize_response"
         decision = state.get("decision")
         if getattr(decision, "action", "") == "finish":
             return "finalize_response"
@@ -680,7 +697,7 @@ class LangGraphAgentWorkflow:
 
             from agent.models.base import ToolCall
 
-            arguments = {**dict(tool_call.arguments), "confirmed": True}
+            arguments = {**dict(overrides[str(tool_call.name)]), "confirmed": True}
             return replace(
                 decision,
                 tool_call=ToolCall(name=tool_call.name, arguments=arguments),

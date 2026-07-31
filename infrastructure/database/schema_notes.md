@@ -102,6 +102,7 @@ Agent 做关联分析时必须根据 `relation_type` 和 `confidence` 区分强�
 | `agent_steps` | 模型调用、工具调用、观察结果、错误信息 |
 | `tools` | 工具注册、风险等级、是否需要确认 |
 | `event_change_logs` | 管理后台对事件、来源和关系的写操作审计 |
+| `security_audit_logs` | Prompt Injection、工具自确认、权限策略等安全事件审计 |
 
 这些表用于：
 
