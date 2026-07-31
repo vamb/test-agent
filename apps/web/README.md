@@ -2,6 +2,8 @@
 
 历史时间对照 Agent 的 React + TypeScript + Vite 工作台界面。
 
+完整产品使用说明见：`docs/user_manual.md`。
+
 ## 功能
 
 - Agent 问答输入

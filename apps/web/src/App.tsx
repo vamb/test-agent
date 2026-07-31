@@ -449,6 +449,10 @@ function ChatPage() {
               status:
                 event.event === "final_answer"
                   ? "done"
+                  : event.event === "run_completed"
+                    ? message.status === "waiting_confirmation"
+                      ? "waiting_confirmation"
+                      : "done"
                   : event.event === "confirmation_required"
                     ? "waiting_confirmation"
                     : event.event === "run_failed"
@@ -1736,6 +1740,7 @@ function describeStreamEvent(event: AgentStreamEvent) {
   if (event.event === "tool_result") return `${event.tool_name || "工具"} 已返回，正在整理证据...`;
   if (event.event === "answer_delta") return "正在生成回答...";
   if (event.event === "final_answer") return "回答完成";
+  if (event.event === "run_completed") return "回答完成";
   if (event.event === "confirmation_required") return "等待人工确认";
   if (event.event === "run_failed") return "运行失败";
   if (event.event === "run_cancelled") return "已停止";
