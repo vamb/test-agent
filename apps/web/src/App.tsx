@@ -19,13 +19,18 @@ import {
   ExternalLink,
   FileText,
   Globe2,
+  History,
   Loader2,
+  LogIn,
+  LogOut,
   MessageSquareText,
   PanelLeft,
+  Plus,
   Search,
   ShieldAlert,
   Sparkles,
   Square,
+  UserRound,
 } from "lucide-react";
 import {
   AdminEventDetailPage,
@@ -43,14 +48,24 @@ import {
 } from "./AdminPages";
 import {
   AgentStreamEvent,
+  AuthUser,
+  ChatConversation,
   AgentLink,
   AgentReference,
   CompareRow,
+  StoredChatMessage,
   TimelineEvent,
   cancelAgentRun,
+  createChatConversation,
   confirmAgentRun,
   compareRegions,
+  getChatConversation,
+  getCurrentUser,
   getEventDetail,
+  listChatConversations,
+  loginUser,
+  logoutUser,
+  registerUser,
   streamAgentQuery,
 } from "./api";
 
@@ -102,19 +117,21 @@ export function App() {
 }
 
 function ChatPage() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authForm, setAuthForm] = useState({ username: "", password: "" });
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>("");
+  const [conversationError, setConversationError] = useState("");
+  const [conversationsLoading, setConversationsLoading] = useState(false);
   const [question, setQuestion] = useState(defaultQuestion);
   const [startYear, setStartYear] = useState(700);
   const [endYear, setEndYear] = useState(800);
   const [regionsText, setRegionsText] = useState(defaultRegions.join("、"));
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      status: "done",
-      content:
-        "你可以问一个历史时间点，我会尽量把同一时期不同地区发生的事情放在一起比较。回答里的事件卡片可以点击进入详情页。",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([welcomeMessage()]);
   const [isAsking, setIsAsking] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [stickToBottom, setStickToBottom] = useState(true);
@@ -133,6 +150,16 @@ function ChatPage() {
         .filter(Boolean),
     [regionsText],
   );
+
+  useEffect(() => {
+    void getCurrentUser()
+      .then((user) => {
+        setCurrentUser(user);
+        if (user) void refreshConversations();
+      })
+      .catch((err) => setAuthError(err instanceof Error ? err.message : "读取用户失败"))
+      .finally(() => setAuthChecked(true));
+  }, []);
 
   useEffect(() => {
     if (!stickToBottom) return;
@@ -159,6 +186,81 @@ function ChatPage() {
   function scrollToLatest() {
     setStickToBottom(true);
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  async function refreshConversations() {
+    setConversationsLoading(true);
+    setConversationError("");
+    try {
+      const result = await listChatConversations();
+      setConversations(result.conversations);
+    } catch (err) {
+      setConversationError(err instanceof Error ? err.message : "读取会话失败");
+    } finally {
+      setConversationsLoading(false);
+    }
+  }
+
+  async function handleAuthSubmit() {
+    const username = authForm.username.trim();
+    const password = authForm.password;
+    if (!username || !password || authLoading) return;
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      if (authMode === "register") {
+        await registerUser({ username, password });
+      }
+      const result = await loginUser(username, password);
+      setCurrentUser(result.user);
+      setAuthForm({ username: "", password: "" });
+      await refreshConversations();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : "认证失败");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleLogout() {
+    await logoutUser();
+    setCurrentUser(null);
+    setConversations([]);
+    setActiveConversationId("");
+    setMessages([welcomeMessage()]);
+  }
+
+  function handleNewConversation() {
+    setActiveConversationId("");
+    setMessages([welcomeMessage()]);
+    setQuestion(defaultQuestion);
+    setConversationError("");
+  }
+
+  async function handleCreateConversation() {
+    if (!currentUser) return;
+    setConversationError("");
+    try {
+      const result = await createChatConversation("新历史研究");
+      setActiveConversationId(result.conversation.id);
+      setConversations((current) => [result.conversation, ...current]);
+      setMessages([welcomeMessage()]);
+    } catch (err) {
+      setConversationError(err instanceof Error ? err.message : "创建会话失败");
+    }
+  }
+
+  async function handleLoadConversation(conversationId: string) {
+    if (!currentUser || isAsking) return;
+    setConversationError("");
+    try {
+      const result = await getChatConversation(conversationId);
+      setActiveConversationId(result.conversation.id);
+      setMessages(messagesFromStored(result.messages));
+      setStickToBottom(true);
+    } catch (err) {
+      setConversationError(err instanceof Error ? err.message : "读取会话失败");
+    }
   }
 
   async function handleAsk() {
@@ -194,6 +296,9 @@ function ChatPage() {
 
     try {
       await streamAgentQuery(input, (event) => {
+        if (event.event === "chat_context" && event.conversation_id) {
+          setActiveConversationId(event.conversation_id);
+        }
         setMessages((current) =>
           current.map((message) => {
             if (message.id !== assistantId) return message;
@@ -240,7 +345,10 @@ function ChatPage() {
           }),
         );
         if (event.run_id) activeRunIdRef.current = event.run_id;
-      }, { signal: controller.signal });
+        if (event.event === "final_answer" || event.event === "confirmation_required") {
+          void refreshConversations();
+        }
+      }, { signal: controller.signal, conversationId: activeConversationId || undefined });
     } catch (err) {
       if (controller.signal.aborted) {
         setMessages((current) =>
@@ -413,6 +521,39 @@ function ChatPage() {
     }
   }
 
+  const activeConversation = conversations.find(
+    (conversation) => conversation.id === activeConversationId,
+  );
+  const headerTitle = activeConversation?.title || "新的历史研究";
+
+  if (!authChecked) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-loading">
+          <Loader2 className="spin" size={20} />
+          正在检查登录状态...
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <AuthScreen
+        authMode={authMode}
+        authForm={authForm}
+        authError={authError}
+        authLoading={authLoading}
+        onModeChange={(mode) => {
+          setAuthMode(mode);
+          setAuthError("");
+        }}
+        onFormChange={setAuthForm}
+        onSubmit={() => void handleAuthSubmit()}
+      />
+    );
+  }
+
   return (
     <div className="chat-layout">
       <aside className="conversation-rail">
@@ -422,22 +563,62 @@ function ChatPage() {
           </div>
           <div>
             <strong>历史时间对照 Agent</strong>
-            <span>AI research workspace</span>
+            <span>Timeline research workspace</span>
           </div>
         </div>
 
-        <button className="rail-action" onClick={() => setQuestion(defaultQuestion)}>
-          <MessageSquareText size={17} />
-          新建提问
+        <div className="user-card compact">
+          <UserRound size={17} />
+          <div>
+            <strong>{currentUser.display_name || currentUser.username}</strong>
+            <span>{currentUser.role} / 已登录</span>
+          </div>
+          <button className="mini-icon-button" onClick={() => void handleLogout()} aria-label="登出">
+            <LogOut size={15} />
+          </button>
+        </div>
+
+        <button className="rail-action primary" onClick={() => void handleCreateConversation()}>
+          <Plus size={17} />
+          新建会话
         </button>
 
-        <Link className="rail-action subtle" to="/admin">
-          <Database size={17} />
-          数据管理台
-        </Link>
+        <div className="rail-section conversation-section">
+          <div className="rail-section-head">
+            <p>聊天记录</p>
+            <button className="mini-icon-button" onClick={handleNewConversation} aria-label="临时提问">
+              <MessageSquareText size={15} />
+            </button>
+          </div>
+          {conversationError && <small className="rail-error">{conversationError}</small>}
+          {conversationsLoading ? (
+            <div className="rail-loading">
+              <Loader2 className="spin" size={15} />
+              读取会话...
+            </div>
+          ) : (
+            <div className="conversation-list">
+              {conversations.length === 0 && <span className="empty-hint">还没有保存的聊天。</span>}
+              {conversations.map((conversation) => (
+                <button
+                  key={conversation.id}
+                  className={conversation.id === activeConversationId ? "active" : ""}
+                  onClick={() => void handleLoadConversation(conversation.id)}
+                  type="button"
+                >
+                  <History size={15} />
+                  <span>{conversation.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-        <div className="rail-section">
-          <p>快捷对照</p>
+        <details className="rail-foldout">
+          <summary>
+            <CalendarRange size={15} />
+            快捷对照
+          </summary>
           <div className="year-inputs">
             <label>
               开始
@@ -467,13 +648,13 @@ function ChatPage() {
             {isComparing ? <Loader2 className="spin" size={17} /> : <CalendarRange size={17} />}
             生成横向对照
           </button>
-        </div>
+        </details>
 
-        <div className="rail-section quiet">
-          <p>当前服务</p>
-          <span>Frontend 5174</span>
-          <span>Backend 19000</span>
-          <span>PostgreSQL connected</span>
+        <div className="rail-footer">
+          <Link className="rail-action subtle" to="/admin">
+            <Database size={17} />
+            数据管理台
+          </Link>
         </div>
       </aside>
 
@@ -484,11 +665,11 @@ function ChatPage() {
           </button>
           <div>
             <p className="eyebrow">Timeline conversation</p>
-            <h1>从聊天进入历史档案</h1>
+            <h1>{headerTitle}</h1>
           </div>
           <div className="header-status">
             <Sparkles size={16} />
-            <span>Function calling + SSE</span>
+            <span>{activeConversationId ? "已保存到聊天记录" : "临时会话"}</span>
           </div>
         </header>
 
@@ -548,6 +729,105 @@ function ChatPage() {
         </section>
       </section>
     </div>
+  );
+}
+
+function AuthScreen({
+  authMode,
+  authForm,
+  authError,
+  authLoading,
+  onModeChange,
+  onFormChange,
+  onSubmit,
+}: {
+  authMode: "login" | "register";
+  authForm: { username: string; password: string };
+  authError: string;
+  authLoading: boolean;
+  onModeChange: (mode: "login" | "register") => void;
+  onFormChange: (form: { username: string; password: string }) => void;
+  onSubmit: () => void;
+}) {
+  const isLogin = authMode === "login";
+
+  return (
+    <section className="auth-screen">
+      <div className="auth-shell">
+        <div className="auth-copy">
+          <div className="brand-mark auth-brand">
+            <div className="brand-symbol">
+              <Globe2 size={23} />
+            </div>
+            <div>
+              <strong>历史时间对照 Agent</strong>
+              <span>账号、聊天记录和长期记忆的入口</span>
+            </div>
+          </div>
+          <h1>把每次研究保存下来。</h1>
+          <p>
+            登录后，聊天会绑定到你的账号；后续的聊天组、记录检索和 AI memory 都会从这里开始。
+          </p>
+        </div>
+
+        <form
+          className="auth-card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <div className="auth-tabs">
+            <button
+              className={isLogin ? "active" : ""}
+              onClick={() => onModeChange("login")}
+              type="button"
+            >
+              登录
+            </button>
+            <button
+              className={!isLogin ? "active" : ""}
+              onClick={() => onModeChange("register")}
+              type="button"
+            >
+              注册
+            </button>
+          </div>
+
+          <label className="auth-field">
+            用户名
+            <input
+              autoComplete="username"
+              autoFocus
+              value={authForm.username}
+              onChange={(event) => onFormChange({ ...authForm, username: event.target.value })}
+              placeholder="输入用户名"
+            />
+          </label>
+          <label className="auth-field">
+            密码
+            <input
+              autoComplete={isLogin ? "current-password" : "new-password"}
+              type="password"
+              value={authForm.password}
+              onChange={(event) => onFormChange({ ...authForm, password: event.target.value })}
+              placeholder="输入密码"
+            />
+          </label>
+
+          {authError && <div className="auth-error">{authError}</div>}
+
+          <button
+            className="rail-action primary auth-submit"
+            disabled={authLoading || !authForm.username.trim() || !authForm.password}
+            type="submit"
+          >
+            {authLoading ? <Loader2 className="spin" size={17} /> : <LogIn size={17} />}
+            {isLogin ? "登录并进入聊天" : "注册并进入聊天"}
+          </button>
+        </form>
+      </div>
+    </section>
   );
 }
 
@@ -959,6 +1239,33 @@ function ArchiveList({ title, items }: { title: string; items: string[] }) {
       )}
     </section>
   );
+}
+
+function welcomeMessage(): ChatMessage {
+  return {
+    id: "welcome",
+    role: "assistant",
+    status: "done",
+    content:
+      "你可以问一个历史时间点，我会尽量把同一时期不同地区发生的事情放在一起比较。登录后，聊天会自动保存到你的历史记录里。",
+  };
+}
+
+function messagesFromStored(storedMessages: StoredChatMessage[]): ChatMessage[] {
+  if (!storedMessages.length) return [welcomeMessage()];
+  return storedMessages
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .map((message) => ({
+      id: message.id,
+      role: message.role === "user" ? "user" : "assistant",
+      content: message.content,
+      status: message.status,
+      runId: message.agent_run_id || undefined,
+      events: message.artifacts?.event || [],
+      references: message.artifacts?.reference || [],
+      links: message.artifacts?.link || [],
+      steps: [],
+    }));
 }
 
 function mergeEvents(current: TimelineEvent[], next: TimelineEvent[]) {

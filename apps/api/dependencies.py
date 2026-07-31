@@ -5,6 +5,8 @@ from pathlib import Path
 from agent.runtime.queue import AgentRunQueue
 from agent.runtime.recorder import AgentRunRecorder
 from agent.runtime.observability import AgentTelemetry
+from apps.api.auth_service import AuthService
+from apps.api.chat_service import ChatService
 from apps.api.settings import AppSettings
 from knowledge.service import KnowledgeService
 from tools.database.postgres import PostgresClient
@@ -33,6 +35,8 @@ service = HistoricalQueryService(repository)
 recorder = AgentRunRecorder(settings.postgres)
 telemetry = AgentTelemetry(settings.observability)
 agent_queue = AgentRunQueue(recorder, settings.queue)
+auth_service = AuthService(settings.postgres)
+chat_service = ChatService(settings.postgres)
 import_review_service = ImportReviewService(settings.postgres)
 event_management_service = EventManagementService(settings.postgres, settings.security)
 knowledge_service = KnowledgeService(settings.postgres)

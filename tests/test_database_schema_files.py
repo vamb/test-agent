@@ -13,6 +13,7 @@ class DatabaseSchemaFilesTest(unittest.TestCase):
         for filename in (
             "schema.sql",
             "schema_event_management.sql",
+            "schema_auth_chat.sql",
             "schema_knowledge.sql",
             "schema_vector_optional.sql",
             "schema_vector_jobs.sql",
@@ -23,6 +24,7 @@ class DatabaseSchemaFilesTest(unittest.TestCase):
     def test_schema_declares_management_indexes_and_tables(self) -> None:
         base_schema = (DATABASE_DIR / "schema.sql").read_text(encoding="utf-8")
         management_schema = (DATABASE_DIR / "schema_event_management.sql").read_text(encoding="utf-8")
+        auth_chat_schema = (DATABASE_DIR / "schema_auth_chat.sql").read_text(encoding="utf-8")
         knowledge_schema = (DATABASE_DIR / "schema_knowledge.sql").read_text(encoding="utf-8")
         vector_jobs_schema = (DATABASE_DIR / "schema_vector_jobs.sql").read_text(encoding="utf-8")
 
@@ -33,6 +35,13 @@ class DatabaseSchemaFilesTest(unittest.TestCase):
         self.assertIn("CREATE TABLE IF NOT EXISTS data_quality_issue_actions", management_schema)
         self.assertIn("CONSTRAINT data_quality_issue_actions_status", management_schema)
         self.assertIn("idx_data_quality_issue_actions_target", management_schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS users", auth_chat_schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS user_sessions", auth_chat_schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS chat_groups", auth_chat_schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS chat_conversations", auth_chat_schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS chat_messages", auth_chat_schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS chat_message_artifacts", auth_chat_schema)
+        self.assertIn("ADD COLUMN IF NOT EXISTS conversation_id", auth_chat_schema)
         self.assertIn("CREATE TABLE IF NOT EXISTS knowledge_documents", knowledge_schema)
         self.assertIn("CREATE TABLE IF NOT EXISTS knowledge_chunks", knowledge_schema)
         self.assertIn("CREATE TABLE IF NOT EXISTS knowledge_document_versions", knowledge_schema)

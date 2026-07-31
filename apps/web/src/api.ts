@@ -34,6 +34,9 @@ export type CompareRow = {
 export type AgentStreamEvent = {
   event: string;
   run_id?: string;
+  conversation_id?: string;
+  input_message_id?: string;
+  output_message_id?: string;
   step_index?: number;
   tool_name?: string;
   status?: string;
@@ -79,6 +82,147 @@ export type AgentLink = {
   external?: boolean;
 };
 
+export type AuthUser = {
+  id: string;
+  username: string;
+  email?: string;
+  display_name: string;
+  role: string;
+  status: string;
+};
+
+export type ChatGroup = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  pinned: boolean;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChatConversation = {
+  id: string;
+  user_id: string;
+  group_id?: string | null;
+  title: string;
+  summary: string;
+  status: string;
+  last_message_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoredChatMessage = {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  role: "user" | "assistant" | "system" | "tool";
+  content: string;
+  content_format: string;
+  status: "streaming" | "done" | "error" | "cancelled";
+  agent_run_id?: string | null;
+  parent_message_id?: string | null;
+  metadata_json?: Record<string, unknown>;
+  artifacts?: {
+    event?: TimelineEvent[];
+    reference?: AgentReference[];
+    link?: AgentLink[];
+  };
+  created_at: string;
+};
+
+async function apiFetch(path: string, options: RequestInit = {}) {
+  return fetch(`${API_BASE_URL}${path}`, {
+    credentials: "include",
+    ...options,
+    headers: {
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
+    },
+  });
+}
+
+export async function registerUser(params: {
+  username: string;
+  password: string;
+  email?: string;
+  displayName?: string;
+}) {
+  const response = await apiFetch("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({
+      username: params.username,
+      password: params.password,
+      email: params.email || "",
+      display_name: params.displayName || "",
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`注册失败：${response.status}`);
+  }
+  return (await response.json()) as { user: AuthUser };
+}
+
+export async function loginUser(username: string, password: string) {
+  const response = await apiFetch("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+  if (!response.ok) {
+    throw new Error(`登录失败：${response.status}`);
+  }
+  return (await response.json()) as { user: AuthUser };
+}
+
+export async function logoutUser() {
+  const response = await apiFetch("/auth/logout", { method: "POST" });
+  if (!response.ok) {
+    throw new Error(`登出失败：${response.status}`);
+  }
+  return (await response.json()) as { logged_out: boolean; revoked: boolean };
+}
+
+export async function getCurrentUser() {
+  const response = await apiFetch("/auth/me");
+  if (response.status === 401) return null;
+  if (!response.ok) {
+    throw new Error(`读取当前用户失败：${response.status}`);
+  }
+  return ((await response.json()) as { user: AuthUser }).user;
+}
+
+export async function listChatConversations() {
+  const response = await apiFetch("/chat/conversations");
+  if (!response.ok) {
+    throw new Error(`读取会话列表失败：${response.status}`);
+  }
+  return (await response.json()) as { conversations: ChatConversation[] };
+}
+
+export async function createChatConversation(title = "新会话") {
+  const response = await apiFetch("/chat/conversations", {
+    method: "POST",
+    body: JSON.stringify({ title }),
+  });
+  if (!response.ok) {
+    throw new Error(`创建会话失败：${response.status}`);
+  }
+  return (await response.json()) as { conversation: ChatConversation };
+}
+
+export async function getChatConversation(conversationId: string) {
+  const response = await apiFetch(`/chat/conversations/${encodeURIComponent(conversationId)}`);
+  if (!response.ok) {
+    throw new Error(`读取会话失败：${response.status}`);
+  }
+  return (await response.json()) as {
+    conversation: ChatConversation;
+    messages: StoredChatMessage[];
+  };
+}
+
 export async function compareRegions(params: {
   startYear: number;
   endYear: number;
@@ -89,7 +233,7 @@ export async function compareRegions(params: {
     end_year: String(params.endYear),
   });
   params.regions.forEach((region) => search.append("regions", region));
-  const response = await fetch(`${API_BASE_URL}/compare/regions?${search}`);
+  const response = await apiFetch(`/compare/regions?${search}`);
   if (!response.ok) {
     throw new Error(`横向对照请求失败：${response.status}`);
   }
@@ -101,7 +245,7 @@ export async function compareRegions(params: {
 }
 
 export async function getEventDetail(eventId: string) {
-  const response = await fetch(`${API_BASE_URL}/events/${eventId}`);
+  const response = await apiFetch(`/events/${eventId}`);
   if (!response.ok) {
     throw new Error(`事件详情请求失败：${response.status}`);
   }
@@ -111,12 +255,14 @@ export async function getEventDetail(eventId: string) {
 export async function streamAgentQuery(
   input: string,
   onEvent: (event: AgentStreamEvent) => void,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; conversationId?: string },
 ) {
-  const response = await fetch(`${API_BASE_URL}/agent/query/stream`, {
+  const response = await apiFetch("/agent/query/stream", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ input }),
+    body: JSON.stringify({
+      input,
+      conversation_id: options?.conversationId || undefined,
+    }),
     signal: options?.signal,
   });
   if (!response.ok || !response.body) {
@@ -149,9 +295,8 @@ export async function streamAgentQuery(
 }
 
 export async function cancelAgentRun(runId: string, reason = "Cancelled from web UI") {
-  const response = await fetch(`${API_BASE_URL}/agent/runs/${encodeURIComponent(runId)}/cancel`, {
+  const response = await apiFetch(`/agent/runs/${encodeURIComponent(runId)}/cancel`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ reason }),
   });
   if (!response.ok) {
@@ -165,7 +310,7 @@ export async function cancelAgentRun(runId: string, reason = "Cancelled from web
 }
 
 export async function confirmAgentRun(runId: string) {
-  const response = await fetch(`${API_BASE_URL}/agent/runs/${encodeURIComponent(runId)}/confirm`, {
+  const response = await apiFetch(`/agent/runs/${encodeURIComponent(runId)}/confirm`, {
     method: "POST",
   });
   if (!response.ok) {

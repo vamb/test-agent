@@ -20,6 +20,27 @@ from apps.api.routes.agent import (
     recover_stale_agent_runs,
     router as agent_router,
 )
+from apps.api.routes.auth import (
+    login,
+    logout,
+    me,
+    register,
+    router as auth_router,
+)
+from apps.api.routes.chat import (
+    archive_chat_conversation,
+    archive_chat_group,
+    create_chat_conversation,
+    create_chat_group,
+    create_chat_message,
+    get_chat_conversation,
+    list_chat_conversations,
+    list_chat_groups,
+    list_chat_messages,
+    router as chat_router,
+    update_chat_conversation,
+    update_chat_group,
+)
 from apps.api.routes.knowledge import (
     create_vector_rebuild_job,
     get_knowledge_document_chunks,
@@ -115,6 +136,8 @@ app.include_router(imports_router)
 app.include_router(admin_router)
 app.include_router(events_router)
 app.include_router(agent_router)
+app.include_router(auth_router)
+app.include_router(chat_router)
 
 
 @app.get("/health")
