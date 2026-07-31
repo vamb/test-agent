@@ -26,6 +26,12 @@ def require_current_user(
     return user
 
 
+def require_admin_user(user: dict = Depends(require_current_user)) -> dict:
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="admin role required")
+    return user
+
+
 def optional_current_user(
     session_cookie: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
     authorization: str | None = Header(default=None),

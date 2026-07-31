@@ -17,7 +17,7 @@ from apps.api.dependencies import (
     telemetry,
     tool_registry,
 )
-from apps.api.routes.auth import optional_current_user
+from apps.api.routes.auth import optional_current_user, require_admin_user
 from apps.worker.agent_worker import AgentWorker
 
 
@@ -185,7 +185,10 @@ def cancel_agent_run(run_id: str, payload: dict | None = None) -> dict:
 
 
 @router.post("/agent/runs/{run_id}/confirm")
-def confirm_agent_run(run_id: str) -> dict:
+def confirm_agent_run(
+    run_id: str,
+    user: dict = Depends(require_admin_user),
+) -> dict:
     agent = build_agent_workflow(
         workflow_engine=settings.agent_runtime.workflow_engine,
         model_adapter=build_model_adapter(settings.model),

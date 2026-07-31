@@ -306,6 +306,7 @@ class LangGraphAgentWorkflow:
                         trace_context,
                     )
                     payload = response.as_payload()
+                    confirmation_context = self.loop._confirmation_context_from_response(response)
                     yield {
                         "event": "confirmation_required",
                         "run_id": run_id,
@@ -316,6 +317,7 @@ class LangGraphAgentWorkflow:
                         "step_count": len(response.steps),
                         "tool_name": decision.tool_call.name,
                         "tool_arguments": decision.tool_call.arguments,
+                        "confirmation_context": confirmation_context,
                     }
                     return
 
@@ -548,6 +550,11 @@ class LangGraphAgentWorkflow:
             "请确认操作风险和参数后，带 `confirmed: true` 重新提交。"
         )
         run_id = str(state.get("run_id", "")) or None
+        confirmation_context = self.loop._confirmation_context_from_steps(
+            tool_name,
+            tool_arguments,
+            list(state.get("steps", [])),
+        )
         if self.loop.recorder and run_id:
             self.loop.recorder.record_tool_step(
                 run_id=run_id,
@@ -558,6 +565,7 @@ class LangGraphAgentWorkflow:
                     "confirmation_required": True,
                     "tool_name": tool_name,
                     "tool_arguments": tool_arguments,
+                    "confirmation_context": confirmation_context,
                 },
                 status="skipped",
                 error_message=message,
@@ -578,6 +586,7 @@ class LangGraphAgentWorkflow:
                     "external": False,
                     "tool_name": tool_name,
                     "tool_arguments": tool_arguments,
+                    "confirmation_context": confirmation_context,
                 }
             ],
         )
@@ -587,6 +596,7 @@ class LangGraphAgentWorkflow:
             "confirmation_required": {
                 "tool_name": tool_name,
                 "tool_arguments": tool_arguments,
+                "confirmation_context": confirmation_context,
             },
             "workflow_stage": "waiting_for_confirmation",
         }

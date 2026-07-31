@@ -50,6 +50,7 @@ export type AgentStreamEvent = {
   links?: AgentLink[];
   observation?: Record<string, unknown>;
   tool_arguments?: Record<string, unknown>;
+  confirmation_context?: ConfirmationContext;
   error_message?: string;
 };
 
@@ -83,6 +84,28 @@ export type AgentLink = {
   title: string;
   href: string;
   external?: boolean;
+  tool_name?: string;
+  tool_arguments?: Record<string, unknown>;
+  confirmation_context?: ConfirmationContext;
+};
+
+export type ConfirmationDiffItem = {
+  field: string;
+  before?: unknown;
+  after?: unknown;
+};
+
+export type ConfirmationContext = {
+  kind: string;
+  title: string;
+  target_id?: string;
+  target_title?: string;
+  target_label?: string;
+  event_id?: string;
+  diff?: ConfirmationDiffItem[];
+  updates?: Record<string, unknown>;
+  reason?: string;
+  risk?: string;
 };
 
 export type AuthUser = {

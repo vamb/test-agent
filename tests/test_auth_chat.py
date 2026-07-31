@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from apps.api.dependencies import auth_service, chat_service, memory_service
 from apps.api.main import app
+from tests.test_import_review import valid_import_event
 
 
 class AuthChatTest(unittest.TestCase):
@@ -207,6 +208,112 @@ class AuthChatTest(unittest.TestCase):
         delete_response = client.delete(f"/memory/memories/{memory_id}")
         self.assertEqual(delete_response.status_code, 200)
         self.assertEqual(delete_response.json()["memory"]["status"], "deleted")
+
+    def test_admin_write_routes_require_admin_role(self) -> None:
+        suffix = uuid4().hex[:10]
+
+        anonymous_client = TestClient(app)
+        anonymous_response = anonymous_client.post(
+            "/admin/events",
+            json={"confirmed": True, "event": valid_import_event("匿名写入测试")},
+        )
+        self.assertEqual(anonymous_response.status_code, 401)
+
+        user_client = TestClient(app)
+        username = f"rbac_user_{suffix}"
+        self.assertEqual(
+            user_client.post("/auth/register", json={"username": username, "password": "secret123"}).status_code,
+            200,
+        )
+        self.assertEqual(
+            user_client.post("/auth/login", json={"username": username, "password": "secret123"}).status_code,
+            200,
+        )
+        user_response = user_client.post(
+            "/admin/events",
+            json={"confirmed": True, "event": valid_import_event("普通用户写入测试")},
+        )
+        self.assertEqual(user_response.status_code, 403)
+
+        admin_client = TestClient(app)
+        admin_username = f"rbac_admin_{suffix}"
+        admin = auth_service.register(admin_username, "secret123")
+        auth_service.set_user_role(admin["id"], "admin")
+        self.assertEqual(
+            admin_client.post("/auth/login", json={"username": admin_username, "password": "secret123"}).status_code,
+            200,
+        )
+        admin_response = admin_client.post(
+            "/admin/events",
+            json={"confirmed": True, "event": valid_import_event("管理员写入测试")},
+        )
+        self.assertEqual(admin_response.status_code, 200)
+        self.assertTrue(admin_response.json()["success"])
+
+    def test_agent_confirm_requires_admin_role(self) -> None:
+        suffix = uuid4().hex[:10]
+        client = TestClient(app)
+        username = f"confirm_user_{suffix}"
+        self.assertEqual(
+            client.post("/auth/register", json={"username": username, "password": "secret123"}).status_code,
+            200,
+        )
+        self.assertEqual(
+            client.post("/auth/login", json={"username": username, "password": "secret123"}).status_code,
+            200,
+        )
+
+        response = client.post(f"/agent/runs/{uuid4()}/confirm")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_import_and_knowledge_write_routes_require_admin_role(self) -> None:
+        suffix = uuid4().hex[:10]
+        anonymous_client = TestClient(app)
+
+        import_response = anonymous_client.post(
+            "/imports/batches",
+            json={"filename": "rbac.json", "events": [valid_import_event("导入权限测试")]},
+        )
+        knowledge_response = anonymous_client.post(
+            "/knowledge/documents",
+            json={"title": "权限测试资料", "content": "只有管理员可以写入知识库。"},
+        )
+        self.assertEqual(import_response.status_code, 401)
+        self.assertEqual(knowledge_response.status_code, 401)
+
+        user_client = TestClient(app)
+        username = f"ops_user_{suffix}"
+        self.assertEqual(
+            user_client.post("/auth/register", json={"username": username, "password": "secret123"}).status_code,
+            200,
+        )
+        self.assertEqual(
+            user_client.post("/auth/login", json={"username": username, "password": "secret123"}).status_code,
+            200,
+        )
+        self.assertEqual(
+            user_client.post(
+                "/knowledge/documents",
+                json={"title": "普通用户资料", "content": "普通用户不能写。"},
+            ).status_code,
+            403,
+        )
+
+        admin_client = TestClient(app)
+        admin_username = f"ops_admin_{suffix}"
+        admin = auth_service.register(admin_username, "secret123")
+        auth_service.set_user_role(admin["id"], "admin")
+        self.assertEqual(
+            admin_client.post("/auth/login", json={"username": admin_username, "password": "secret123"}).status_code,
+            200,
+        )
+        admin_knowledge_response = admin_client.post(
+            "/knowledge/documents",
+            json={"title": "管理员资料", "content": "管理员可以写入知识库。"},
+        )
+        self.assertEqual(admin_knowledge_response.status_code, 200)
+        self.assertTrue(admin_knowledge_response.json()["document_id"])
 
 
 if __name__ == "__main__":

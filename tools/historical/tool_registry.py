@@ -3,13 +3,18 @@ from __future__ import annotations
 from typing import Any
 
 from knowledge.service import KnowledgeService
+from tools.historical.event_management import EventManagementService
+from tools.historical.event_revision import EventRevisionToolService
 from tools.historical.service import HistoricalQueryService
+from tools.historical.source_revision import SourceRevisionToolService
 from tools.registry.base import ToolDefinition, ToolRegistry
 
 
 def build_historical_tool_registry(
     service: HistoricalQueryService,
     knowledge_service: KnowledgeService | None = None,
+    event_management_service: EventManagementService | None = None,
+    admin_token: str = "",
     enable_confirmation_probe: bool = False,
 ) -> ToolRegistry:
     registry = ToolRegistry()
@@ -132,6 +137,97 @@ def build_historical_tool_registry(
         ),
         lambda args: _resolve_event(service, str(args["query"])),
     )
+
+    if event_management_service:
+        revision_tools = EventRevisionToolService(event_management_service, admin_token)
+        revision_schema = {
+            "type": "object",
+            "properties": {
+                "event_id": {"type": "string"},
+                "updates": {"type": "object"},
+                "reason": {"type": "string", "default": ""},
+                "confirmed_by": {"type": "string", "default": "agent"},
+            },
+            "required": ["event_id", "updates"],
+        }
+        registry.register(
+            ToolDefinition(
+                name="draft_event_revision",
+                description=(
+                    "Draft proposed changes for one historical event. "
+                    "This tool only returns a field diff and never writes to the database."
+                ),
+                input_schema=revision_schema,
+            ),
+            revision_tools.draft_event_revision,
+        )
+        registry.register(
+            ToolDefinition(
+                name="apply_event_revision",
+                description=(
+                    "Apply confirmed changes for one historical event using the admin update path "
+                    "and event_change_logs audit trail."
+                ),
+                input_schema={
+                    **revision_schema,
+                    "properties": {
+                        **revision_schema["properties"],
+                        "confirmed": {"type": "boolean", "default": False},
+                    },
+                },
+                risk_level="high",
+                idempotent=False,
+                requires_confirmation=True,
+                max_retries=0,
+            ),
+            revision_tools.apply_event_revision,
+        )
+
+        source_revision_tools = SourceRevisionToolService(event_management_service, admin_token)
+        source_revision_schema = {
+            "type": "object",
+            "properties": {
+                "source_id": {"type": "string", "default": ""},
+                "event_id": {"type": "string", "default": ""},
+                "source_query": {"type": "string", "default": ""},
+                "updates": {"type": "object"},
+                "reason": {"type": "string", "default": ""},
+                "confirmed_by": {"type": "string", "default": "agent"},
+            },
+            "required": ["updates"],
+        }
+        registry.register(
+            ToolDefinition(
+                name="draft_source_revision",
+                description=(
+                    "Draft proposed reliability, primary-source, citation, or excerpt changes "
+                    "for one event source. This tool never writes to the database."
+                ),
+                input_schema=source_revision_schema,
+            ),
+            source_revision_tools.draft_source_revision,
+        )
+        registry.register(
+            ToolDefinition(
+                name="apply_source_revision",
+                description=(
+                    "Apply confirmed changes for one event source using the admin source update path "
+                    "and event_change_logs audit trail."
+                ),
+                input_schema={
+                    **source_revision_schema,
+                    "properties": {
+                        **source_revision_schema["properties"],
+                        "confirmed": {"type": "boolean", "default": False},
+                    },
+                },
+                risk_level="high",
+                idempotent=False,
+                requires_confirmation=True,
+                max_retries=0,
+            ),
+            source_revision_tools.apply_source_revision,
+        )
 
     if knowledge_service:
         registry.register(

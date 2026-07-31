@@ -38,6 +38,12 @@ class RuleBasedModelAdapter:
                 ),
             )
 
+        if self._asks_for_source_revision(user_input, tools):
+            return self._decide_source_revision(user_input, messages, called_tools)
+
+        if self._asks_for_event_revision(user_input, tools):
+            return self._decide_event_revision(user_input, messages, called_tools)
+
         if self._asks_for_relation(user_input):
             return self._decide_relation(user_input, years, messages, called_tools, tools)
 
@@ -89,6 +95,154 @@ class RuleBasedModelAdapter:
                 self._last_tool_result(messages, "search_events_by_range"),
                 self._last_tool_result(messages, "search_knowledge"),
             ),
+        )
+
+    def _decide_event_revision(
+        self,
+        user_input: str,
+        messages: list[dict[str, Any]],
+        called_tools: list[str],
+    ) -> ModelDecision:
+        if "resolve_event" not in called_tools:
+            return ModelDecision(
+                action="call_tool",
+                reason="Resolve the event phrase before drafting an event revision.",
+                tool_call=ToolCall("resolve_event", {"query": user_input}),
+            )
+
+        resolved = self._last_tool_result(messages, "resolve_event")
+        event = resolved.get("event", {})
+        event_id = event.get("id")
+        if not resolved.get("found") or not event_id:
+            return ModelDecision(
+                action="finish",
+                reason="Event resolution failed.",
+                answer="当前数据集中没有找到要修订的事件，请先提供事件名称或事件 ID。",
+            )
+
+        if "draft_event_revision" not in called_tools:
+            updates = self._infer_revision_updates(user_input)
+            if not updates:
+                return ModelDecision(
+                    action="finish",
+                    reason="Revision intent was found, but no supported field update was explicit.",
+                    answer="我找到了修订意图，但还缺少明确字段。请说明要修改 summary、title、confidence、source_status 或 notes 中的哪一项。",
+                )
+            return ModelDecision(
+                action="call_tool",
+                reason="Draft a non-mutating event revision before requesting confirmation.",
+                tool_call=ToolCall(
+                    "draft_event_revision",
+                    {
+                        "event_id": str(event_id),
+                        "updates": updates,
+                        "reason": user_input,
+                        "confirmed_by": "agent",
+                    },
+                ),
+            )
+
+        if "apply_event_revision" not in called_tools:
+            draft = self._last_tool_result(messages, "draft_event_revision")
+            if not draft.get("success"):
+                return ModelDecision(
+                    action="finish",
+                    reason="Revision draft failed.",
+                    answer=f"事件修订草案生成失败：{draft.get('error', 'unknown error')}",
+                )
+            next_step = draft.get("next_step", {})
+            arguments = dict(next_step.get("arguments") or {})
+            return ModelDecision(
+                action="call_tool",
+                reason="Request human confirmation before applying the drafted event revision.",
+                tool_call=ToolCall("apply_event_revision", arguments),
+            )
+
+        applied = self._last_tool_result(messages, "apply_event_revision")
+        if not applied.get("success"):
+            return ModelDecision(
+                action="finish",
+                reason="Confirmed revision failed.",
+                answer=f"事件修订未完成：{applied.get('error', 'unknown error')}",
+            )
+        return ModelDecision(
+            action="finish",
+            reason="Confirmed revision was applied.",
+            answer=self._format_event_revision_result(applied),
+        )
+
+    def _decide_source_revision(
+        self,
+        user_input: str,
+        messages: list[dict[str, Any]],
+        called_tools: list[str],
+    ) -> ModelDecision:
+        if "resolve_event" not in called_tools:
+            return ModelDecision(
+                action="call_tool",
+                reason="Resolve the event phrase before drafting a source revision.",
+                tool_call=ToolCall("resolve_event", {"query": user_input}),
+            )
+
+        resolved = self._last_tool_result(messages, "resolve_event")
+        event = resolved.get("event", {})
+        event_id = event.get("id")
+        if not resolved.get("found") or not event_id:
+            return ModelDecision(
+                action="finish",
+                reason="Event resolution failed.",
+                answer="当前数据集中没有找到要核验来源的事件，请先提供事件名称或事件 ID。",
+            )
+
+        if "draft_source_revision" not in called_tools:
+            updates = self._infer_source_revision_updates(user_input)
+            if not updates:
+                return ModelDecision(
+                    action="finish",
+                    reason="Source revision intent was found, but no supported field update was explicit.",
+                    answer="我找到了来源核验意图，但还缺少明确字段。请说明要调整 reliability、is_primary、citation、excerpt 或 page_ref 中的哪一项。",
+                )
+            return ModelDecision(
+                action="call_tool",
+                reason="Draft a non-mutating source revision before requesting confirmation.",
+                tool_call=ToolCall(
+                    "draft_source_revision",
+                    {
+                        "event_id": str(event_id),
+                        "source_query": self._infer_source_query(user_input),
+                        "updates": updates,
+                        "reason": user_input,
+                        "confirmed_by": "agent",
+                    },
+                ),
+            )
+
+        if "apply_source_revision" not in called_tools:
+            draft = self._last_tool_result(messages, "draft_source_revision")
+            if not draft.get("success"):
+                return ModelDecision(
+                    action="finish",
+                    reason="Source revision draft failed.",
+                    answer=f"来源核验草案生成失败：{draft.get('error', 'unknown error')}",
+                )
+            next_step = draft.get("next_step", {})
+            return ModelDecision(
+                action="call_tool",
+                reason="Request human confirmation before applying the drafted source revision.",
+                tool_call=ToolCall("apply_source_revision", dict(next_step.get("arguments") or {})),
+            )
+
+        applied = self._last_tool_result(messages, "apply_source_revision")
+        if not applied.get("success"):
+            return ModelDecision(
+                action="finish",
+                reason="Confirmed source revision failed.",
+                answer=f"来源核验未完成：{applied.get('error', 'unknown error')}",
+            )
+        return ModelDecision(
+            action="finish",
+            reason="Confirmed source revision was applied.",
+            answer=self._format_source_revision_result(applied),
         )
 
     def _decide_relation(
@@ -265,6 +419,103 @@ class RuleBasedModelAdapter:
             return False
         keywords = ["确认联调", "确认恢复联调", "人工确认联调", "confirmation probe"]
         return any(keyword in text.lower() for keyword in keywords)
+
+    def _asks_for_event_revision(self, text: str, tools: list[dict[str, Any]]) -> bool:
+        if not any(tool.get("name") == "draft_event_revision" for tool in tools):
+            return False
+        keywords = ["修订", "修改", "更新", "改成", "改为", "设为", "纠正", "更正", "编辑"]
+        return any(keyword in text for keyword in keywords)
+
+    def _asks_for_source_revision(self, text: str, tools: list[dict[str, Any]]) -> bool:
+        if not any(tool.get("name") == "draft_source_revision" for tool in tools):
+            return False
+        source_keywords = ["来源", "引用", "citation", "出处", "可靠度", "可信度", "主来源", "source"]
+        action_keywords = ["核验", "修订", "修改", "更新", "改成", "改为", "设为", "纠正", "更正", "标记"]
+        lowered = text.lower()
+        return any(keyword in lowered for keyword in source_keywords) and any(
+            keyword in text for keyword in action_keywords
+        )
+
+    def _infer_revision_updates(self, text: str) -> dict[str, Any]:
+        updates: dict[str, Any] = {}
+        confidence_match = re.search(r"(?:confidence|置信度|可信度)[^\d]*(0(?:\.\d+)?|1(?:\.0+)?)", text, re.I)
+        if confidence_match:
+            updates["confidence"] = float(confidence_match.group(1))
+
+        status_keywords = {
+            "verified": ["verified", "已核验", "已验证", "核验通过"],
+            "reviewing": ["reviewing", "待审核", "审核中"],
+            "disputed": ["disputed", "有争议", "争议"],
+            "archived": ["archived", "归档"],
+            "draft": ["draft", "草稿"],
+        }
+        for status, keywords in status_keywords.items():
+            if any(keyword in text for keyword in keywords):
+                updates["source_status"] = status
+                break
+
+        field_patterns = {
+            "title": ["title", "标题", "名称"],
+            "summary": ["summary", "摘要", "简介", "概述", "说明"],
+            "notes": ["notes", "备注", "注释"],
+        }
+        value_match = re.search(r"(?:改成|改为|更新为|设为|更正为)[:：\"'“”\s]*(.+)$", text)
+        value = value_match.group(1).strip(" ：:\"'“”") if value_match else ""
+        if value:
+            for field, keywords in field_patterns.items():
+                if any(keyword in text for keyword in keywords):
+                    updates[field] = value
+                    break
+            if not any(field in updates for field in field_patterns):
+                updates["summary"] = value
+
+        return updates
+
+    def _format_event_revision_result(self, observation: dict) -> str:
+        event = observation.get("event", {})
+        title = event.get("title") or observation.get("event_title") or observation.get("event_id")
+        diff = observation.get("diff", [])
+        lines = [f"事件《{title}》已按确认内容完成修订，并写入审计日志。"]
+        for item in diff:
+            lines.append(f"- {item.get('field')}: {item.get('before')} -> {item.get('after')}")
+        return "\n".join(lines)
+
+    def _infer_source_revision_updates(self, text: str) -> dict[str, Any]:
+        updates: dict[str, Any] = {}
+        reliability_match = re.search(r"(?:reliability|可靠度|可信度)[^\d]*(0(?:\.\d+)?|1(?:\.0+)?)", text, re.I)
+        if reliability_match:
+            updates["reliability"] = float(reliability_match.group(1))
+        if any(keyword in text for keyword in ["主来源", "主要来源", "primary"]):
+            updates["is_primary"] = True
+
+        value_match = re.search(r"(?:改成|改为|更新为|设为|更正为)[:：\"'“”\s]*(.+)$", text)
+        value = value_match.group(1).strip(" ：:\"'“”") if value_match else ""
+        if value:
+            field_keywords = {
+                "citation": ["citation", "引用", "出处", "引文"],
+                "excerpt": ["excerpt", "摘录", "原文"],
+                "page_ref": ["page_ref", "页码", "页"],
+                "source_title": ["来源标题", "资料名", "来源名称"],
+                "url": ["url", "链接"],
+            }
+            for field, keywords in field_keywords.items():
+                if any(keyword in text for keyword in keywords):
+                    updates[field] = value
+                    break
+        return updates
+
+    def _infer_source_query(self, text: str) -> str:
+        match = re.search(r"(?:来源|引用|出处|source)[:：\"'“”\s]*([^，。；;]+)", text, re.I)
+        return match.group(1).strip(" ：:\"'“”") if match else ""
+
+    def _format_source_revision_result(self, observation: dict) -> str:
+        source = observation.get("source", {})
+        title = source.get("source_title") or observation.get("source_title") or observation.get("source_id")
+        diff = observation.get("diff", [])
+        lines = [f"来源《{title}》已按确认内容完成核验/修订，并写入审计日志。"]
+        for item in diff:
+            lines.append(f"- {item.get('field')}: {item.get('before')} -> {item.get('after')}")
+        return "\n".join(lines)
 
     def _format_year_result(self, observation: dict, knowledge: dict | None = None) -> str:
         events = observation.get("events", [])

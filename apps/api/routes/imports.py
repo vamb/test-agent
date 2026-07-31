@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from apps.api.dependencies import import_review_service
 from apps.api.payloads import payload_to_dict
+from apps.api.routes.auth import require_admin_user
 from apps.api.schemas.imports import (
     ImportBatchCreateRequest,
     ImportBulkRevalidateRequest,
@@ -22,15 +23,19 @@ router = APIRouter()
 
 
 @router.post("/imports/batches", response_model=ImportMutationResponse)
-def create_import_batch(payload: ImportBatchCreateRequest) -> dict:
+def create_import_batch(
+    payload: ImportBatchCreateRequest,
+    user: dict = Depends(require_admin_user),
+) -> dict:
     payload = payload_to_dict(payload)
+    operator = _operator_name(user)
     events = payload.get("events", [])
     if not isinstance(events, list):
         return {"created": False, "error": "events must be a list"}
     batch = import_review_service.create_batch(
         filename=str(payload.get("filename", "manual-import.json")),
         source_note=str(payload.get("source_note", "")),
-        created_by=str(payload.get("created_by", "")),
+        created_by=str(payload.get("created_by") or operator),
         events=events,
     )
     batch["created"] = True
@@ -38,7 +43,10 @@ def create_import_batch(payload: ImportBatchCreateRequest) -> dict:
 
 
 @router.post("/imports/parse", response_model=ImportMutationResponse)
-def parse_import_events(payload: ImportParseRequest) -> dict:
+def parse_import_events(
+    payload: ImportParseRequest,
+    user: dict = Depends(require_admin_user),
+) -> dict:
     payload = payload_to_dict(payload)
     content = payload.get("content", "")
     if not isinstance(content, str):
@@ -84,7 +92,11 @@ def preview_import_batch(batch_id: str) -> dict:
 
 
 @router.patch("/imports/staging/{row_id}", response_model=ImportMutationResponse)
-def update_import_staging_row(row_id: str, payload: ImportStagingUpdateRequest) -> dict:
+def update_import_staging_row(
+    row_id: str,
+    payload: ImportStagingUpdateRequest,
+    user: dict = Depends(require_admin_user),
+) -> dict:
     payload = payload_to_dict(payload)
     raw_payload = payload.get("raw_payload", payload.get("event"))
     if not isinstance(raw_payload, dict):
@@ -93,7 +105,11 @@ def update_import_staging_row(row_id: str, payload: ImportStagingUpdateRequest) 
 
 
 @router.post("/imports/staging/{row_id}/merge", response_model=ImportMutationResponse)
-def merge_import_staging_row(row_id: str, payload: ImportStagingMergeRequest) -> dict:
+def merge_import_staging_row(
+    row_id: str,
+    payload: ImportStagingMergeRequest,
+    user: dict = Depends(require_admin_user),
+) -> dict:
     payload = payload_to_dict(payload)
     return import_review_service.merge_staging_row(
         row_id=row_id,
@@ -103,7 +119,10 @@ def merge_import_staging_row(row_id: str, payload: ImportStagingMergeRequest) ->
 
 
 @router.post("/imports/staging/bulk-revalidate", response_model=ImportMutationResponse)
-def bulk_revalidate_import_staging(payload: ImportBulkRevalidateRequest) -> dict:
+def bulk_revalidate_import_staging(
+    payload: ImportBulkRevalidateRequest,
+    user: dict = Depends(require_admin_user),
+) -> dict:
     payload = payload_to_dict(payload)
     row_ids = payload.get("row_ids")
     batch_id = payload.get("batch_id")
@@ -116,23 +135,40 @@ def bulk_revalidate_import_staging(payload: ImportBulkRevalidateRequest) -> dict
 
 
 @router.post("/imports/batches/{batch_id}/revalidate", response_model=ImportMutationResponse)
-def revalidate_import_batch(batch_id: str) -> dict:
+def revalidate_import_batch(
+    batch_id: str,
+    user: dict = Depends(require_admin_user),
+) -> dict:
     return import_review_service.revalidate_batch(batch_id)
 
 
 @router.post("/imports/batches/{batch_id}/confirm", response_model=ImportMutationResponse)
-def confirm_import_batch(batch_id: str, payload: ImportConfirmRequest | None = None) -> dict:
+def confirm_import_batch(
+    batch_id: str,
+    payload: ImportConfirmRequest | None = None,
+    user: dict = Depends(require_admin_user),
+) -> dict:
     payload = payload_to_dict(payload)
-    confirmed_by = ""
+    confirmed_by = _operator_name(user)
     if payload:
-        confirmed_by = str(payload.get("confirmed_by", ""))
+        confirmed_by = str(payload.get("confirmed_by") or confirmed_by)
     return import_review_service.confirm_import(batch_id, confirmed_by=confirmed_by)
 
 
 @router.post("/imports/batches/{batch_id}/reject", response_model=ImportMutationResponse)
-def reject_import_batch(batch_id: str, payload: ImportRejectRequest | None = None) -> dict:
+def reject_import_batch(
+    batch_id: str,
+    payload: ImportRejectRequest | None = None,
+    user: dict = Depends(require_admin_user),
+) -> dict:
     payload = payload_to_dict(payload)
     reason = ""
     if payload:
         reason = str(payload.get("reason", ""))
     return import_review_service.reject_batch(batch_id, reason=reason)
+
+
+def _operator_name(user: dict | object | None) -> str:
+    if not isinstance(user, dict):
+        return ""
+    return str(user.get("username") or user.get("id") or "")

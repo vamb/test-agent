@@ -14,6 +14,7 @@ from agent.runtime.workflow import build_agent_workflow
 from apps.api.settings import AppSettings
 from knowledge.service import KnowledgeService
 from tools.database.postgres import PostgresClient
+from tools.historical.event_management import EventManagementService
 from tools.historical.postgres_repository import PostgresHistoricalEventRepository
 from tools.historical.repository import HistoricalEventRepository
 from tools.historical.service import HistoricalQueryService
@@ -46,6 +47,12 @@ class AgentWorker:
             tool_registry=build_historical_tool_registry(
                 self._build_query_service(),
                 knowledge_service=KnowledgeService(settings.postgres),
+                event_management_service=EventManagementService(
+                    settings.postgres,
+                    settings.security,
+                ),
+                admin_token=settings.security.admin_api_token,
+                enable_confirmation_probe=settings.agent_runtime.enable_confirmation_probe,
             ),
             recorder=self.recorder,
             telemetry=AgentTelemetry(settings.observability),

@@ -54,6 +54,7 @@ import {
   AuthUser,
   ChatConversation,
   ChatGroup,
+  ConfirmationContext,
   AgentLink,
   AgentReference,
   CompareRow,
@@ -94,6 +95,7 @@ type ChatMessage = {
   confirmation?: {
     toolName: string;
     toolArguments: Record<string, unknown>;
+    context?: ConfirmationContext;
     error?: string;
   };
 };
@@ -459,6 +461,7 @@ function ChatPage() {
                   ? {
                       toolName: event.tool_name || "unknown_tool",
                       toolArguments: event.tool_arguments || {},
+                      context: event.confirmation_context || confirmationContextFromLinks(links),
                     }
                   : message.confirmation,
             };
@@ -1104,31 +1107,13 @@ function MessageBubble({
         </div>
 
         {message.confirmation && (
-          <section className="confirmation-panel">
-            <div className="confirmation-copy">
-              <ShieldAlert size={18} />
-              <div>
-                <strong>需要确认后继续</strong>
-                <span>{message.confirmation.toolName}</span>
-              </div>
-            </div>
-            <pre>{JSON.stringify(message.confirmation.toolArguments, null, 2)}</pre>
-            {message.confirmation.error && (
-              <p className="confirmation-error">{message.confirmation.error}</p>
-            )}
-            <button
-              className="primary-button confirmation-button"
-              onClick={onConfirm}
-              disabled={!message.runId || message.status === "confirming"}
-            >
-              {message.status === "confirming" ? (
-                <Loader2 className="spin" size={16} />
-              ) : (
-                <CheckCircle2 size={16} />
-              )}
-              确认并继续执行
-            </button>
-          </section>
+          <ConfirmationPanel
+            confirmation={message.confirmation}
+            steps={steps}
+            status={message.status}
+            canConfirm={Boolean(message.runId)}
+            onConfirm={onConfirm}
+          />
         )}
 
         {events.length > 0 && (
@@ -1212,6 +1197,103 @@ function MessageBubble({
         )}
       </div>
     </article>
+  );
+}
+
+function ConfirmationPanel({
+  confirmation,
+  steps,
+  status,
+  canConfirm,
+  onConfirm,
+}: {
+  confirmation: NonNullable<ChatMessage["confirmation"]>;
+  steps: AgentStreamEvent[];
+  status?: ChatMessage["status"];
+  canConfirm: boolean;
+  onConfirm: () => void;
+}) {
+  const context = confirmation.context || confirmationContextFromSteps(confirmation.toolName, steps);
+  const diff = context?.diff || [];
+  const updates = context?.updates || objectValue(confirmation.toolArguments.updates);
+  const targetTitle =
+    context?.target_title ||
+    stringValue(confirmation.toolArguments.event_id || confirmation.toolArguments.source_id);
+  const title = context?.title || toolTitle(confirmation.toolName);
+
+  return (
+    <section className="confirmation-panel">
+      <div className="confirmation-header">
+        <div className="confirmation-copy">
+          <ShieldAlert size={18} />
+          <div>
+            <strong>{title}</strong>
+            <span>{confirmation.toolName}</span>
+          </div>
+        </div>
+        <span className="risk-pill">需要人工确认</span>
+      </div>
+
+      <div className="confirmation-target">
+        <span>{context?.target_label || "目标对象"}</span>
+        <strong>{targetTitle || "未命名目标"}</strong>
+        {context?.target_id && <code>{context.target_id}</code>}
+      </div>
+
+      {context?.risk && <p className="confirmation-risk">{context.risk}</p>}
+
+      {diff.length > 0 ? (
+        <div className="confirmation-diff-list">
+          {diff.map((item) => (
+            <div className="confirmation-diff-row" key={item.field}>
+              <span className="field-chip">{fieldLabel(item.field)}</span>
+              <div className="diff-value before">{formatValue(item.before)}</div>
+              <ChevronRight size={15} />
+              <div className="diff-value after">{formatValue(item.after)}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="confirmation-update-list">
+          {Object.entries(updates).map(([field, value]) => (
+            <div className="confirmation-update-row" key={field}>
+              <span className="field-chip">{fieldLabel(field)}</span>
+              <strong>{formatValue(value)}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {context?.reason && (
+        <div className="confirmation-reason">
+          <span>修订原因</span>
+          <p>{context.reason}</p>
+        </div>
+      )}
+
+      {confirmation.error && (
+        <p className="confirmation-error">{confirmation.error}</p>
+      )}
+
+      <div className="confirmation-actions">
+        <details className="confirmation-raw">
+          <summary>查看工具参数</summary>
+          <pre>{JSON.stringify(confirmation.toolArguments, null, 2)}</pre>
+        </details>
+        <button
+          className="primary-button confirmation-button"
+          onClick={onConfirm}
+          disabled={!canConfirm || status === "confirming"}
+        >
+          {status === "confirming" ? (
+            <Loader2 className="spin" size={16} />
+          ) : (
+            <CheckCircle2 size={16} />
+          )}
+          确认并继续执行
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -1523,6 +1605,109 @@ function mergeLinks(current: AgentLink[], next: AgentLink[]) {
     byHref.set(key, link);
   });
   return [...byHref.values()];
+}
+
+function confirmationContextFromLinks(links: AgentLink[]) {
+  const link = links.find((item) => item.type === "confirmation_required" && item.confirmation_context);
+  return link?.confirmation_context;
+}
+
+function confirmationContextFromSteps(toolName: string, steps: AgentStreamEvent[]) {
+  const draftToolName =
+    toolName === "apply_event_revision"
+      ? "draft_event_revision"
+      : toolName === "apply_source_revision"
+        ? "draft_source_revision"
+        : "";
+  if (!draftToolName) return undefined;
+  for (const step of [...steps].reverse()) {
+    if (step.event !== "tool_result" || step.tool_name !== draftToolName) continue;
+    const observation = step.observation || {};
+    const nextStep = objectValue(observation.next_step);
+    if (nextStep.tool_name !== toolName) continue;
+    return {
+      kind: toolName === "apply_event_revision" ? "event_revision" : "source_revision",
+      title: toolName === "apply_event_revision" ? "事件修订草案" : "来源核验草案",
+      target_id: stringValue(observation.event_id || observation.source_id),
+      target_title: stringValue(observation.event_title || observation.source_title),
+      event_id: stringValue(observation.event_id),
+      target_label: toolName === "apply_event_revision" ? "历史事件" : "事件来源",
+      diff: arrayValue(observation.diff),
+      updates: objectValue(observation.updates),
+      reason: stringValue(observation.reason),
+      risk:
+        toolName === "apply_event_revision"
+          ? "会修改事件主记录，并写入 event_change_logs 审计日志。"
+          : "会修改来源记录，并写入 event_change_logs 审计日志。",
+    } satisfies ConfirmationContext;
+  }
+  return undefined;
+}
+
+function toolTitle(toolName: string) {
+  const titles: Record<string, string> = {
+    apply_event_revision: "事件修订草案",
+    apply_source_revision: "来源核验草案",
+    confirmation_probe: "确认流程测试",
+  };
+  return titles[toolName] || "高风险工具调用";
+}
+
+function fieldLabel(field: string) {
+  const labels: Record<string, string> = {
+    title: "标题",
+    summary: "摘要",
+    confidence: "置信度",
+    source_status: "状态",
+    notes: "备注",
+    start_year: "开始年份",
+    end_year: "结束年份",
+    location_text: "地点",
+    causes: "原因",
+    effects: "影响",
+    importance_score: "重要度",
+    region: "地区",
+    polity: "政权",
+    modern_country: "现代国家",
+    category: "分类",
+    source_title: "来源标题",
+    source_type: "来源类型",
+    author: "作者",
+    publisher: "出版方",
+    published_year: "出版年份",
+    url: "链接",
+    citation: "引用",
+    excerpt: "摘录",
+    page_ref: "页码",
+    reliability: "可靠度",
+    is_primary: "主来源",
+  };
+  return labels[field] || field;
+}
+
+function formatValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "空";
+  if (typeof value === "boolean") return value ? "是" : "否";
+  if (Array.isArray(value)) return value.length ? value.join("、") : "空";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function arrayValue(value: unknown): { field: string; before?: unknown; after?: unknown }[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item && typeof item === "object" && "field" in item)
+    .map((item) => item as { field: string; before?: unknown; after?: unknown });
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
 function buildCompareSummary(rows: CompareRow[], startYear: number, endYear: number) {

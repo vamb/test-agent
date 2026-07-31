@@ -29,9 +29,12 @@ from apps.api.settings import AppSettings
 from tests.test_import_review import valid_import_event
 from tools.database.postgres import PostgresClient
 from tools.historical.event_management import EventManagementService
+from tools.historical.event_revision import EventRevisionToolService
 from tools.historical.import_review import ImportReviewService
 from tools.historical.postgres_repository import PostgresHistoricalEventRepository
 from tools.historical.service import HistoricalQueryService
+from tools.historical.source_revision import SourceRevisionToolService
+from tools.historical.tool_registry import build_historical_tool_registry
 
 
 class EventManagementTest(unittest.TestCase):
@@ -83,6 +86,161 @@ class EventManagementTest(unittest.TestCase):
         self.assertEqual(no_token["error"], "admin authorization required")
         self.assertFalse(no_confirm["success"])
         self.assertEqual(no_confirm["error"], "explicit confirmation required")
+
+    def test_agent_event_revision_drafts_before_confirmed_apply(self) -> None:
+        event_id = self._create_managed_event("测试 Agent 修订草案事件")
+        service = EventManagementService(self.settings.postgres, self.settings.security)
+        revision_tools = EventRevisionToolService(
+            service,
+            self.settings.security.admin_api_token,
+        )
+
+        draft = revision_tools.draft_event_revision(
+            {
+                "event_id": event_id,
+                "updates": {"summary": "Agent 草案摘要。", "confidence": 0.81},
+                "reason": "unit-test agent draft",
+                "confirmed_by": "agent-test",
+            }
+        )
+        detail_after_draft = service.get_admin_event_detail(event_id)
+        unconfirmed_apply = revision_tools.apply_event_revision(
+            {
+                "event_id": event_id,
+                "updates": {"summary": "不应写入。"},
+            }
+        )
+
+        self.assertTrue(draft["success"])
+        self.assertEqual(draft["next_step"]["tool_name"], "apply_event_revision")
+        self.assertTrue(draft["next_step"]["requires_confirmation"])
+        self.assertEqual(
+            {item["field"] for item in draft["diff"]},
+            {"summary", "confidence"},
+        )
+        self.assertNotEqual(detail_after_draft["event"]["summary"], "Agent 草案摘要。")
+        self.assertFalse(unconfirmed_apply["success"])
+        self.assertEqual(unconfirmed_apply["error"], "explicit confirmation required")
+
+        applied = revision_tools.apply_event_revision(
+            {
+                "event_id": event_id,
+                "updates": {"summary": "Agent 草案摘要。", "confidence": 0.81},
+                "reason": "unit-test agent apply",
+                "confirmed_by": "agent-test",
+                "confirmed": True,
+            }
+        )
+        changes = service.get_event_changes(event_id)
+
+        self.assertTrue(applied["success"])
+        self.assertEqual(applied["event"]["summary"], "Agent 草案摘要。")
+        self.assertGreaterEqual(changes["total"], 1)
+        self.assertEqual(changes["changes"][0]["action"], "update_event")
+
+    def test_agent_event_revision_tools_are_registered_with_confirmation_policy(self) -> None:
+        service = HistoricalQueryService(
+            PostgresHistoricalEventRepository(self.settings.postgres)
+        )
+        registry = build_historical_tool_registry(
+            service,
+            event_management_service=EventManagementService(
+                self.settings.postgres,
+                self.settings.security,
+            ),
+            admin_token=self.settings.security.admin_api_token,
+        )
+        definitions = {item["name"]: item for item in registry.definitions()}
+
+        self.assertIn("draft_event_revision", definitions)
+        self.assertIn("apply_event_revision", definitions)
+        self.assertFalse(definitions["draft_event_revision"]["requires_confirmation"])
+        self.assertTrue(definitions["apply_event_revision"]["requires_confirmation"])
+        self.assertEqual(definitions["apply_event_revision"]["risk_level"], "high")
+
+    def test_agent_source_revision_drafts_before_confirmed_apply(self) -> None:
+        event_id = self._create_managed_event("测试 Agent 来源核验事件")
+        service = EventManagementService(self.settings.postgres, self.settings.security)
+        source_id = service.get_admin_event_detail(event_id)["sources"][0]["id"]
+        revision_tools = SourceRevisionToolService(
+            service,
+            self.settings.security.admin_api_token,
+        )
+
+        draft = revision_tools.draft_source_revision(
+            {
+                "source_id": source_id,
+                "updates": {
+                    "reliability": 0.86,
+                    "is_primary": True,
+                    "citation": "Agent 核验后的引用。",
+                },
+                "reason": "unit-test source draft",
+                "confirmed_by": "agent-test",
+            }
+        )
+        detail_after_draft = service.get_admin_event_detail(event_id)
+        source_after_draft = next(
+            source for source in detail_after_draft["sources"] if source["id"] == source_id
+        )
+        unconfirmed_apply = revision_tools.apply_source_revision(
+            {
+                "source_id": source_id,
+                "updates": {"citation": "不应写入。"},
+            }
+        )
+
+        self.assertTrue(draft["success"])
+        self.assertEqual(draft["next_step"]["tool_name"], "apply_source_revision")
+        self.assertTrue(draft["next_step"]["requires_confirmation"])
+        self.assertEqual(
+            {item["field"] for item in draft["diff"]},
+            {"reliability", "is_primary", "citation"},
+        )
+        self.assertNotEqual(source_after_draft["citation"], "Agent 核验后的引用。")
+        self.assertFalse(unconfirmed_apply["success"])
+        self.assertEqual(unconfirmed_apply["error"], "explicit confirmation required")
+
+        applied = revision_tools.apply_source_revision(
+            {
+                "source_id": source_id,
+                "updates": {
+                    "reliability": 0.86,
+                    "is_primary": True,
+                    "citation": "Agent 核验后的引用。",
+                },
+                "reason": "unit-test source apply",
+                "confirmed_by": "agent-test",
+                "confirmed": True,
+            }
+        )
+        changes = service.get_event_changes(event_id)
+
+        self.assertTrue(applied["success"])
+        self.assertEqual(applied["source"]["citation"], "Agent 核验后的引用。")
+        self.assertTrue(applied["source"]["is_primary"])
+        self.assertGreaterEqual(changes["total"], 1)
+        self.assertEqual(changes["changes"][0]["action"], "update_source")
+
+    def test_agent_source_revision_tools_are_registered_with_confirmation_policy(self) -> None:
+        service = HistoricalQueryService(
+            PostgresHistoricalEventRepository(self.settings.postgres)
+        )
+        registry = build_historical_tool_registry(
+            service,
+            event_management_service=EventManagementService(
+                self.settings.postgres,
+                self.settings.security,
+            ),
+            admin_token=self.settings.security.admin_api_token,
+        )
+        definitions = {item["name"]: item for item in registry.definitions()}
+
+        self.assertIn("draft_source_revision", definitions)
+        self.assertIn("apply_source_revision", definitions)
+        self.assertFalse(definitions["draft_source_revision"]["requires_confirmation"])
+        self.assertTrue(definitions["apply_source_revision"]["requires_confirmation"])
+        self.assertEqual(definitions["apply_source_revision"]["risk_level"], "high")
 
     def test_update_and_dispute_event(self) -> None:
         event_id = self._create_managed_event("测试可管理事件")

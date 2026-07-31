@@ -222,6 +222,37 @@ class AuthService:
             conn.commit()
         return self._public_user(dict(row)) if row else None
 
+    def set_user_role(self, user_id: str, role: str) -> dict[str, Any]:
+        self.ensure_schema()
+        if role not in {"user", "admin"}:
+            raise ValueError("role must be user or admin")
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET role = %s,
+                        updated_at = now()
+                    WHERE id = %s
+                    RETURNING
+                      id::text,
+                      username,
+                      email,
+                      display_name,
+                      status,
+                      role,
+                      created_at,
+                      updated_at,
+                      last_login_at
+                    """,
+                    [role, user_id],
+                )
+                row = cur.fetchone()
+            conn.commit()
+        if not row:
+            raise ValueError("user not found")
+        return self._public_user(dict(row))
+
     def _hash_password(self, password: str) -> str:
         salt = secrets.token_bytes(16)
         digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 210_000)

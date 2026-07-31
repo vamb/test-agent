@@ -45,5 +45,7 @@ knowledge_service = KnowledgeService(settings.postgres)
 tool_registry = build_historical_tool_registry(
     service,
     knowledge_service=knowledge_service,
+    event_management_service=event_management_service,
+    admin_token=settings.security.admin_api_token,
     enable_confirmation_probe=settings.agent_runtime.enable_confirmation_probe,
 )

@@ -798,14 +798,23 @@ textarea:focus {
 
 .confirmation-panel {
   margin-top: 10px;
-  border: 1px solid rgba(216, 193, 106, 0.48);
-  background: rgba(23, 32, 28, 0.82);
-  padding: 12px;
+  border: 1px solid rgba(216, 193, 106, 0.45);
+  background: linear-gradient(180deg, rgba(27, 36, 32, 0.96), rgba(16, 22, 19, 0.96));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
+  padding: 14px;
+}
+
+.confirmation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .confirmation-copy {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
   color: var(--accent);
 }
@@ -823,9 +832,154 @@ textarea:focus {
   color: var(--muted);
   font-size: 12px;
   margin-top: 3px;
+  overflow-wrap: anywhere;
 }
 
-.confirmation-panel pre {
+.risk-pill {
+  flex: 0 0 auto;
+  border: 1px solid rgba(226, 120, 103, 0.42);
+  background: rgba(226, 120, 103, 0.1);
+  color: #ffd8d1;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.confirmation-target {
+  display: grid;
+  grid-template-columns: minmax(70px, max-content) minmax(0, 1fr);
+  gap: 5px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 0;
+  margin-bottom: 10px;
+}
+
+.confirmation-target span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.confirmation-target strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.confirmation-target code {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.confirmation-risk {
+  margin: 0 0 10px;
+  color: #f5dba0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.confirmation-diff-list,
+.confirmation-update-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.confirmation-diff-row {
+  display: grid;
+  grid-template-columns: minmax(78px, 0.55fr) minmax(0, 1fr) 16px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
+}
+
+.confirmation-diff-row svg {
+  align-self: center;
+  color: var(--muted);
+}
+
+.field-chip {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(112, 198, 173, 0.25);
+  background: rgba(112, 198, 173, 0.08);
+  color: #bfeee1;
+  padding: 8px;
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.diff-value,
+.confirmation-update-row strong {
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 12, 10, 0.54);
+  padding: 8px 9px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.diff-value.before {
+  color: #b9c7bf;
+}
+
+.diff-value.after {
+  border-color: rgba(112, 198, 173, 0.35);
+  color: #ddfff4;
+}
+
+.confirmation-update-row {
+  display: grid;
+  grid-template-columns: minmax(78px, 0.45fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.confirmation-reason {
+  margin: 0 0 12px;
+  border-left: 2px solid rgba(216, 193, 106, 0.52);
+  padding-left: 10px;
+}
+
+.confirmation-reason span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.confirmation-reason p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.confirmation-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.confirmation-raw {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.confirmation-raw summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.confirmation-raw pre {
   max-height: 220px;
   overflow: auto;
   margin: 12px 0;
@@ -847,6 +1001,7 @@ textarea:focus {
 
 .confirmation-button {
   width: fit-content;
+  flex: 0 0 auto;
 }
 
 .result-cluster {
@@ -2520,6 +2675,34 @@ select {
 
   .message-card p {
     line-height: 1.64;
+  }
+
+  .confirmation-header,
+  .confirmation-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .risk-pill,
+  .confirmation-button {
+    width: fit-content;
+  }
+
+  .confirmation-diff-row {
+    grid-template-columns: 1fr;
+  }
+
+  .confirmation-diff-row svg {
+    display: none;
+  }
+
+  .confirmation-update-row,
+  .confirmation-target {
+    grid-template-columns: 1fr;
+  }
+
+  .confirmation-target code {
+    grid-column: auto;
   }
 
   .event-card-grid,

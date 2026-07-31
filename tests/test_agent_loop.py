@@ -11,6 +11,7 @@ from knowledge.service import KnowledgeService
 from tools.historical.postgres_repository import PostgresHistoricalEventRepository
 from tools.historical.service import HistoricalQueryService
 from tools.historical.tool_registry import build_historical_tool_registry
+from tools.registry.base import ToolDefinition, ToolRegistry
 from tools.registry.executor import ToolExecutor
 
 
@@ -255,6 +256,20 @@ class AgentLoopTest(unittest.TestCase):
         self.assertEqual(run["steps"][0]["tool_name"], "resolve_event")
         self.assertEqual(run["steps"][1]["tool_name"], "get_event_detail")
 
+    def test_manual_loop_stream_pauses_high_risk_tool_for_confirmation(self) -> None:
+        calls: list[dict[str, Any]] = []
+        agent = AgentLoop(
+            model_adapter=DangerousToolAdapter(),
+            tool_registry=dangerous_tool_registry(calls),
+        )
+
+        events = list(agent.stream("删除一条数据"))
+        confirmation = [event for event in events if event["event"] == "confirmation_required"][0]
+
+        self.assertEqual(calls, [])
+        self.assertEqual(confirmation["tool_name"], "dangerous_write")
+        self.assertEqual(confirmation["tool_arguments"]["target_id"], "event-1")
+
 
 class AlwaysCallToolAdapter:
     model_name = "always-call-tool-test"
@@ -272,6 +287,43 @@ class AlwaysCallToolAdapter:
                 arguments={"year": 755},
             ),
         )
+
+
+class DangerousToolAdapter:
+    model_name = "dangerous-tool-test"
+
+    def decide(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+    ) -> ModelDecision:
+        return ModelDecision(
+            action="call_tool",
+            reason="test high risk tool",
+            tool_call=ToolCall("dangerous_write", {"target_id": "event-1"}),
+        )
+
+
+def dangerous_tool_registry(calls: list[dict[str, Any]]) -> ToolRegistry:
+    registry = ToolRegistry()
+    registry.register(
+        ToolDefinition(
+            name="dangerous_write",
+            description="Dangerous write test tool",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "target_id": {"type": "string"},
+                    "confirmed": {"type": "boolean", "default": False},
+                },
+                "required": ["target_id"],
+            },
+            risk_level="high",
+            requires_confirmation=True,
+        ),
+        lambda payload: calls.append(payload) or {"success": True},
+    )
+    return registry
 
 
 class FakeLangfuseObservation:
