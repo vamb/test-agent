@@ -1130,54 +1130,68 @@ export function AdminQualityPage() {
   return (
     <AdminPageShell eyebrow="Data quality" title="数据质量修复台" description="从质量问题进入事件或关系修复。" state={state}>
       {message && <div className="notice-line">{message}</div>}
-      <div className="admin-toolbar">
-        <select value={issueType} onChange={(event) => setIssueType(event.target.value)}>
-          <option value="">全部问题</option>
-          <option value="missing_source">missing_source</option>
-          <option value="low_confidence">low_confidence</option>
-          <option value="verified_weak_source">verified_weak_source</option>
-          <option value="duplicate_event">duplicate_event</option>
-          <option value="duplicate_title">duplicate_title</option>
-          <option value="empty_summary">empty_summary</option>
-          <option value="empty_causes">empty_causes</option>
-          <option value="empty_effects">empty_effects</option>
-          <option value="relation_missing_evidence">relation_missing_evidence</option>
-          <option value="archived_visible">archived_visible</option>
-        </select>
-        <button className="ghost-button" onClick={load}><RefreshCcw size={16} /> 刷新</button>
-      </div>
-      <div className="admin-two-col">
-        <section className="admin-panel">
-          <PanelTitle icon={<ShieldAlert size={18} />} title={`问题摘要 ${String(summary.total_issues ?? 0)}`} />
-          <div className="quality-summary-grid">
-            {summaryItems.map((item) => (
-              <button
-                className={`quality-summary-card ${item.severity}`}
-                key={item.issueType}
-                onClick={() => setIssueType(item.issueType)}
-              >
-                <span>{item.issueType}</span>
-                <strong>{item.count}</strong>
-                <small>{item.severity}</small>
-              </button>
-            ))}
+      <section className="admin-panel quality-dashboard-panel">
+        <div className="quality-dashboard-head">
+          <PanelTitle icon={<ShieldAlert size={18} />} title="数据摘要" />
+          <div className="quality-filter-actions">
+            <select value={issueType} onChange={(event) => setIssueType(event.target.value)}>
+              <option value="">全部问题</option>
+              <option value="missing_source">missing_source</option>
+              <option value="low_confidence">low_confidence</option>
+              <option value="verified_weak_source">verified_weak_source</option>
+              <option value="duplicate_event">duplicate_event</option>
+              <option value="duplicate_title">duplicate_title</option>
+              <option value="empty_summary">empty_summary</option>
+              <option value="empty_causes">empty_causes</option>
+              <option value="empty_effects">empty_effects</option>
+              <option value="relation_missing_evidence">relation_missing_evidence</option>
+              <option value="archived_visible">archived_visible</option>
+            </select>
+            <button className="ghost-button" onClick={load}><RefreshCcw size={16} /> 刷新</button>
           </div>
+        </div>
+        <div className="quality-summary-strip">
+          <QualitySummaryMetric label="问题总数" value={Number(summary.total_issues || 0)} />
+          <QualitySummaryMetric label="当前筛选" value={issues.length} />
+          <QualitySummaryMetric label="高严重度" value={summaryItems.filter((item) => item.severity === "high").reduce((sum, item) => sum + item.count, 0)} tone="danger" />
+          <QualitySummaryMetric label="处理中" value={issues.filter((issue) => (issue.handling_status || "open") === "open").length} tone="warn" />
+          <QualitySummaryMetric label="已处理/忽略" value={issues.filter((issue) => (issue.handling_status || "open") !== "open").length} />
+        </div>
+        <div className="quality-type-strip">
+          {summaryItems.map((item) => (
+            <button
+              className={`quality-type-chip ${issueType === item.issueType ? "active" : ""} ${item.severity}`}
+              key={item.issueType}
+              onClick={() => setIssueType(item.issueType)}
+            >
+              <span>{item.issueType}</span>
+              <strong>{item.count}</strong>
+            </button>
+          ))}
           {!summaryItems.length && <EmptyState text="当前没有数据质量问题。" />}
-        </section>
-        <section className="admin-panel">
-          <PanelTitle icon={<FileSearch size={18} />} title={`问题列表 ${issues.length}`} />
-          <div className="issue-list">
-            {issues.map((issue, index) => (
-              <QualityIssue
-                key={`${String(issue.issue_key || issue.target_id)}-${index}`}
-                issue={issue}
-                onAction={setIssueAction}
-              />
-            ))}
+        </div>
+      </section>
+
+      <section className="admin-panel quality-table-panel">
+        <PanelTitle icon={<FileSearch size={18} />} title={`问题列表 ${issues.length}`} />
+        <div className="quality-table">
+          <div className="quality-table-head">
+            <span>问题</span>
+            <span>目标</span>
+            <span>状态</span>
+            <span>元数据</span>
+            <span>操作</span>
           </div>
-          {!issues.length && <EmptyState text="当前筛选下没有问题。" />}
-        </section>
-      </div>
+          {issues.map((issue, index) => (
+            <QualityIssueRow
+              key={`${String(issue.issue_key || issue.target_id)}-${index}`}
+              issue={issue}
+              onAction={setIssueAction}
+            />
+          ))}
+        </div>
+        {!issues.length && <EmptyState text="当前筛选下没有问题。" />}
+      </section>
     </AdminPageShell>
   );
 }
@@ -1586,7 +1600,24 @@ function JsonBlock({ value, compact = false }: { value: unknown; compact?: boole
   return <pre className={`json-block ${compact ? "compact" : ""}`}>{JSON.stringify(value, null, 2)}</pre>;
 }
 
-function QualityIssue({
+function QualitySummaryMetric({
+  label,
+  value,
+  tone = "",
+}: {
+  label: string;
+  value: string | number;
+  tone?: string;
+}) {
+  return (
+    <article className={`quality-summary-metric ${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </article>
+  );
+}
+
+function QualityIssueRow({
   issue,
   onAction,
 }: {
@@ -1598,32 +1629,41 @@ function QualityIssue({
   const metadata = (issue.metadata || {}) as Record<string, unknown>;
   const status = issue.handling_status || "open";
 
-  function handleAction(event: MouseEvent<HTMLButtonElement>, nextStatus: "open" | "resolved" | "ignored" | "snoozed") {
-    event.preventDefault();
-    event.stopPropagation();
+  function handleAction(nextStatus: "open" | "resolved" | "ignored" | "snoozed") {
     void onAction(issue, nextStatus);
   }
 
   return (
-    <article className="issue-card">
-      <Link className="issue-card-main" to={link}>
-        <span>{issue.issue_type} / {issue.severity} / {status}</span>
+    <div className="quality-table-row">
+      <div className="quality-issue-cell">
+        <div className="quality-issue-kicker">
+          <span className={`severity-dot ${issue.severity}`} />
+          <span>{issue.issue_type}</span>
+        </div>
         <strong>{String(issue.title || issue.target_id)}</strong>
-        <p>{String(issue.message || issue.description || "")}</p>
-        <small>
-          {String(metadata.region || metadata.relation_type || issue.target_type || "")}
-          {metadata.start_year ? ` / ${String(metadata.start_year)}` : ""}
-          {metadata.confidence !== undefined ? ` / confidence ${Number(metadata.confidence).toFixed(2)}` : ""}
-        </small>
-      </Link>
-      <div className="button-row tight issue-actions">
-        <button className="ghost-button" onClick={(event) => handleAction(event, "resolved")}>标记已处理</button>
-        <button className="ghost-button" onClick={(event) => handleAction(event, "ignored")}>忽略</button>
+        <small>{String(issue.message || issue.description || "")}</small>
+      </div>
+      <div className="quality-target-cell">
+        <span>{issue.target_type}</span>
+        <code>{target || "-"}</code>
+      </div>
+      <div>
+        <StatusPill value={status} />
+      </div>
+      <div className="quality-meta-cell">
+        <span>{String(metadata.region || metadata.relation_type || "-")}</span>
+        {metadata.start_year ? <small>{String(metadata.start_year)}</small> : null}
+        {metadata.confidence !== undefined ? <small>confidence {Number(metadata.confidence).toFixed(2)}</small> : null}
+      </div>
+      <div className="quality-row-actions">
+        <Link className="ghost-button" to={link}>查看</Link>
+        <button className="ghost-button" onClick={() => handleAction("resolved")}>已处理</button>
+        <button className="ghost-button" onClick={() => handleAction("ignored")}>忽略</button>
         {status !== "open" && (
-          <button className="ghost-button" onClick={(event) => handleAction(event, "open")}>重新打开</button>
+          <button className="ghost-button" onClick={() => handleAction("open")}>重开</button>
         )}
       </div>
-    </article>
+    </div>
   );
 }
 
