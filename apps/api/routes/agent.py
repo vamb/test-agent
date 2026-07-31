@@ -8,7 +8,15 @@ from fastapi.responses import StreamingResponse
 
 from agent.models.factory import build_model_adapter
 from agent.runtime.workflow import build_agent_workflow
-from apps.api.dependencies import agent_queue, chat_service, recorder, settings, telemetry, tool_registry
+from apps.api.dependencies import (
+    agent_queue,
+    chat_service,
+    memory_service,
+    recorder,
+    settings,
+    telemetry,
+    tool_registry,
+)
 from apps.api.routes.auth import optional_current_user
 from apps.worker.agent_worker import AgentWorker
 
@@ -23,8 +31,12 @@ def query_agent(
 ) -> dict:
     user_input = str(payload.get("input", ""))
     user = current_user if isinstance(current_user, dict) else None
+    agent_input = user_input
+    memory_context = ""
     stored_user_message = None
     if user:
+        memory_context = memory_service.memory_context(user["id"], user_input)
+        agent_input = _with_memory_context(user_input, memory_context)
         stored_user_message = chat_service.store_user_message(
             user_id=user["id"],
             content=user_input,
@@ -38,8 +50,10 @@ def query_agent(
         recorder=recorder,
         telemetry=telemetry,
     )
-    response = agent.run(user_input)
+    response = agent.run(agent_input)
     payload = response.as_payload()
+    if memory_context:
+        payload["memory_context"] = memory_context
     if user and stored_user_message and response.run_id:
         chat_service.bind_agent_run(
             run_id=response.run_id,
@@ -107,8 +121,12 @@ def query_agent_stream(
 ) -> StreamingResponse:
     user_input = str(payload.get("input", ""))
     user = current_user if isinstance(current_user, dict) else None
+    agent_input = user_input
+    memory_context = ""
     stored_user_message = None
     if user:
+        memory_context = memory_service.memory_context(user["id"], user_input)
+        agent_input = _with_memory_context(user_input, memory_context)
         stored_user_message = chat_service.store_user_message(
             user_id=user["id"],
             content=user_input,
@@ -122,7 +140,9 @@ def query_agent_stream(
         recorder=recorder,
         telemetry=telemetry,
     )
-    events: Iterable[dict] = agent.stream(user_input)
+    events: Iterable[dict] = agent.stream(agent_input)
+    if memory_context:
+        events = _prepend_memory_context(events, memory_context)
     if user and stored_user_message:
         events = _persist_chat_stream(
             events,
@@ -215,6 +235,18 @@ def _sse_events(events: Iterable[dict]) -> Iterator[str]:
         yield f"event: {event_name}\ndata: {data}\n\n"
 
 
+def _prepend_memory_context(events: Iterable[dict], memory_context: str) -> Iterator[dict]:
+    yielded = False
+    for event in events:
+        yield event
+        if not yielded and event.get("event") == "run_started":
+            yielded = True
+            yield {
+                "event": "memory_context",
+                "memory_context": memory_context,
+            }
+
+
 def _persist_chat_stream(
     events: Iterable[dict],
     user: dict,
@@ -303,3 +335,14 @@ def _artifacts_from_payload(payload: dict) -> dict[str, list[dict[str, Any]]]:
 def _optional_text(value: Any) -> str | None:
     text = str(value or "").strip()
     return text or None
+
+
+def _with_memory_context(user_input: str, memory_context: str) -> str:
+    if not memory_context:
+        return user_input
+    return (
+        f"{memory_context}\n\n"
+        "用户当前问题如下。回答时必须优先使用工具查询到的事实；"
+        "长期记忆只用于理解用户偏好和研究兴趣。\n"
+        f"{user_input}"
+    )

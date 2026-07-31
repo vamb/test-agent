@@ -196,21 +196,89 @@ export async function getCurrentUser() {
   return ((await response.json()) as { user: AuthUser }).user;
 }
 
-export async function listChatConversations() {
-  const response = await apiFetch("/chat/conversations");
+export async function listChatGroups(includeArchived = false) {
+  const response = await apiFetch(`/chat/groups?include_archived=${includeArchived ? "true" : "false"}`);
+  if (!response.ok) {
+    throw new Error(`读取聊天组失败：${response.status}`);
+  }
+  return (await response.json()) as { groups: ChatGroup[] };
+}
+
+export async function createChatGroup(title: string, description = "") {
+  const response = await apiFetch("/chat/groups", {
+    method: "POST",
+    body: JSON.stringify({ title, description }),
+  });
+  if (!response.ok) {
+    throw new Error(`创建聊天组失败：${response.status}`);
+  }
+  return (await response.json()) as { group: ChatGroup };
+}
+
+export async function updateChatGroup(
+  groupId: string,
+  updates: Partial<Pick<ChatGroup, "title" | "description" | "pinned" | "archived">>,
+) {
+  const response = await apiFetch(`/chat/groups/${encodeURIComponent(groupId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) {
+    throw new Error(`更新聊天组失败：${response.status}`);
+  }
+  return (await response.json()) as { group: ChatGroup };
+}
+
+export async function listChatConversations(params: {
+  groupId?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const search = new URLSearchParams({
+    status: params.status || "active",
+    limit: String(params.limit || 50),
+    offset: String(params.offset || 0),
+  });
+  if (params.groupId) search.set("group_id", params.groupId);
+  const response = await apiFetch(`/chat/conversations?${search}`);
   if (!response.ok) {
     throw new Error(`读取会话列表失败：${response.status}`);
   }
   return (await response.json()) as { conversations: ChatConversation[] };
 }
 
-export async function createChatConversation(title = "新会话") {
+export async function createChatConversation(title = "新会话", groupId?: string) {
   const response = await apiFetch("/chat/conversations", {
     method: "POST",
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, group_id: groupId || undefined }),
   });
   if (!response.ok) {
     throw new Error(`创建会话失败：${response.status}`);
+  }
+  return (await response.json()) as { conversation: ChatConversation };
+}
+
+export async function updateChatConversation(
+  conversationId: string,
+  updates: Partial<Pick<ChatConversation, "title" | "summary" | "status" | "group_id">>,
+) {
+  const response = await apiFetch(`/chat/conversations/${encodeURIComponent(conversationId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) {
+    throw new Error(`更新会话失败：${response.status}`);
+  }
+  return (await response.json()) as { conversation: ChatConversation };
+}
+
+export async function archiveChatConversation(conversationId: string) {
+  const response = await apiFetch(`/chat/conversations/${encodeURIComponent(conversationId)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(`归档会话失败：${response.status}`);
   }
   return (await response.json()) as { conversation: ChatConversation };
 }

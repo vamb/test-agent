@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from apps.api.dependencies import auth_service, chat_service
+from apps.api.dependencies import auth_service, chat_service, memory_service
 from apps.api.main import app
 
 
@@ -117,6 +117,96 @@ class AuthChatTest(unittest.TestCase):
         detail_response = client.get(f"/chat/conversations/{conversation_id}")
         self.assertEqual(detail_response.status_code, 200)
         self.assertEqual(len(detail_response.json()["messages"]), 1)
+
+    def test_memory_summary_recall_and_user_scope(self) -> None:
+        suffix = uuid4().hex[:10]
+        owner = auth_service.register(
+            username=f"memory_owner_{suffix}",
+            password="secret123",
+        )
+        other = auth_service.register(
+            username=f"memory_other_{suffix}",
+            password="secret123",
+        )
+        conversation = chat_service.create_conversation(owner["id"], title="安史之乱研究")
+        user_message = chat_service.store_user_message(
+            owner["id"],
+            "我长期关注唐代和中亚的互动，尤其是安史之乱。",
+            conversation_id=conversation["id"],
+        )
+        chat_service.create_message(
+            user_id=owner["id"],
+            conversation_id=conversation["id"],
+            role="assistant",
+            content="可以从唐朝、阿拔斯和中亚交通线三个角度比较。",
+            parent_message_id=user_message.message_id,
+        )
+
+        result = memory_service.summarize_conversation(
+            owner["id"],
+            conversation["id"],
+            create_memory_candidate=True,
+        )
+
+        self.assertIn("本会话共 2 条有效消息", result["summary"]["summary"])
+        self.assertIsNotNone(result["memory_candidate"])
+        self.assertEqual(result["memory_candidate"]["status"], "candidate")
+
+        memory = memory_service.create_memory(
+            owner["id"],
+            "用户偏好把唐代事件放到中亚和中东背景里比较。",
+            memory_type="preference",
+            source_conversation_id=conversation["id"],
+            source_summary_id=result["summary"]["id"],
+        )
+        recalled = memory_service.recall(owner["id"], "唐代中亚比较", limit=3)
+
+        self.assertEqual(recalled[0]["id"], memory["id"])
+        self.assertEqual(memory_service.recall(other["id"], "唐代中亚比较"), [])
+
+        disabled = memory_service.update_memory(
+            owner["id"],
+            memory["id"],
+            {"status": "disabled"},
+        )
+        self.assertEqual(disabled["status"], "disabled")
+        self.assertEqual(memory_service.recall(owner["id"], "唐代中亚比较"), [])
+
+    def test_memory_api_requires_auth_and_allows_user_control(self) -> None:
+        suffix = uuid4().hex[:10]
+        username = f"memory_api_{suffix}"
+        client = TestClient(app)
+
+        unauthorized = client.get("/memory/memories")
+        self.assertEqual(unauthorized.status_code, 401)
+
+        self.assertEqual(
+            client.post("/auth/register", json={"username": username, "password": "secret123"}).status_code,
+            200,
+        )
+        self.assertEqual(
+            client.post("/auth/login", json={"username": username, "password": "secret123"}).status_code,
+            200,
+        )
+
+        create_response = client.post(
+            "/memory/memories",
+            json={
+                "content": "用户偏好按地区对照历史事件。",
+                "memory_type": "preference",
+                "confidence": 0.8,
+            },
+        )
+        self.assertEqual(create_response.status_code, 200)
+        memory_id = create_response.json()["memory"]["id"]
+
+        recall_response = client.get("/memory/recall", params={"query": "地区对照"})
+        self.assertEqual(recall_response.status_code, 200)
+        self.assertEqual(recall_response.json()["memories"][0]["id"], memory_id)
+
+        delete_response = client.delete(f"/memory/memories/{memory_id}")
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertEqual(delete_response.json()["memory"]["status"], "deleted")
 
 
 if __name__ == "__main__":

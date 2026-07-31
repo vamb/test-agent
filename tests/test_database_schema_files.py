@@ -14,6 +14,7 @@ class DatabaseSchemaFilesTest(unittest.TestCase):
             "schema.sql",
             "schema_event_management.sql",
             "schema_auth_chat.sql",
+            "schema_memory.sql",
             "schema_knowledge.sql",
             "schema_vector_optional.sql",
             "schema_vector_jobs.sql",
@@ -25,6 +26,7 @@ class DatabaseSchemaFilesTest(unittest.TestCase):
         base_schema = (DATABASE_DIR / "schema.sql").read_text(encoding="utf-8")
         management_schema = (DATABASE_DIR / "schema_event_management.sql").read_text(encoding="utf-8")
         auth_chat_schema = (DATABASE_DIR / "schema_auth_chat.sql").read_text(encoding="utf-8")
+        memory_schema = (DATABASE_DIR / "schema_memory.sql").read_text(encoding="utf-8")
         knowledge_schema = (DATABASE_DIR / "schema_knowledge.sql").read_text(encoding="utf-8")
         vector_jobs_schema = (DATABASE_DIR / "schema_vector_jobs.sql").read_text(encoding="utf-8")
 
@@ -42,6 +44,10 @@ class DatabaseSchemaFilesTest(unittest.TestCase):
         self.assertIn("CREATE TABLE IF NOT EXISTS chat_messages", auth_chat_schema)
         self.assertIn("CREATE TABLE IF NOT EXISTS chat_message_artifacts", auth_chat_schema)
         self.assertIn("ADD COLUMN IF NOT EXISTS conversation_id", auth_chat_schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS conversation_summaries", memory_schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS user_memories", memory_schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS memory_sources", memory_schema)
+        self.assertIn("CONSTRAINT user_memories_status", memory_schema)
         self.assertIn("CREATE TABLE IF NOT EXISTS knowledge_documents", knowledge_schema)
         self.assertIn("CREATE TABLE IF NOT EXISTS knowledge_chunks", knowledge_schema)
         self.assertIn("CREATE TABLE IF NOT EXISTS knowledge_document_versions", knowledge_schema)

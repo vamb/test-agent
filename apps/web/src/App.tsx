@@ -10,6 +10,7 @@ import {
 import {
   ArrowLeft,
   ArrowUp,
+  Archive,
   Bot,
   CalendarRange,
   CheckCircle2,
@@ -25,12 +26,14 @@ import {
   LogOut,
   MessageSquareText,
   PanelLeft,
+  Pencil,
   Plus,
   Search,
   ShieldAlert,
   Sparkles,
   Square,
   UserRound,
+  X,
 } from "lucide-react";
 import {
   AdminEventDetailPage,
@@ -50,23 +53,28 @@ import {
   AgentStreamEvent,
   AuthUser,
   ChatConversation,
+  ChatGroup,
   AgentLink,
   AgentReference,
   CompareRow,
   StoredChatMessage,
   TimelineEvent,
+  archiveChatConversation,
   cancelAgentRun,
   createChatConversation,
+  createChatGroup,
   confirmAgentRun,
   compareRegions,
   getChatConversation,
   getCurrentUser,
   getEventDetail,
+  listChatGroups,
   listChatConversations,
   loginUser,
   logoutUser,
   registerUser,
   streamAgentQuery,
+  updateChatConversation,
 } from "./api";
 
 const defaultQuestion = "755年中国发生安史之乱时，中东、中亚和西欧发生了什么？";
@@ -123,6 +131,13 @@ function ChatPage() {
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [groups, setGroups] = useState<ChatGroup[]>([]);
+  const [activeGroupId, setActiveGroupId] = useState<string>("");
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [editingConversationId, setEditingConversationId] = useState("");
+  const [editingConversationTitle, setEditingConversationTitle] = useState("");
+  const [newGroupTitle, setNewGroupTitle] = useState("");
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string>("");
   const [conversationError, setConversationError] = useState("");
@@ -155,7 +170,7 @@ function ChatPage() {
     void getCurrentUser()
       .then((user) => {
         setCurrentUser(user);
-        if (user) void refreshConversations();
+        if (user) void refreshChatWorkspace();
       })
       .catch((err) => setAuthError(err instanceof Error ? err.message : "读取用户失败"))
       .finally(() => setAuthChecked(true));
@@ -188,11 +203,30 @@ function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 
-  async function refreshConversations() {
+  async function refreshChatWorkspace() {
+    await Promise.all([refreshGroups(), refreshConversations()]);
+  }
+
+  async function refreshGroups() {
+    try {
+      const result = await listChatGroups(false);
+      setGroups(result.groups);
+    } catch (err) {
+      setConversationError(err instanceof Error ? err.message : "读取聊天组失败");
+    }
+  }
+
+  async function refreshConversations(
+    groupId = activeGroupId,
+    status = showArchived ? "archived" : "active",
+  ) {
     setConversationsLoading(true);
     setConversationError("");
     try {
-      const result = await listChatConversations();
+      const result = await listChatConversations({
+        groupId: groupId || undefined,
+        status,
+      });
       setConversations(result.conversations);
     } catch (err) {
       setConversationError(err instanceof Error ? err.message : "读取会话失败");
@@ -214,7 +248,7 @@ function ChatPage() {
       const result = await loginUser(username, password);
       setCurrentUser(result.user);
       setAuthForm({ username: "", password: "" });
-      await refreshConversations();
+      await refreshChatWorkspace();
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "认证失败");
     } finally {
@@ -225,6 +259,8 @@ function ChatPage() {
   async function handleLogout() {
     await logoutUser();
     setCurrentUser(null);
+    setGroups([]);
+    setActiveGroupId("");
     setConversations([]);
     setActiveConversationId("");
     setMessages([welcomeMessage()]);
@@ -241,7 +277,7 @@ function ChatPage() {
     if (!currentUser) return;
     setConversationError("");
     try {
-      const result = await createChatConversation("新历史研究");
+      const result = await createChatConversation("新历史研究", activeGroupId || undefined);
       setActiveConversationId(result.conversation.id);
       setConversations((current) => [result.conversation, ...current]);
       setMessages([welcomeMessage()]);
@@ -260,6 +296,90 @@ function ChatPage() {
       setStickToBottom(true);
     } catch (err) {
       setConversationError(err instanceof Error ? err.message : "读取会话失败");
+    }
+  }
+
+  async function handleSelectGroup(groupId: string) {
+    if (isAsking) return;
+    setActiveGroupId(groupId);
+    setActiveConversationId("");
+    setMessages([welcomeMessage()]);
+    await refreshConversations(groupId, showArchived ? "archived" : "active");
+  }
+
+  async function handleToggleArchived() {
+    const next = !showArchived;
+    setShowArchived(next);
+    setActiveConversationId("");
+    setMessages([welcomeMessage()]);
+    await refreshConversations(activeGroupId, next ? "archived" : "active");
+  }
+
+  async function handleCreateGroup() {
+    const title = newGroupTitle.trim();
+    if (!title) return;
+    setConversationError("");
+    try {
+      const result = await createChatGroup(title);
+      setGroups((current) => [result.group, ...current]);
+      setActiveGroupId(result.group.id);
+      setNewGroupTitle("");
+      await refreshConversations(result.group.id, showArchived ? "archived" : "active");
+    } catch (err) {
+      setConversationError(err instanceof Error ? err.message : "创建聊天组失败");
+    }
+  }
+
+  function startRenameConversation(conversation: ChatConversation) {
+    setEditingConversationId(conversation.id);
+    setEditingConversationTitle(conversation.title);
+  }
+
+  async function handleRenameConversation(conversationId: string) {
+    const title = editingConversationTitle.trim();
+    if (!title) return;
+    setConversationError("");
+    try {
+      const result = await updateChatConversation(conversationId, { title });
+      setConversations((current) =>
+        current.map((item) => (item.id === conversationId ? result.conversation : item)),
+      );
+      setEditingConversationId("");
+      setEditingConversationTitle("");
+    } catch (err) {
+      setConversationError(err instanceof Error ? err.message : "重命名会话失败");
+    }
+  }
+
+  async function handleArchiveConversation(conversationId: string) {
+    if (!window.confirm("归档这个会话？归档后可在归档视图查看。")) return;
+    setConversationError("");
+    try {
+      await archiveChatConversation(conversationId);
+      setConversations((current) => current.filter((item) => item.id !== conversationId));
+      if (activeConversationId === conversationId) {
+        setActiveConversationId("");
+        setMessages([welcomeMessage()]);
+      }
+    } catch (err) {
+      setConversationError(err instanceof Error ? err.message : "归档会话失败");
+    }
+  }
+
+  async function maybeAutoTitleConversation(conversationId: string, sourceQuestion: string) {
+    const conversation = conversations.find((item) => item.id === conversationId);
+    if (conversation && !isGenericConversationTitle(conversation.title)) return;
+    const title = titleFromQuestion(sourceQuestion);
+    if (!title) return;
+    try {
+      const result = await updateChatConversation(conversationId, { title });
+      setConversations((current) => {
+        const exists = current.some((item) => item.id === conversationId);
+        if (!exists) return current;
+        return current.map((item) => (item.id === conversationId ? result.conversation : item));
+      });
+    } catch {
+      // Auto-title is a convenience; the saved message is more important than the title.
     }
   }
 
@@ -346,6 +466,9 @@ function ChatPage() {
         );
         if (event.run_id) activeRunIdRef.current = event.run_id;
         if (event.event === "final_answer" || event.event === "confirmation_required") {
+          if (event.conversation_id) {
+            void maybeAutoTitleConversation(event.conversation_id, lastQuestionRef.current);
+          }
           void refreshConversations();
         }
       }, { signal: controller.signal, conversationId: activeConversationId || undefined });
@@ -524,6 +647,15 @@ function ChatPage() {
   const activeConversation = conversations.find(
     (conversation) => conversation.id === activeConversationId,
   );
+  const filteredConversations = conversations.filter((conversation) => {
+    const keyword = conversationSearch.trim().toLowerCase();
+    if (!keyword) return true;
+    return (
+      conversation.title.toLowerCase().includes(keyword) ||
+      (conversation.summary || "").toLowerCase().includes(keyword)
+    );
+  });
+  const activeGroup = groups.find((group) => group.id === activeGroupId);
   const headerTitle = activeConversation?.title || "新的历史研究";
 
   if (!authChecked) {
@@ -580,14 +712,66 @@ function ChatPage() {
 
         <button className="rail-action primary" onClick={() => void handleCreateConversation()}>
           <Plus size={17} />
-          新建会话
+          {activeGroup ? `新建于 ${activeGroup.title}` : "新建会话"}
         </button>
+
+        <div className="rail-section group-section">
+          <div className="rail-section-head">
+            <p>聊天组</p>
+            <button className="mini-icon-button" onClick={() => void handleCreateGroup()} aria-label="创建聊天组">
+              <Plus size={15} />
+            </button>
+          </div>
+          <div className="new-group-row">
+            <input
+              value={newGroupTitle}
+              onChange={(event) => setNewGroupTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void handleCreateGroup();
+              }}
+              placeholder="新组名称"
+            />
+          </div>
+          <div className="group-filter-list">
+            <button
+              className={!activeGroupId ? "active" : ""}
+              onClick={() => void handleSelectGroup("")}
+              type="button"
+            >
+              全部会话
+            </button>
+            {groups.map((group) => (
+              <button
+                className={group.id === activeGroupId ? "active" : ""}
+                key={group.id}
+                onClick={() => void handleSelectGroup(group.id)}
+                type="button"
+              >
+                {group.title}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="rail-section conversation-section">
           <div className="rail-section-head">
-            <p>聊天记录</p>
+            <p>{showArchived ? "归档会话" : "聊天记录"}</p>
             <button className="mini-icon-button" onClick={handleNewConversation} aria-label="临时提问">
               <MessageSquareText size={15} />
+            </button>
+          </div>
+          <div className="conversation-tools">
+            <label className="rail-search">
+              <Search size={14} />
+              <input
+                value={conversationSearch}
+                onChange={(event) => setConversationSearch(event.target.value)}
+                placeholder="搜索会话"
+              />
+            </label>
+            <button className="mini-text-button" onClick={() => void handleToggleArchived()} type="button">
+              <Archive size={14} />
+              {showArchived ? "看活跃" : "看归档"}
             </button>
           </div>
           {conversationError && <small className="rail-error">{conversationError}</small>}
@@ -598,17 +782,66 @@ function ChatPage() {
             </div>
           ) : (
             <div className="conversation-list">
-              {conversations.length === 0 && <span className="empty-hint">还没有保存的聊天。</span>}
-              {conversations.map((conversation) => (
-                <button
+              {filteredConversations.length === 0 && (
+                <span className="empty-hint">
+                  {conversationSearch ? "没有匹配的会话。" : "还没有保存的聊天。"}
+                </span>
+              )}
+              {filteredConversations.map((conversation) => (
+                <article
                   key={conversation.id}
-                  className={conversation.id === activeConversationId ? "active" : ""}
-                  onClick={() => void handleLoadConversation(conversation.id)}
-                  type="button"
+                  className={`conversation-item ${conversation.id === activeConversationId ? "active" : ""}`}
                 >
-                  <History size={15} />
-                  <span>{conversation.title}</span>
-                </button>
+                  {editingConversationId === conversation.id ? (
+                    <div className="conversation-edit-row">
+                      <input
+                        autoFocus
+                        value={editingConversationTitle}
+                        onChange={(event) => setEditingConversationTitle(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") void handleRenameConversation(conversation.id);
+                          if (event.key === "Escape") setEditingConversationId("");
+                        }}
+                      />
+                      <button
+                        className="mini-icon-button"
+                        onClick={() => void handleRenameConversation(conversation.id)}
+                        aria-label="保存会话标题"
+                      >
+                        <CheckCircle2 size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        className="conversation-open-button"
+                        onClick={() => void handleLoadConversation(conversation.id)}
+                        type="button"
+                      >
+                        <History size={15} />
+                        <span>{conversation.title}</span>
+                      </button>
+                      <div className="conversation-actions">
+                        <button
+                          className="mini-icon-button"
+                          onClick={() => startRenameConversation(conversation)}
+                          aria-label="重命名会话"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        {!showArchived && (
+                          <button
+                            className="mini-icon-button danger"
+                            onClick={() => void handleArchiveConversation(conversation.id)}
+                            aria-label="归档会话"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </article>
               ))}
             </div>
           )}
@@ -1299,6 +1532,16 @@ function buildCompareSummary(rows: CompareRow[], startYear: number, endYear: num
     return `${startYear}-${endYear} 年暂时没有检索到这些地区的样例事件。`;
   }
   return `${startYear}-${endYear} 年共检索到 ${total} 条事件，涉及 ${activeRegions.join("、")}。你可以点击下方事件卡片查看详细档案。`;
+}
+
+function isGenericConversationTitle(title: string) {
+  return ["新历史研究", "新会话", "新的历史研究"].includes(title.trim());
+}
+
+function titleFromQuestion(question: string) {
+  const compact = question.trim().split(/\s+/).join(" ");
+  if (!compact) return "";
+  return compact.replace(/[？?。.!！]+$/g, "").slice(0, 22);
 }
 
 function describeStreamEvent(event: AgentStreamEvent) {

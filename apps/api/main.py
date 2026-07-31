@@ -58,6 +58,16 @@ from apps.api.routes.knowledge import (
     search_knowledge,
     update_knowledge_document,
 )
+from apps.api.routes.memory import (
+    create_memory,
+    delete_memory,
+    list_conversation_summaries,
+    list_memories,
+    recall_memories,
+    router as memory_router,
+    summarize_conversation,
+    update_memory,
+)
 from apps.api.routes.imports import (
     bulk_revalidate_import_staging,
     confirm_import_batch,
@@ -138,6 +148,7 @@ app.include_router(events_router)
 app.include_router(agent_router)
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(memory_router)
 
 
 @app.get("/health")
