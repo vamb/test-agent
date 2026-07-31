@@ -3,7 +3,12 @@ from __future__ import annotations
 from typing import Any, Iterator, Protocol
 
 from agent.models.base import ModelAdapter
-from agent.runtime.loop import AgentLoop, AgentLoopConfig, AgentRunCancelled
+from agent.runtime.loop import (
+    AgentLoop,
+    AgentLoopConfig,
+    AgentRunCancelled,
+    _answer_delta_events,
+)
 from agent.runtime.observability import AgentTelemetry, TraceContext
 from agent.runtime.recorder import AgentRunRecorder
 from agent.runtime.simple_historical_agent import AgentResponse, AgentStep
@@ -278,6 +283,7 @@ class LangGraphAgentWorkflow:
                         usage=usage,
                     )
                     payload = response.as_payload()
+                    yield from _answer_delta_events(response.answer, run_id)
                     yield {
                         "event": "final_answer",
                         "run_id": run_id,

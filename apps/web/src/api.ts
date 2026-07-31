@@ -38,6 +38,7 @@ export type AgentStreamEvent = {
   tool_name?: string;
   status?: string;
   answer?: string;
+  delta?: string;
   events?: TimelineEvent[];
   references?: AgentReference[];
   links?: AgentLink[];
@@ -110,11 +111,13 @@ export async function getEventDetail(eventId: string) {
 export async function streamAgentQuery(
   input: string,
   onEvent: (event: AgentStreamEvent) => void,
+  options?: { signal?: AbortSignal },
 ) {
   const response = await fetch(`${API_BASE_URL}/agent/query/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ input }),
+    signal: options?.signal,
   });
   if (!response.ok || !response.body) {
     throw new Error(`Agent SSE 请求失败：${response.status}`);
@@ -131,13 +134,34 @@ export async function streamAgentQuery(
     const frames = buffer.split("\n\n");
     buffer = frames.pop() || "";
     for (const frame of frames) {
-      const dataLine = frame
+      const dataLines = frame
         .split("\n")
-        .find((line) => line.startsWith("data: "));
-      if (!dataLine) continue;
-      onEvent(JSON.parse(dataLine.slice(6)) as AgentStreamEvent);
+        .filter((line) => line.startsWith("data: "))
+        .map((line) => line.slice(6));
+      if (!dataLines.length) continue;
+      try {
+        onEvent(JSON.parse(dataLines.join("\n")) as AgentStreamEvent);
+      } catch {
+        onEvent({ event: "client_parse_error", error_message: dataLines.join("\n") });
+      }
     }
   }
+}
+
+export async function cancelAgentRun(runId: string, reason = "Cancelled from web UI") {
+  const response = await fetch(`${API_BASE_URL}/agent/runs/${encodeURIComponent(runId)}/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+  if (!response.ok) {
+    throw new Error(`Agent 取消失败：${response.status}`);
+  }
+  return (await response.json()) as {
+    run_id: string;
+    cancelled: boolean;
+    status: string;
+  };
 }
 
 export async function confirmAgentRun(runId: string) {

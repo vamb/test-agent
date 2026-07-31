@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   BrowserRouter,
   Link,
@@ -25,6 +25,7 @@ import {
   Search,
   ShieldAlert,
   Sparkles,
+  Square,
 } from "lucide-react";
 import {
   AdminEventDetailPage,
@@ -46,6 +47,7 @@ import {
   AgentReference,
   CompareRow,
   TimelineEvent,
+  cancelAgentRun,
   confirmAgentRun,
   compareRegions,
   getEventDetail,
@@ -59,7 +61,8 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  status?: "streaming" | "waiting_confirmation" | "confirming" | "done" | "error";
+  status?: "streaming" | "waiting_confirmation" | "confirming" | "done" | "error" | "cancelled";
+  phase?: string;
   runId?: string;
   steps?: AgentStreamEvent[];
   events?: TimelineEvent[];
@@ -114,6 +117,13 @@ function ChatPage() {
   ]);
   const [isAsking, setIsAsking] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
+  const [stickToBottom, setStickToBottom] = useState(true);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const activeControllerRef = useRef<AbortController | null>(null);
+  const activeRunIdRef = useRef<string>("");
+  const activeAssistantIdRef = useRef<string>("");
+  const lastQuestionRef = useRef(defaultQuestion);
 
   const regions = useMemo(
     () =>
@@ -124,9 +134,40 @@ function ChatPage() {
     [regionsText],
   );
 
+  useEffect(() => {
+    if (!stickToBottom) return;
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, stickToBottom]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const distanceFromBottom =
+        document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+      setStickToBottom(distanceFromBottom < 120);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  function resizeComposer() {
+    const textarea = composerRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 180)}px`;
+  }
+
+  function scrollToLatest() {
+    setStickToBottom(true);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
   async function handleAsk() {
     const input = question.trim();
     if (!input || isAsking) return;
+    const controller = new AbortController();
+    activeControllerRef.current = controller;
+    activeRunIdRef.current = "";
+    lastQuestionRef.current = input;
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -137,13 +178,18 @@ function ChatPage() {
     const assistantMessage: ChatMessage = {
       id: assistantId,
       role: "assistant",
-      content: "正在分析时间线与地区关联...",
+      content: "",
       status: "streaming",
+      phase: "正在准备历史检索...",
       steps: [],
       events: [],
     };
+    activeAssistantIdRef.current = assistantId;
 
     setMessages((current) => [...current, userMessage, assistantMessage]);
+    setQuestion("");
+    requestAnimationFrame(resizeComposer);
+    setStickToBottom(true);
     setIsAsking(true);
 
     try {
@@ -158,20 +204,31 @@ function ChatPage() {
             return {
               ...message,
               runId: event.run_id || message.runId,
+              phase: describeStreamEvent(event),
               steps,
               events,
               references,
               links,
               content:
-                event.event === "final_answer" || event.event === "confirmation_required"
+                event.event === "answer_delta"
+                  ? `${message.content}${event.delta || ""}`
+                  : event.event === "final_answer" || event.event === "confirmation_required"
                   ? event.answer || message.content
+                  : event.event === "run_failed"
+                    ? event.error_message || "Agent 请求失败"
+                    : event.event === "run_cancelled"
+                      ? event.error_message || "已停止生成。"
                   : message.content,
               status:
                 event.event === "final_answer"
                   ? "done"
                   : event.event === "confirmation_required"
                     ? "waiting_confirmation"
-                    : "streaming",
+                    : event.event === "run_failed"
+                      ? "error"
+                      : event.event === "run_cancelled"
+                        ? "cancelled"
+                        : "streaming",
               confirmation:
                 event.event === "confirmation_required"
                   ? {
@@ -182,8 +239,24 @@ function ChatPage() {
             };
           }),
         );
-      });
+        if (event.run_id) activeRunIdRef.current = event.run_id;
+      }, { signal: controller.signal });
     } catch (err) {
+      if (controller.signal.aborted) {
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantId
+              ? {
+                  ...message,
+                  content: message.content || "已停止生成。",
+                  status: "cancelled",
+                  phase: "已停止",
+                }
+              : message,
+          ),
+        );
+        return;
+      }
       const errorText = err instanceof Error ? err.message : "Agent 请求失败";
       setMessages((current) =>
         current.map((message) =>
@@ -194,7 +267,37 @@ function ChatPage() {
       );
     } finally {
       setIsAsking(false);
+      activeControllerRef.current = null;
+      activeAssistantIdRef.current = "";
     }
+  }
+
+  async function handleStop() {
+    const runId = activeRunIdRef.current;
+    activeControllerRef.current?.abort();
+    if (runId) {
+      try {
+        await cancelAgentRun(runId);
+      } catch {
+        // Local abort already stopped the UI; backend cancellation is best effort.
+      }
+    }
+    const assistantId = activeAssistantIdRef.current;
+    if (assistantId) {
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === assistantId
+            ? {
+                ...message,
+                content: message.content || "已停止生成。",
+                status: "cancelled",
+                phase: "已停止",
+              }
+            : message,
+        ),
+      );
+    }
+    setIsAsking(false);
   }
 
   async function handleConfirmRun(messageId: string) {
@@ -397,24 +500,49 @@ function ChatPage() {
               onConfirm={() => void handleConfirmRun(message.id)}
             />
           ))}
+          <div ref={bottomRef} />
         </div>
 
         <section className="composer">
+          {!stickToBottom && (
+            <button className="jump-latest" type="button" onClick={scrollToLatest}>
+              回到最新
+            </button>
+          )}
           <div className="composer-inner">
             <textarea
+              ref={composerRef}
               value={question}
-              onChange={(event) => setQuestion(event.target.value)}
+              onChange={(event) => {
+                setQuestion(event.target.value);
+                requestAnimationFrame(resizeComposer);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   void handleAsk();
                 }
+                if (event.key === "Escape" && question) {
+                  event.preventDefault();
+                  setQuestion("");
+                  requestAnimationFrame(resizeComposer);
+                }
+                if (event.key === "ArrowUp" && !question.trim()) {
+                  event.preventDefault();
+                  setQuestion(lastQuestionRef.current);
+                  requestAnimationFrame(resizeComposer);
+                }
               }}
               rows={2}
               placeholder="输入一个历史时间点或问题，例如：公元750年前后各地区发生了什么？"
             />
-            <button className="send-button" onClick={handleAsk} disabled={isAsking}>
-              {isAsking ? <Loader2 className="spin" size={19} /> : <ArrowUp size={19} />}
+            <button
+              className={`send-button ${isAsking ? "stop" : ""}`}
+              onClick={isAsking ? () => void handleStop() : handleAsk}
+              disabled={!isAsking && !question.trim()}
+              aria-label={isAsking ? "停止生成" : "发送"}
+            >
+              {isAsking ? <Square size={16} /> : <ArrowUp size={19} />}
             </button>
           </div>
         </section>
@@ -445,7 +573,7 @@ function MessageBubble({
           {message.status === "streaming" && (
             <div className="streaming-line">
               <Loader2 className="spin" size={15} />
-              <span>正在读取工具返回...</span>
+              <span>{message.phase || "正在生成..."}</span>
             </div>
           )}
           {message.status === "confirming" && (
@@ -454,8 +582,12 @@ function MessageBubble({
               <span>正在恢复执行...</span>
             </div>
           )}
-          <p>{message.content}</p>
-          {message.runId && <small className="run-id">run_id: {message.runId}</small>}
+          {message.status === "cancelled" && <div className="status-line">已停止生成</div>}
+          {message.content ? (
+            <MarkdownContent content={message.content} />
+          ) : (
+            message.status === "streaming" && <div className="typing-skeleton" />
+          )}
         </div>
 
         {message.confirmation && (
@@ -553,11 +685,14 @@ function MessageBubble({
 
         {steps.length > 0 && (
           <details className="tool-trace">
-            <summary>查看 Agent 执行过程</summary>
+            <summary>
+              <span>执行过程</span>
+              {message.runId && <small>{message.runId}</small>}
+            </summary>
             {steps.map((step, index) => (
               <div className="trace-line" key={`${step.event}-${index}`}>
                 <span>{step.event}</span>
-                <strong>{step.tool_name || step.status || step.run_id || "message"}</strong>
+                <strong>{step.tool_name || step.status || step.error_message || "message"}</strong>
               </div>
             ))}
           </details>
@@ -565,6 +700,151 @@ function MessageBubble({
       </div>
     </article>
   );
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  const lines = content.split(/\r?\n/);
+  const blocks: ReactNode[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim()) {
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith("```")) {
+      const code: string[] = [];
+      index += 1;
+      while (index < lines.length && !lines[index].startsWith("```")) {
+        code.push(lines[index]);
+        index += 1;
+      }
+      index += 1;
+      blocks.push(<pre key={`code-${index}`} className="markdown-code">{code.join("\n")}</pre>);
+      continue;
+    }
+
+    if (/^\|.+\|$/.test(line) && index + 1 < lines.length && /^\|[\s:-]+\|/.test(lines[index + 1])) {
+      const tableLines = [line];
+      index += 2;
+      while (index < lines.length && /^\|.+\|$/.test(lines[index])) {
+        tableLines.push(lines[index]);
+        index += 1;
+      }
+      const rows = tableLines.map((row) =>
+        row
+          .replace(/^\||\|$/g, "")
+          .split("|")
+          .map((cell) => cell.trim()),
+      );
+      const [head, ...body] = rows;
+      blocks.push(
+        <div className="markdown-table-wrap" key={`table-${index}`}>
+          <table>
+            <thead>
+              <tr>{head.map((cell, cellIndex) => <th key={cellIndex}>{renderInline(cell)}</th>)}</tr>
+            </thead>
+            <tbody>
+              {body.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((cell, cellIndex) => <td key={cellIndex}>{renderInline(cell)}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
+
+    if (/^#{1,3}\s+/.test(line)) {
+      const level = line.match(/^#+/)?.[0].length || 2;
+      const text = line.replace(/^#{1,3}\s+/, "");
+      blocks.push(
+        <h3 className={`markdown-heading level-${level}`} key={`heading-${index}`}>
+          {renderInline(text)}
+        </h3>,
+      );
+      index += 1;
+      continue;
+    }
+
+    if (/^>\s?/.test(line)) {
+      const quote: string[] = [];
+      while (index < lines.length && /^>\s?/.test(lines[index])) {
+        quote.push(lines[index].replace(/^>\s?/, ""));
+        index += 1;
+      }
+      blocks.push(<blockquote key={`quote-${index}`}>{renderInline(quote.join("\n"))}</blockquote>);
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^[-*]\s+/.test(lines[index])) {
+        items.push(lines[index].replace(/^[-*]\s+/, ""));
+        index += 1;
+      }
+      blocks.push(
+        <ul key={`ul-${index}`}>
+          {items.map((item, itemIndex) => <li key={itemIndex}>{renderInline(item)}</li>)}
+        </ul>,
+      );
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^\d+\.\s+/.test(lines[index])) {
+        items.push(lines[index].replace(/^\d+\.\s+/, ""));
+        index += 1;
+      }
+      blocks.push(
+        <ol key={`ol-${index}`}>
+          {items.map((item, itemIndex) => <li key={itemIndex}>{renderInline(item)}</li>)}
+        </ol>,
+      );
+      continue;
+    }
+
+    const paragraph = [line];
+    index += 1;
+    while (
+      index < lines.length &&
+      lines[index].trim() &&
+      !/^(```|#{1,3}\s+|>\s?|[-*]\s+|\d+\.\s+|\|.+\|$)/.test(lines[index])
+    ) {
+      paragraph.push(lines[index]);
+      index += 1;
+    }
+    blocks.push(<p key={`p-${index}`}>{renderInline(paragraph.join("\n"))}</p>);
+  }
+
+  return <div className="markdown-content">{blocks}</div>;
+}
+
+function renderInline(text: string): ReactNode[] {
+  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return <code key={index}>{part.slice(1, -1)}</code>;
+    }
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    return (
+      <Fragment key={index}>
+        {part.split("\n").map((line, lineIndex, arr) => (
+          <Fragment key={lineIndex}>
+            {line}
+            {lineIndex < arr.length - 1 && <br />}
+          </Fragment>
+        ))}
+      </Fragment>
+    );
+  });
 }
 
 function EventDetailPage() {
@@ -712,4 +992,17 @@ function buildCompareSummary(rows: CompareRow[], startYear: number, endYear: num
     return `${startYear}-${endYear} 年暂时没有检索到这些地区的样例事件。`;
   }
   return `${startYear}-${endYear} 年共检索到 ${total} 条事件，涉及 ${activeRegions.join("、")}。你可以点击下方事件卡片查看详细档案。`;
+}
+
+function describeStreamEvent(event: AgentStreamEvent) {
+  if (event.event === "run_started") return "正在建立研究任务...";
+  if (event.event === "step_started") return `准备调用 ${event.tool_name || "工具"}...`;
+  if (event.event === "tool_called") return `正在查询 ${event.tool_name || "历史资料"}...`;
+  if (event.event === "tool_result") return `${event.tool_name || "工具"} 已返回，正在整理证据...`;
+  if (event.event === "answer_delta") return "正在生成回答...";
+  if (event.event === "final_answer") return "回答完成";
+  if (event.event === "confirmation_required") return "等待人工确认";
+  if (event.event === "run_failed") return "运行失败";
+  if (event.event === "run_cancelled") return "已停止";
+  return "正在推进任务...";
 }

@@ -206,6 +206,7 @@ class AgentLoop:
                         structured["links"],
                         self._observability_links(trace_context),
                     )
+                    yield from _answer_delta_events(answer, run_id)
                     yield {
                         "event": "final_answer",
                         "run_id": run_id,
@@ -569,3 +570,15 @@ class AgentLoop:
                 )
             )
         return steps
+
+
+def _answer_delta_events(answer: str, run_id: str | None) -> Iterator[dict[str, Any]]:
+    if not answer:
+        return
+    chunk_size = 36
+    for index in range(0, len(answer), chunk_size):
+        yield {
+            "event": "answer_delta",
+            "run_id": run_id,
+            "delta": answer[index : index + chunk_size],
+        }
